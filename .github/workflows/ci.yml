@@ -1,0 +1,64 @@
+name: Template CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: template-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-suffix: unit
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run ty check
+      - run: uv run --no-project python .template/update_manifest.py
+      - run: git diff --exit-code .template/manifest.json
+      - run: uv run pytest
+  presets:
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [library, app, bare]
+        python: ["3.12", "3.14"]
+        include:
+          - kind: bare
+            python: "3.12"
+            no-ci: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          cache-suffix: preset-${{ matrix.kind }}-${{ matrix.python }}
+      - run: uv sync --locked
+      - run: uv run python .template/smoke.py ${{ matrix.kind }} --python ${{ matrix.python }} ${{ matrix.no-ci && '--no-ci' || '' }}
+  release-lockfile:
+    runs-on: ubuntu-latest
+    env:
+      UV_NO_CACHE: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Install template-only release updater test dependency
+        run: npm install --prefix "$RUNNER_TEMP/release-updater" release-please@17.6.0 --no-audit --no-fund
+      - name: Verify release updates remain uv-lock compatible
+        run: |
+          export NODE_PATH="$RUNNER_TEMP/release-updater/node_modules"
+          for kind in library app bare; do
+            project="$RUNNER_TEMP/release-$kind"
+            uv run --no-project --python 3.12 python configure.py --kind "$kind" --name sample-project --output "$project"
+            node .template/check_release.cjs "$project"
+            uv lock --check --project "$project"
+          done

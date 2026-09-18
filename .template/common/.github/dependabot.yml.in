@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    commit-message:
+      prefix: chore
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: uv
+    commit-message:
+      prefix: chore
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      development:
+        dependency-type: development

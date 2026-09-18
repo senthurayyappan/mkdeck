@@ -1,0 +1,37 @@
+.DEFAULT_GOAL := help
+.PHONY: help install check lint format typecheck test docs docs-test docs-deploy build
+
+help: ## Show available commands
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+install: ## Install development tools and Git hooks
+	uv sync
+	uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
+
+check: ## Run pre-commit and static checks
+	uv run pre-commit run --all-files
+
+lint: ## Check lint and formatting without changing files
+	uv run ruff check .
+	uv run ruff format --check .
+
+format: ## Apply safe lint fixes and format
+	uv run ruff check --fix .
+	uv run ruff format .
+
+typecheck: ## Check types with ty
+	uv run ty check
+
+test: ## Run the test suite
+	{{test_command}}
+
+docs: ## Serve documentation locally
+	uv run --group docs mkdocs serve
+
+docs-test: ## Build documentation and fail on warnings
+	uv run --group docs mkdocs build --strict
+
+docs-deploy: ## Publish documentation to the gh-pages branch
+	uv run --group docs mkdocs gh-deploy
+
+{{build_target}}

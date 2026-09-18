@@ -1,0 +1,36 @@
+default_stages: [pre-commit]
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  # Use the tool versions from uv.lock for local checks and CI.
+  - repo: local
+    hooks:
+      - id: ruff
+        name: Ruff lint
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi, jupyter]
+      - id: ruff-format
+        name: Ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi, jupyter]
+      - id: ty
+        name: ty type check
+        entry: uv run ty check
+        language: system
+        pass_filenames: false
+        always_run: true
+{{deptry_hook}}
+      - id: conventional-commit
+        name: Conventional Commit message
+        entry: uv run python .github/scripts/check_commit_message.py
+        language: system
+        stages: [commit-msg]

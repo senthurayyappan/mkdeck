@@ -1,0 +1,7 @@
+"""Replace this environment check with tests for your experiments."""
+
+import sys
+
+
+def test_supported_python() -> None:
+    assert sys.version_info >= ({{python_tuple}})

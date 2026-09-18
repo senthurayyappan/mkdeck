@@ -1,0 +1,29 @@
+from typer.testing import CliRunner
+
+from {{module}}.cli import app
+
+runner = CliRunner()
+
+
+def test_hello_default() -> None:
+    result = runner.invoke(app, ["hello"])
+    assert result.exit_code == 0
+    assert "Hello, world!" in result.output
+
+
+def test_hello_trims_name() -> None:
+    result = runner.invoke(app, ["hello", " Ada "])
+    assert result.exit_code == 0
+    assert "Hello, Ada!" in result.output
+
+
+def test_blank_name_is_a_usage_error() -> None:
+    result = runner.invoke(app, ["hello", " "])
+    assert result.exit_code == 2
+    assert "name must not be blank" in result.output
+
+
+def test_help() -> None:
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "hello" in result.output

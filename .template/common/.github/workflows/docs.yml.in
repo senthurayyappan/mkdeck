@@ -1,0 +1,27 @@
+name: Docs
+on:
+{{push_trigger}}  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: docs
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: vars.DEPLOY_DOCS == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group docs
+      - name: Deploy documentation
+        env:
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: uv run --group docs mkdocs gh-deploy --strict
