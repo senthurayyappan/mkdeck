@@ -436,6 +436,7 @@ source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
     { name = "markdown-it-py" },
+    { name = "markupsafe" },
     { name = "mdit-py-plugins" },
     { name = "pyyaml" },
     { name = "typer" },
@@ -467,6 +468,7 @@ docs = [
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1" },
     { name = "markdown-it-py", specifier = ">=3" },
+    { name = "markupsafe", specifier = ">=3" },
     { name = "mdit-py-plugins", specifier = ">=0.4" },
     { name = "playwright", marker = "extra == 'check'", specifier = ">=1.48" },
     { name = "pyyaml", specifier = ">=6" },
