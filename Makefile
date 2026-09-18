@@ -5,7 +5,7 @@ help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install development tools and Git hooks
-	uv sync
+	uv sync --all-extras
 	uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
 
 check: ## Run pre-commit and static checks
