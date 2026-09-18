@@ -91,3 +91,22 @@ def test_a_python_deck_builds_through_its_own_method(tmp_path):
     index = deck.build(tmp_path / "site")
     assert index.is_file()
     assert '<deck-embed src="assets/g1.html">' in index.read_text()
+
+
+def test_the_stylesheets_and_scripts_a_deck_adds_are_copied(deck_folder, tmp_path):
+    (deck_folder / "theme").mkdir()
+    (deck_folder / "theme" / "mine.css").write_text(":root { --mkd-accent: #b4532a; }")
+    (deck_folder / "theme" / "marks.js").write_text('console.log("marks");')
+    (deck_folder / "deck.yml").write_text("extra_css: [theme/mine.css]\nextra_js: [theme/marks.js]\n")
+
+    index = build_source(deck_folder, tmp_path / "site")
+
+    assert 'href="theme/mine.css"' in index.read_text()
+    assert (tmp_path / "site" / "theme" / "mine.css").is_file()
+    assert (tmp_path / "site" / "theme" / "marks.js").is_file()
+
+
+def test_a_stylesheet_that_is_not_there_is_called_out(deck_folder, tmp_path, capsys):
+    (deck_folder / "deck.yml").write_text("extra_css: [theme/nope.css]\n")
+    build_source(deck_folder, tmp_path / "site")
+    assert "theme/nope.css" in capsys.readouterr().err

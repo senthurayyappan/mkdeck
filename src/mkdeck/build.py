@@ -128,11 +128,34 @@ def _copy_vendor_assets(out: Path, *, theme: str) -> None:
         _warn(f"theme {theme!r} has no stylesheet in {ASSET_ROOT / 'themes'}; the deck will render unstyled.")
 
 
+def _copy_file(rel: str, out: Path, *, source: Path, what: str) -> None:
+    """Copy one file the document names, keeping its path relative to the deck.
+
+    Args:
+        rel: The path the document holds, relative to the deck source folder.
+        out: The output folder.
+        source: The deck source folder.
+        what: What the file is, used in the warning when it is missing.
+    """
+    if rel.startswith(REMOTE_PREFIXES):
+        return
+    origin = source / rel
+    if not origin.is_file():
+        _warn(f"{what} not found, so it was not copied: {rel}")
+        return
+    destination = out / rel
+    if destination.exists():
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(origin, destination)
+
+
 def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
     """Copy the deck's own assets into the output folder.
 
-    The whole ``assets/`` tree is copied when there is one, and any embed that
-    lives outside it is copied on its own, keeping its relative path.
+    The whole ``assets/`` tree is copied when there is one. Every embed and
+    every stylesheet or script the deck adds is copied on its own, keeping its
+    path relative to the deck, because the document refers to it that way.
 
     Args:
         deck: The deck being built.
@@ -142,6 +165,8 @@ def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
     tree = source / ASSETS_DIRNAME
     if tree.is_dir() and tree.resolve() != (out / ASSETS_DIRNAME).resolve():
         shutil.copytree(tree, out / ASSETS_DIRNAME, dirs_exist_ok=True)
+    for rel in (*deck.extra_css, *deck.extra_js):
+        _copy_file(rel, out, source=source, what="stylesheet or script")
     for slide in deck.slides:
         for embed in slide.embeds:
             if embed.src.startswith(REMOTE_PREFIXES):
