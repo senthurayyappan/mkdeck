@@ -1,0 +1,80 @@
+{#- mkdeck deck template.
+
+Variables:
+  title      str          the deck title, for <title> and the browser tab
+  date       str | None   the deck date; the chrome shows it until a slide restamps it
+  theme      str          a file name under assets/themes/, without ".css"
+  slides     Markup       the rendered <section class="mkd-slide"> elements
+  assets     str          relative prefix of the vendored assets, e.g. "mkdeck-assets/"
+  extra_css  list[str]    extra stylesheet hrefs, relative, linked after mkdeck.css
+  extra_js   list[str]    extra script srcs, relative, loaded after mkdeck.js
+  reveal     dict         merged over mkdeck's own Reveal.initialize options
+
+Every path is relative, so a built deck opens from a file:// URL and from any
+subdirectory of a site.
+-#}
+{#- Optional variables fall back, so a deck still renders if one is left out. -#}
+{%- set theme = theme | default("minimal", true) -%}
+{%- set prefix = assets | default("", true) -%}
+{%- set base = prefix if not prefix or prefix.endswith("/") else prefix ~ "/" -%}
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="mkdeck">
+<title>{{ title }}</title>
+<link rel="stylesheet" href="{{ base }}roboto/roboto.css">
+<link rel="stylesheet" href="{{ base }}reveal.js/dist/reset.css">
+<link rel="stylesheet" href="{{ base }}reveal.js/dist/reveal.css">
+<link rel="stylesheet" href="{{ base }}katex/dist/katex.min.css">
+<link rel="stylesheet" href="{{ base }}themes/{{ theme }}.css">
+<link rel="stylesheet" href="{{ base }}mkdeck.css">
+{%- for href in extra_css | default([], true) %}
+<link rel="stylesheet" href="{{ href }}">
+{%- endfor %}
+</head>
+<body>
+<div class="reveal"{% if date %} data-deck-date="{{ date }}"{% endif %}>
+  <div class="slides">
+{{ slides }}
+  </div>
+  <div class="mkd-chrome mkd-chrome-left"></div>
+  <div class="mkd-chrome mkd-chrome-right"></div>
+</div>
+<script src="{{ base }}reveal.js/dist/reveal.js"></script>
+<script src="{{ base }}reveal.js/dist/plugin/notes.js"></script>
+<script src="{{ base }}reveal.js/dist/plugin/zoom.js"></script>
+<script src="{{ base }}katex/dist/katex.min.js"></script>
+<script src="{{ base }}mkdeck.js"></script>
+{%- for src in extra_js | default([], true) %}
+<script src="{{ src }}"></script>
+{%- endfor %}
+<script>
+(function () {
+  "use strict";
+  // Scaling off: percentage dimensions with minScale = maxScale = 1 means reveal
+  // never puts a transform above the slides. A transform over a WebGL iframe
+  // softens what it draws and offsets the pointer coordinates it receives.
+  var config = {
+    width: "100%",
+    height: "100%",
+    margin: 0,
+    minScale: 1,
+    maxScale: 1,
+    hash: true,
+    controls: false,
+    progress: false,
+    slideNumber: false,
+    transition: "none"
+  };
+  var overrides = {{ reveal | default({}, true) | tojson }};
+  Object.keys(overrides).forEach(function (key) { config[key] = overrides[key]; });
+  config.plugins = [];
+  if (window.RevealNotes) { config.plugins.push(window.RevealNotes); }
+  if (window.RevealZoom) { config.plugins.push(window.RevealZoom); }
+  Reveal.initialize(config);
+})();
+</script>
+</body>
+</html>

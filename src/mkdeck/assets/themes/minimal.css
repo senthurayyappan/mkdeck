@@ -1,0 +1,183 @@
+/*! mkdeck — minimal theme.
+ *
+ * The default look: a white page, near-black headings, one grey sentence and
+ * black numbers. Colours, faces and sizes only; the boxes they sit in come
+ * from mkdeck.css.
+ *
+ * Every colour is a custom property, so a second theme (themes/dark.css) can
+ * import this file and redefine the tokens alone.
+ */
+
+:root {
+  --mkd-ink: #1a1a1a;
+  --mkd-grey: #808080;
+  --mkd-line: #e2e2e2;
+  --mkd-dash: #c4c4c4;
+  --mkd-surface: #ffffff;
+  --mkd-accent: #1a1a1a;
+  --mkd-font: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Secondary tokens, so the dark theme has one place to redefine them. */
+  --mkd-num: #111111; /* a number inside grey prose */
+  --mkd-math: #222222; /* KaTeX output inside grey prose */
+  --mkd-head: #fafafa; /* table header fill */
+  --mkd-chrome: #9e9e9e; /* the slide counter */
+}
+
+html,
+body,
+.reveal-viewport {
+  background: var(--mkd-surface);
+  color: var(--mkd-ink);
+  font-family: var(--mkd-font);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+.reveal a {
+  color: var(--mkd-accent);
+}
+
+/* --- text ---------------------------------------------------------------- */
+
+.mkd-sentence {
+  font-weight: 300;
+  font-size: clamp(15px, 1.3vw, 19px);
+  line-height: 1.5;
+  color: var(--mkd-grey);
+}
+
+.mkd-bullets {
+  font-weight: 300;
+  font-size: clamp(14px, 1.15vw, 17px);
+  line-height: 1.45;
+  color: var(--mkd-grey);
+}
+
+.mkd-num {
+  color: var(--mkd-num);
+  font-weight: 400;
+}
+
+/* A number inside a bullet keeps the list's own grey. This reproduces the deck this theme
+   is modelled on, whose selectors were `.sentence .num` and `td .num`, so bullets were
+   never covered. That reads like an oversight there rather than a decision, but the port
+   is judged on matching it. Delete this rule to darken bullet numbers everywhere. */
+.mkd-bullets .mkd-num {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.mkd-title {
+  font-weight: 500;
+  font-size: clamp(32px, 4.4vw, 58px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--mkd-ink);
+}
+
+.mkd-date {
+  font-weight: 300;
+  font-size: clamp(14px, 1.3vw, 18px);
+  color: var(--mkd-grey);
+}
+
+/* --- math ---------------------------------------------------------------- */
+
+.mkd-math .katex {
+  font-size: 1.15em;
+  color: var(--mkd-math);
+}
+
+/* A display formula is sized off the sentence, not off whatever encloses it,
+   so it looks the same whether the renderer puts it inside the sentence or
+   above it. */
+.mkd-math-block {
+  font-size: clamp(15px, 1.3vw, 19px);
+  line-height: 1.5;
+}
+
+.mkd-math-block .katex {
+  font-size: 1.25em;
+}
+
+.mkd-slide.dense .mkd-math-block .katex {
+  font-size: 1.12em;
+}
+
+/* --- figures ------------------------------------------------------------- */
+
+.mkd-label {
+  font-family: var(--mkd-font);
+  font-size: clamp(13px, 1.05vw, 16px);
+  font-weight: 400;
+  color: var(--mkd-grey);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+deck-embed > iframe,
+.mkd-image {
+  border: 1px solid var(--mkd-line);
+  background: var(--mkd-surface);
+}
+
+/* An embed with no source yet: the dashed box that says the figure is coming. */
+deck-embed:not([src]),
+deck-embed[src=""] {
+  border: 1px dashed var(--mkd-dash);
+}
+
+/* --- tables -------------------------------------------------------------- */
+
+.mkd-table {
+  font-size: clamp(13px, 1.05vw, 16px);
+  color: var(--mkd-ink);
+}
+
+.mkd-table th,
+.mkd-table td {
+  border: 1px solid var(--mkd-line);
+  padding: 9px 18px;
+  text-align: center;
+  font-weight: 400;
+}
+
+.mkd-table th {
+  font-weight: 500;
+  background: var(--mkd-head);
+}
+
+/* A header is already emphasised; a number in it keeps the header's weight
+   rather than dropping to the lighter weight it gets inside prose. */
+.mkd-table th .mkd-num {
+  font-weight: inherit;
+}
+
+.mkd-slide.dense .mkd-table {
+  font-size: clamp(12px, 0.95vw, 15px);
+}
+
+.mkd-slide.dense .mkd-table th,
+.mkd-slide.dense .mkd-table td {
+  padding: 5px 12px;
+}
+
+/* --- chrome -------------------------------------------------------------- */
+
+.mkd-chrome {
+  font-family: var(--mkd-font);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--mkd-chrome);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.mkd-chrome-left {
+  color: var(--mkd-grey);
+}
+
+.mkd-chrome-right {
+  font-variant-numeric: tabular-nums;
+}

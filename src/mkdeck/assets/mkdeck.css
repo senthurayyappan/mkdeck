@@ -1,0 +1,304 @@
+/*! mkdeck — structure.
+ *
+ * Layout only: boxes, sizes, spacing and the handful of reveal.js rules a deck
+ * has to override. Everything that is a colour, a face or a size in points
+ * lives in a theme (themes/minimal.css), so replacing the theme alone still
+ * leaves a deck that lays out correctly.
+ *
+ * Load order matters: reset.css, reveal.css, katex.min.css, the theme, then
+ * this file.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* --------------------------------------------------------------------------
+ * reveal.js overrides
+ *
+ * The deck runs with reveal's canvas scaling switched off:
+ *   width: "100%", height: "100%", margin: 0, minScale: 1, maxScale: 1
+ * so reveal never puts a CSS transform above the slides. That keeps an
+ * embedded WebGL page sharp and keeps its pointer coordinates aligned. Slides
+ * are therefore plain full-viewport boxes and the deck reflows like a web page
+ * instead of being scaled like an image.
+ * ------------------------------------------------------------------------ */
+
+.reveal-viewport {
+  height: 100%;
+  overflow: hidden;
+}
+
+.reveal {
+  width: 100%;
+  height: 100%;
+  /* reveal sets line-height: 1 on the viewport; a deck is prose, not a canvas. */
+  line-height: normal;
+}
+
+.reveal .slides {
+  text-align: inherit;
+}
+
+/* Each slide fills the viewport and centres its own body, so reveal's vertical
+ * centring offset (an inline `top` it computes from scrollHeight) is both
+ * unnecessary and wrong for a slide it has not measured yet. */
+.reveal .slides > section.mkd-slide {
+  top: 0 !important;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Speaker notes never draw on the slide. reveal.css hides them already; this
+ * repeats it so the rule survives a deck built without reveal.css. */
+.mkd-slide aside.notes {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+ * The slide
+ * ------------------------------------------------------------------------ */
+
+/* `section` on purpose: reveal copies a slide's classes onto the matching
+ * `div.slide-background` it creates, and those clones must stay empty boxes. */
+section.mkd-slide {
+  padding: 48px 64px;
+  text-align: center;
+}
+
+.mkd-slide > .mkd-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * Text
+ * ------------------------------------------------------------------------ */
+
+.mkd-sentence {
+  margin: 0;
+  max-width: min(110ch, 92vw);
+}
+
+/* The same 6px whether the renderer stacks the display formulas above the
+   sentence or inside it. */
+.mkd-sentence + .mkd-sentence,
+.mkd-math-block + .mkd-sentence {
+  margin-top: 6px;
+}
+
+.mkd-bullets {
+  margin: 12px 0 0;
+  padding: 0 0 0 1.1em;
+  text-align: left;
+  max-width: min(110ch, 92vw);
+}
+
+.mkd-bullets li {
+  margin: 0 0 5px;
+}
+
+.mkd-bullets li:last-child {
+  margin-bottom: 0;
+}
+
+.mkd-title {
+  margin: 0;
+  max-width: 20ch;
+}
+
+.mkd-date {
+  margin: 20px 0 0;
+}
+
+/* --------------------------------------------------------------------------
+ * Math
+ *
+ * KaTeX renders in inline mode even for a display formula, so a long line
+ * shrinks with the text instead of running off the slide. `overflow: visible`
+ * is deliberate: `overflow-x: auto` also turns vertical scrolling on, which
+ * puts a scrollbar under every formula.
+ * ------------------------------------------------------------------------ */
+
+.mkd-math {
+  display: inline-block;
+  vertical-align: baseline;
+  margin-right: 2px;
+}
+
+.mkd-math-block {
+  display: block;
+  margin: 0 0 8px;
+  padding: 2px 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.mkd-math-block + .mkd-math-block {
+  margin-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Figures
+ * ------------------------------------------------------------------------ */
+
+.mkd-figures {
+  display: flex;
+  gap: 28px;
+  width: 100%;
+  margin-top: 20px;
+  min-width: 0;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.mkd-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.mkd-figures[data-count="1"] .mkd-figure {
+  width: min(1180px, 100%);
+}
+
+.mkd-figures[data-count="2"] .mkd-figure {
+  flex: 1 1 0;
+  max-width: 50%;
+}
+
+.mkd-label {
+  margin-bottom: 8px;
+}
+
+/* The embed host. `deck-embed` is an unknown element to the parser, so it has
+ * to be told it is a block. */
+deck-embed,
+.mkd-image {
+  display: block;
+  width: 100%;
+}
+
+/* The figure height comes from data-count. This is the fallback for a row that
+ * somehow has none, so the figure is small rather than invisible. */
+.mkd-figures deck-embed,
+.mkd-figures .mkd-image {
+  height: 56vh;
+}
+
+.mkd-figures[data-count="1"] deck-embed,
+.mkd-figures[data-count="1"] .mkd-image {
+  height: 70vh;
+}
+
+.mkd-figures[data-count="2"] deck-embed,
+.mkd-figures[data-count="2"] .mkd-image {
+  height: 56vh;
+}
+
+/* A slide that also carries bullets or a stack of formulas gives the text more
+ * room and the figure less. The class is set by mkdeck.js. */
+.mkd-slide.dense .mkd-figures[data-count="1"] deck-embed,
+.mkd-slide.dense .mkd-figures[data-count="1"] .mkd-image {
+  height: 48vh;
+}
+
+.mkd-slide.dense .mkd-figures[data-count="2"] deck-embed,
+.mkd-slide.dense .mkd-figures[data-count="2"] .mkd-image {
+  height: 42vh;
+}
+
+deck-embed > iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mkd-image {
+  object-fit: contain;
+}
+
+/* --------------------------------------------------------------------------
+ * Diagrams
+ *
+ * Mermaid writes an svg with width 100% and its natural width as a max-width,
+ * so the host has to be given a width for the diagram to reach its own size.
+ * ------------------------------------------------------------------------ */
+
+deck-mermaid {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+}
+
+deck-mermaid svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* --------------------------------------------------------------------------
+ * Tables
+ *
+ * Same trap as the formulas: `overflow-x: auto` would add a vertical scrollbar
+ * as well, so a wide table wraps its cells instead of scrolling.
+ * ------------------------------------------------------------------------ */
+
+.mkd-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 20px;
+  overflow: visible;
+}
+
+.mkd-table {
+  border-collapse: collapse;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+.mkd-table th,
+.mkd-table td {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* --------------------------------------------------------------------------
+ * Chrome
+ *
+ * Outside `.slides`, so reveal leaves it alone; above the slides, because the
+ * slide reveal is showing sits on z-index 11.
+ * ------------------------------------------------------------------------ */
+
+.mkd-chrome {
+  position: absolute;
+  bottom: 20px;
+  z-index: 20;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mkd-chrome-left {
+  left: 28px;
+}
+
+.mkd-chrome-right {
+  right: 28px;
+}

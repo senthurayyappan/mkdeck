@@ -1,0 +1,22 @@
+/*! mkdeck — dark theme.
+ *
+ * The minimal theme with the tokens redefined. Nothing else changes: same
+ * boxes, same faces, same sizes, so a slide that fits in one theme fits in the
+ * other.
+ */
+
+@import url("minimal.css");
+
+:root {
+  --mkd-ink: #ececec;
+  --mkd-grey: #9a9a9a;
+  --mkd-line: #333333;
+  --mkd-dash: #4a4a4a;
+  --mkd-surface: #131313;
+  --mkd-accent: #ececec;
+
+  --mkd-num: #ffffff;
+  --mkd-math: #e4e4e4;
+  --mkd-head: #1c1c1c;
+  --mkd-chrome: #6f6f6f;
+}
