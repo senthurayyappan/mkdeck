@@ -28,7 +28,13 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-{{deptry_hook}}
+      - id: deptry
+        name: Dependency checks
+        entry: uv run deptry src
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: conventional-commit
         name: Conventional Commit message
         entry: uv run python .github/scripts/check_commit_message.py

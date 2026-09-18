@@ -1,64 +1,51 @@
-name: Template CI
+name: CI
 on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: template-ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  unit:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
-          cache-suffix: unit
       - run: uv sync --locked
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run ty check
-      - run: uv run --no-project python .template/update_manifest.py
-      - run: git diff --exit-code .template/manifest.json
-      - run: uv run pytest
-  presets:
+      - name: Check PR title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: uv run python .github/scripts/check_commit_message.py
+      - run: uv run pre-commit run --all-files
+      - run: uv run --group docs mkdocs build --strict
+      - run: uv build --no-sources
+
+  tests:
+    name: Python ${{ matrix.python }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        kind: [library, app, bare]
-        python: ["3.12", "3.14"]
+        python: ["3.13", "3.14"]
+        os: [ubuntu-latest]
         include:
-          - kind: bare
-            python: "3.12"
-            no-ci: true
-    runs-on: ubuntu-latest
+          - python: "3.13"
+            os: windows-latest
+          - python: "3.13"
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          python-version: ${{ matrix.python }}
           enable-cache: true
-          cache-suffix: preset-${{ matrix.kind }}-${{ matrix.python }}
       - run: uv sync --locked
-      - run: uv run python .template/smoke.py ${{ matrix.kind }} --python ${{ matrix.python }} ${{ matrix.no-ci && '--no-ci' || '' }}
-  release-lockfile:
-    runs-on: ubuntu-latest
-    env:
-      UV_NO_CACHE: true
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      - name: Install template-only release updater test dependency
-        run: npm install --prefix "$RUNNER_TEMP/release-updater" release-please@17.6.0 --no-audit --no-fund
-      - name: Verify release updates remain uv-lock compatible
-        run: |
-          export NODE_PATH="$RUNNER_TEMP/release-updater/node_modules"
-          for kind in library app bare; do
-            project="$RUNNER_TEMP/release-$kind"
-            uv run --no-project --python 3.12 python configure.py --kind "$kind" --name sample-project --output "$project"
-            node .template/check_release.cjs "$project"
-            uv lock --check --project "$project"
-          done
+      - run: uv run pytest --cov --cov-report=term-missing --cov-report=xml

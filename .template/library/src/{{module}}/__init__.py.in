@@ -1,5 +1,0 @@
-"""{{name}} public API."""
-
-from {{module}}.core import greet
-
-__all__ = ["greet"]

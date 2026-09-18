@@ -23,7 +23,7 @@ typecheck: ## Check types with ty
 	uv run ty check
 
 test: ## Run the test suite
-	{{test_command}}
+	uv run pytest --cov --cov-report=term-missing --cov-report=xml
 
 docs: ## Serve documentation locally
 	uv run --group docs mkdocs serve
@@ -34,4 +34,5 @@ docs-test: ## Build documentation and fail on warnings
 docs-deploy: ## Publish documentation to the gh-pages branch
 	uv run --group docs mkdocs gh-deploy
 
-{{build_target}}
+build: ## Build a wheel and source distribution
+	uv build --no-sources

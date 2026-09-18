@@ -2,7 +2,7 @@
 
 ```bash
 uv sync
-{{usage}}
+uv run mkdeck hello Ada
 ```
 
 ## Development
@@ -10,7 +10,7 @@ uv sync
 ```bash
 uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
 uv run pre-commit run --all-files
-{{test_command}}
+uv run pytest --cov --cov-report=term-missing --cov-report=xml
 uv run --group docs mkdocs serve
 ```
 
