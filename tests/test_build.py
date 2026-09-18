@@ -110,3 +110,9 @@ def test_a_stylesheet_that_is_not_there_is_called_out(deck_folder, tmp_path, cap
     (deck_folder / "deck.yml").write_text("extra_css: [theme/nope.css]\n")
     build_source(deck_folder, tmp_path / "site")
     assert "theme/nope.css" in capsys.readouterr().err
+
+
+def test_a_python_deck_cannot_repeat_a_slide_id(tmp_path):
+    deck = Deck(title="Runs", slides=[Slide(id="g3", sentence="One."), Slide(id="g3", sentence="Two.")])
+    with pytest.raises(DeckError, match="repeats the id"):
+        deck.build(tmp_path / "site")

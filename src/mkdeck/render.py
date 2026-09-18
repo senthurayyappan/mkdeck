@@ -30,6 +30,7 @@ from mkdeck.model import (
     Table,
     resolve_embed_kind,
     resolve_layout,
+    validate_deck,
     validate_slide,
 )
 
@@ -403,6 +404,9 @@ def render_deck(
         DeckError: If a slide breaks a rule of the model, or the template is
             missing from the installation.
     """
+    # Both the Markdown parser and a deck built in Python arrive here, so the whole-deck
+    # rules are checked in this one place. The parser checks them again, which costs nothing.
+    validate_deck(deck)
     units = tuple(config.units) if config is not None and config.units else DEFAULT_UNITS
     base = asset_base.strip("/")
     slides = render_slides(deck, units=units)
