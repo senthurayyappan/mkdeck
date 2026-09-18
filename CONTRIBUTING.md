@@ -17,10 +17,10 @@ and the Python versions in CI.
 
 ## Workflows
 
-CI runs on pushes to main and on pull requests.
-
-To enable automatic runs later, add a `push` trigger for `main` to the workflow
-files in `.github/workflows/`. Add `pull_request` to `ci.yml` to check pull requests.
+CI runs on pushes to `main` and on pull requests. It runs the checks and the
+docs build once, then the test suite on Python 3.13 and 3.14. Linux only: a
+deck is HTML, and nothing in mkdeck touches a platform API, so the Windows and
+macOS runners would cost minutes without testing anything new.
 
 ## Publish the docs
 
@@ -46,8 +46,6 @@ Release Please opens a pull request with the new version and changelog.
 It updates the version in both `pyproject.toml` and `uv.lock`. After that pull
 request is merged, its next run creates the GitHub release and version tag.
 
-
-
 In Settings → Actions → General, enable **Allow GitHub Actions to create and approve
 pull requests**. With automatic CI enabled, add a
 `RELEASE_PLEASE_TOKEN` secret to run checks on release pull requests. Use a
@@ -58,4 +56,5 @@ Without that secret, Release Please uses `GITHUB_TOKEN`. GitHub does not start
 CI for pull requests created with that token. Run **CI** on the release branch
 before merging those pull requests.
 
-This preset creates GitHub releases only. It does not publish to PyPI.
+Release Please creates the GitHub release and tag. Publishing to PyPI is a
+separate step and is not wired up yet.

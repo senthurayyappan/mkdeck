@@ -3,33 +3,24 @@
 [![CI](https://github.com/senthurayyappan/mkdeck/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/senthurayyappan/mkdeck/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-MkDocs-blue)](docs/index.md)
 [![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?logo=python&logoColor=white)](.python-version)
-[![uv](https://img.shields.io/badge/uv-managed-DE5FE9?logo=uv)](https://docs.astral.sh/uv/)
-[![Ruff](https://img.shields.io/badge/lint-Ruff-D7FF64?logo=ruff)](https://docs.astral.sh/ruff/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Minimal HTML slide decks from Markdown or Python, served like mkdocs.
 
-Write the slides in Markdown. Serve them on a local port. Embed live web pages,
-images, math and diagrams. You need Python only. mkdeck carries reveal.js,
-KaTeX and Roboto inside the wheel, so there is no Node, no npm and no build step.
-
-## Use it
+Write your slides in a Markdown file, run one command, and the deck opens in
+your browser. Save the file and the page reloads. reveal.js, KaTeX and the
+fonts all travel inside the package, so there is no Node toolchain to set up
+and nothing to fetch from a CDN while you present.
 
 ```bash
 uv add mkdeck
-uv run mkdeck new talk     # write deck.md, deck.yml and assets/
-uv run mkdeck serve talk   # open http://127.0.0.1:5020
+uv run mkdeck new talk     # writes deck.md, deck.yml and assets/
+uv run mkdeck serve talk   # http://127.0.0.1:5020
 ```
 
-| Command | Purpose |
-| --- | --- |
-| `mkdeck new FOLDER` | Create a deck folder |
-| `mkdeck serve PATH` | Serve the deck and reload it when the source changes |
-| `mkdeck build PATH` | Write the deck to a folder, or to one HTML file |
-| `mkdeck check PATH` | Report the slides that overflow the screen |
-| `mkdeck export PATH` | Print the deck to a PDF |
+## What a slide looks like
 
-A slide is one block of Markdown between `---` separators:
+Slides are separated by `---`. Say one thing per slide, then show the evidence:
 
 ```markdown
 ---
@@ -42,32 +33,54 @@ Five of five seeds cross the wall at 22 N m.
 ![Run 3](assets/run3.html)
 ```
 
-You can also build the same deck from Python, which suits decks that report
-measured results:
+Point a slide at an HTML file and mkdeck frames it. That is how a Brax viewer,
+a Plotly chart or any other interactive page ends up running inside a slide,
+next to the sentence that explains it. Point it at a PNG or a GIF instead and
+you get a picture. Numbers such as `22 N m` come out in a darker ink, because
+that is what people look for first.
+
+Math is KaTeX, rendered when the deck is built. Diagrams are Mermaid. Tables
+are ordinary Markdown pipes.
+
+## Or build it from Python
+
+Handy when the slides report numbers you already compute, since nobody has to
+retype a value that changed:
 
 ```python
-from mkdeck import Deck, Slide, Embed
+from mkdeck import Deck, Embed, Slide
 
 deck = Deck(title="Vault runs", date="2026-09-18")
-deck.slides.append(Slide(sentence="Five seeds cross.", embeds=[Embed("assets/run3.html")]))
+for run in runs:
+    deck.slides.append(
+        Slide(
+            sentence=f"{run.crossings} of 5 seeds cross at {run.cap} N m.",
+            embeds=[Embed(f"assets/{run.name}.html", label=run.label)],
+        )
+    )
 deck.build("site/")
 ```
 
-## Learn more
+Markdown and Python produce the same slide objects and render through the same
+code, so the two ways of writing a deck stay in step.
 
-Read the [documentation](docs/index.md). It covers the Markdown format, the
-Python API, and how to add your own components to a deck.
+## Commands
 
-## Develop mkdeck
-
-| Command | Purpose |
+| Command | What it does |
 | --- | --- |
-| `make install` | Install the tools and the Git hooks |
-| `make check` | Lint, format and type checks |
-| `make test` | Run the tests with coverage |
-| `make docs` | Serve this documentation |
-| `make build` | Build a wheel and a source distribution |
+| `mkdeck new FOLDER` | Start a deck |
+| `mkdeck serve PATH` | Serve it, and reload when you save |
+| `mkdeck build PATH` | Write it to a folder, or to one HTML file |
+| `mkdeck check PATH` | Tell you which slides overflow the screen |
+| `mkdeck export PATH` | Print it to a PDF |
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Use [Conventional
-Commits](https://www.conventionalcommits.org/), such as `feat: add export`.
-Release Please reads them to prepare each release.
+## Documentation
+
+The [docs](docs/index.md) cover the Markdown format, the Python API, and how
+to bring your own colours, fonts and components to a deck. Run `make docs` to
+read them in a browser.
+
+## Contributing
+
+Bug reports and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the local checks and the release flow.
