@@ -29,19 +29,15 @@ jobs:
       - run: uv run --group docs mkdocs build --strict
       - run: uv build --no-sources
 
+  # Linux only. A deck is HTML, and nothing here touches a platform API, so the
+  # Windows and macOS runners cost minutes without testing anything new.
   tests:
-    name: Python ${{ matrix.python }} / ${{ matrix.os }}
+    name: Python ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
         python: ["3.13", "3.14"]
-        os: [ubuntu-latest]
-        include:
-          - python: "3.13"
-            os: windows-latest
-          - python: "3.13"
-            os: macos-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
