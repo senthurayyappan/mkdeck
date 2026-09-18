@@ -14,6 +14,8 @@ theme:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Writing slides: writing-slides.md
+  - Building from Python: python-api.md
   - Extending a deck: extending.md
   - API reference: api.md
 plugins:
