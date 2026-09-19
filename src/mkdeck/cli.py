@@ -191,17 +191,29 @@ def rollout(
 
     Each page keeps only its own poses; the meshes go into one shared file per
     model, so a deck that shows a robot on thirty slides carries it once.
+
+    A page that holds no Brax scene is skipped rather than fatal, because an
+    assets folder normally mixes playback pages with plots.
     """
     with _reporting():
         before = 0
         after = 0
+        skipped = 0
         for page in pages:
-            converted = convert_brax_html(page, out)
+            try:
+                converted = convert_brax_html(page, out)
+            except DeckError as exc:
+                if "holds no Brax scene" not in str(exc):
+                    raise
+                skipped += 1
+                typer.secho(f"{page.name} skipped; it is not a Brax playback page.", err=True, fg=typer.colors.YELLOW)
+                continue
             before += page.stat().st_size
             after += converted.rollout.stat().st_size
             if not converted.shared:
                 after += converted.meshes.stat().st_size
             shared = "shared meshes" if converted.shared else f"new meshes {converted.meshes.name}"
             typer.echo(f"{page.name} -> {converted.rollout.name} ({shared})")
-        if pages:
-            typer.echo(f"{before / 1_000_000:.1f} MB of pages became {after / 1_000_000:.1f} MB of rollouts.")
+        if skipped == len(pages):
+            raise DeckError("none of those pages hold a Brax scene, so there was nothing to convert.")
+        typer.echo(f"{before / 1_000_000:.1f} MB of pages became {after / 1_000_000:.1f} MB of rollouts.")
