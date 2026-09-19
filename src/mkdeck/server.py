@@ -107,6 +107,21 @@ class _DeckServer(ThreadingHTTPServer):
         self.hub = hub
         super().__init__(address, handler)
 
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        """Swallow the noise a browser makes when it walks away from a request.
+
+        A page that navigates, reloads, or drops an iframe mid-download leaves
+        the transfer half-finished, and the stock handler prints a traceback for
+        it. Anything else is still worth seeing.
+
+        Args:
+            request: The socket the request came in on.
+            client_address: The address it came from.
+        """
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
+
 
 class _DeckHandler(SimpleHTTPRequestHandler):
     """Serve the built deck, plus the reload event stream."""
@@ -118,7 +133,12 @@ class _DeckHandler(SimpleHTTPRequestHandler):
         if self.path.split("?", 1)[0] == RELOAD_PATH:
             self._stream_reloads()
             return
-        super().do_GET()
+        try:
+            super().do_GET()
+        except (BrokenPipeError, ConnectionResetError):
+            # The page gave up on the file part-way through; there is nobody
+            # left to send an error to, so just let the connection go.
+            self.close_connection = True
 
     def _stream_reloads(self) -> None:
         """Hold the connection open and forward reload events to the page."""
