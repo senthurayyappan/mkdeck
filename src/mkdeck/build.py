@@ -167,10 +167,14 @@ def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
         shutil.copytree(tree, out / ASSETS_DIRNAME, dirs_exist_ok=True)
     for rel in (*deck.extra_css, *deck.extra_js):
         _copy_file(rel, out, source=source, what="stylesheet or script")
+    # A deck normally shows the same embed on several slides, so each one is
+    # handled once: the file is copied once and its warning is said once.
+    seen: set[str] = set()
     for slide in deck.slides:
         for embed in slide.embeds:
-            if embed.src.startswith(REMOTE_PREFIXES):
+            if embed.src.startswith(REMOTE_PREFIXES) or embed.src in seen:
                 continue
+            seen.add(embed.src)
             origin = source / embed.src
             if not origin.is_file():
                 _warn(f"embed not found, so it was not copied: {embed.src}")

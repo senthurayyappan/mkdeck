@@ -80,6 +80,13 @@ def test_a_large_embed_is_called_out(deck_folder, tmp_path, capsys):
     assert "2.5 MB" in capsys.readouterr().err
 
 
+def test_an_embed_shown_twice_is_called_out_once(deck_folder, tmp_path, capsys):
+    (deck_folder / "assets" / "g3_18.html").write_bytes(b"x" * 2_500_000)
+    (deck_folder / "deck.md").write_text(f"{DECK}\n---\n\nThe same run, seen again.\n\n![18 N m](assets/g3_18.html)\n")
+    build_source(deck_folder, tmp_path / "site")
+    assert capsys.readouterr().err.count("2.5 MB") == 1
+
+
 def test_building_over_the_source_is_refused(deck_folder):
     with pytest.raises(DeckError, match="source folder"):
         build_source(deck_folder, deck_folder)
