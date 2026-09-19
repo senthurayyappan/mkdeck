@@ -75,8 +75,10 @@ with neither is a statement.
 
 An image link becomes a figure. The file suffix decides how mkdeck draws it:
 
-- `.html` or `.htm` becomes an iframe. Use this for a Brax viewer, a Plotly
-  chart, or any interactive page.
+- `.html` or `.htm` becomes an iframe. Use this for a Plotly chart or any
+  interactive page.
+- `.rollout` or `.rbundle` becomes a robot run, drawn by the rollout viewer.
+  See [Rollouts](#rollouts).
 - Every other suffix becomes an image. Use this for a PNG, an SVG or a GIF.
 
 The link text becomes the caption above the frame:
@@ -107,6 +109,59 @@ neighbours. Every other iframe holds `about:blank` until you reach it. A deck of
 
 Press `R` during a talk to reload the figures on the slide you are on. Use it
 when a viewer stalls.
+
+## Rollouts
+
+A Brax playback page carries its whole world inline: every mesh, and six
+libraries fetched from a CDN when the slide opens. One robot over thirty slides
+means thirty copies of that robot and no deck at all without the network.
+
+`mkdeck rollout` splits them apart. The meshes of one model go into a shared
+file; each run keeps only its poses.
+
+```bash
+mkdeck rollout runs/*.html -o slides/assets
+```
+
+Then link the result like any other figure:
+
+```markdown
+![stage 0, 0.50 m](assets/d1_cad_stage0_h050.rollout)
+```
+
+On a real deck of 39 runs this turned 464 MB of pages into 15.8 MB, with no
+loss: every triangle is kept and the poses are the ones Brax recorded.
+
+A rollout plays when its slide arrives and follows the robot, so a run that
+travels stays in frame. Hover it for the play button and the scrub bar. The
+element takes a few options:
+
+| attribute | what it does |
+| --- | --- |
+| `data-autoplay="false"` | wait to be played |
+| `data-loop="false"` | stop at the end instead of starting over |
+| `data-follow="false"` | hold the camera still |
+| `data-view="iso\|side\|front\|top"` | the camera it opens on |
+| `data-scale="2.4"` | the world height the viewport spans, in metres |
+
+An `.rbundle` pushed to an artifacts server plays too, unconverted — it is the
+same format, whole rather than split.
+
+### Shipping a deck of rollouts
+
+A browser will not read a neighbouring file from a `file://` page, so a folder
+build has to be served. Build one file instead and the deck carries its
+rollouts and its viewer inside the document:
+
+```bash
+mkdeck build slides -o out/deck.html --single-file
+```
+
+That file opens from a USB stick or an email attachment with nothing fetched.
+The deck above comes to about 21 MB, since the binaries carry a third more as
+text.
+
+A deck that holds no rollout carries neither the viewer nor three.js.
 
 ## Numbers
 

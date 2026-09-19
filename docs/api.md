@@ -86,6 +86,10 @@ The parser that turns a Markdown file into a deck.
 
 ::: mkdeck.errors
 
+## Rollouts
+
+::: mkdeck.rollout
+
 ## Commands
 
 ::: mkdeck.cli

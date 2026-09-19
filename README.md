@@ -71,6 +71,7 @@ code, so the two ways of writing a deck stay in step.
 | `mkdeck new FOLDER` | Start a deck |
 | `mkdeck serve PATH` | Serve it, and reload when you save |
 | `mkdeck build PATH` | Write it to a folder, or to one HTML file |
+| `mkdeck rollout PAGES` | Turn Brax playback pages into rollouts that play offline |
 | `mkdeck check PATH` | Tell you which slides overflow the screen |
 | `mkdeck export PATH` | Print it to a PDF |
 
