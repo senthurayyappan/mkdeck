@@ -12,6 +12,7 @@ from mkdeck.build import build_source
 from mkdeck.check import check_deck
 from mkdeck.errors import DeckError
 from mkdeck.export import export_deck
+from mkdeck.rollout import convert_brax_html
 from mkdeck.server import serve_source
 
 app = typer.Typer(no_args_is_help=True)
@@ -179,3 +180,28 @@ def export(
     """Print the deck to a PDF, one page per slide."""
     with _reporting():
         export_deck(path, out, size=_parse_size(size))
+
+
+@app.command()
+def rollout(
+    pages: Annotated[list[Path], typer.Argument(help="Brax playback pages to convert.")],
+    out: Annotated[Path, typer.Option("--out", "-o", help="Folder to write the rollouts into.")] = Path("assets"),
+) -> None:
+    """Convert Brax playback pages into rollouts that play offline.
+
+    Each page keeps only its own poses; the meshes go into one shared file per
+    model, so a deck that shows a robot on thirty slides carries it once.
+    """
+    with _reporting():
+        before = 0
+        after = 0
+        for page in pages:
+            converted = convert_brax_html(page, out)
+            before += page.stat().st_size
+            after += converted.rollout.stat().st_size
+            if not converted.shared:
+                after += converted.meshes.stat().st_size
+            shared = "shared meshes" if converted.shared else f"new meshes {converted.meshes.name}"
+            typer.echo(f"{page.name} -> {converted.rollout.name} ({shared})")
+        if pages:
+            typer.echo(f"{before / 1_000_000:.1f} MB of pages became {after / 1_000_000:.1f} MB of rollouts.")
