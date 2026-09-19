@@ -9,6 +9,7 @@ Variables:
   extra_css  list[str]    extra stylesheet hrefs, relative, linked after mkdeck.css
   extra_js   list[str]    extra script srcs, relative, loaded after mkdeck.js
   reveal     dict         merged over mkdeck's own Reveal.initialize options
+  rollouts   bool         true when a slide draws a rollout, which loads the viewer
 
 Every path is relative, so a built deck opens from a file:// URL and from any
 subdirectory of a site.
@@ -33,9 +34,10 @@ subdirectory of a site.
 {%- for href in extra_css | default([], true) %}
 <link rel="stylesheet" href="{{ href }}">
 {%- endfor %}
+<!--mkdeck-payloads-->
 </head>
 <body>
-<div class="reveal"{% if date %} data-deck-date="{{ date }}"{% endif %}>
+<div class="reveal" data-mkd-assets="{{ base }}"{% if date %} data-deck-date="{{ date }}"{% endif %}>
   <div class="slides">
 {{ slides }}
   </div>
@@ -47,6 +49,9 @@ subdirectory of a site.
 <script src="{{ base }}reveal.js/dist/plugin/zoom.js"></script>
 <script src="{{ base }}katex/dist/katex.min.js"></script>
 <script src="{{ base }}mkdeck.js"></script>
+{%- if rollouts | default(false, true) %}
+<script src="{{ base }}mkdeck-rollout.js"></script>
+{%- endif %}
 {%- for src in extra_js | default([], true) %}
 <script src="{{ src }}"></script>
 {%- endfor %}

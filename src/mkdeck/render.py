@@ -15,7 +15,7 @@ import re
 import sys
 from collections.abc import Sequence
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateNotFound
@@ -33,6 +33,7 @@ from mkdeck.model import (
     validate_deck,
     validate_slide,
 )
+from mkdeck.rollout import meshes_of
 
 __all__ = [
     "ASSET_ROOT",
@@ -211,7 +212,10 @@ def _render_figure(embed: Embed) -> Markup:
         parts.append(
             Markup('<figcaption class="mkd-label">{}</figcaption>').format(render_text(embed.label, numbers=False))
         )
-    if resolve_embed_kind(embed) == "iframe":
+    kind = resolve_embed_kind(embed)
+    if kind == "rollout":
+        parts.append(Markup('<deck-rollout src="{}"></deck-rollout>').format(embed.src))
+    elif kind == "iframe":
         parts.append(Markup('<deck-embed src="{}"></deck-embed>').format(embed.src))
     else:
         parts.append(Markup('<img class="mkd-image" src="{}" alt="{}">').format(embed.src, embed.label or ""))
@@ -379,6 +383,21 @@ def _environment() -> Environment:
     )
 
 
+def deck_has_rollouts(deck: Deck) -> bool:
+    """Say whether any slide draws a rollout.
+
+    The viewer and its renderer are a megabyte, so a deck that shows no robot
+    neither loads nor carries them.
+
+    Args:
+        deck: The deck to look through.
+
+    Returns:
+        True when at least one embed resolves to a rollout.
+    """
+    return any(resolve_embed_kind(embed) == "rollout" for slide in deck.slides for embed in slide.embeds)
+
+
 def render_deck(
     deck: Deck,
     *,
@@ -424,6 +443,7 @@ def render_deck(
         "extra_css": list(deck.extra_css),
         "extra_js": list(deck.extra_js),
         "reveal": dict(deck.reveal),
+        "rollouts": deck_has_rollouts(deck),
         "units": list(units),
     }
     try:
@@ -532,3 +552,101 @@ def inline_assets(html: str, *, asset_base: str = DEFAULT_ASSET_BASE, source: Pa
         return f"<script>{text.replace('</script', '<\\/script')}</script>"
 
     return _SCRIPT_TAG.sub(fold_script, _LINK_TAG.sub(fold_link, html))
+
+
+PAYLOAD_MARKER = "<!--mkdeck-payloads-->"
+"""Where in the head a single-file build puts the viewer and the rollouts."""
+
+VIEWER_MODULES: tuple[tuple[str, str], ...] = (
+    ("three", "three/three.module.js"),
+    ("three/addons/controls/OrbitControls.js", "three/addons/controls/OrbitControls.js"),
+    ("rollout-bundle", "viewer/bundle_parser.js"),
+    ("mkdeck-camera", "viewer/camera.js"),
+    ("mkdeck-viewer", "viewer/rollout_viewer.js"),
+)
+"""The viewer's modules, by import specifier. The twin of MODULES in mkdeck-rollout.js."""
+
+
+def _inline_payload(attribute: str, key: str, text: str) -> str:
+    """Wrap one inlined source or payload in the tag the loader looks for.
+
+    A ``<script>`` element holds raw text, so only a closing tag has to be
+    hidden; the loader reads the content back with ``textContent``.
+
+    Args:
+        attribute: The data attribute the loader queries on.
+        key: The value of that attribute.
+        text: The content to carry.
+
+    Returns:
+        The element, as HTML.
+    """
+    safe = text.replace("</script", "<\\/script")
+    return f'<script type="text/plain" {attribute}="{escape(key)}">{safe}</script>'
+
+
+def inline_rollouts(html: str, deck: Deck, *, source: Path | None = None) -> str:
+    """Fold the rollout viewer and every rollout into a rendered deck.
+
+    A rollout is binary and its viewer is a set of ES modules, neither of which
+    a ``file://`` page may fetch. Both are carried as text instead — the
+    modules verbatim, the binaries base64 — and ``mkdeck-rollout.js`` reads
+    them from the document rather than from the network.
+
+    Args:
+        html: The rendered document, with its scripts already inlined.
+        deck: The deck being built, for the rollouts its slides name.
+        source: The deck source folder the rollouts sit in.
+
+    Returns:
+        The document with the viewer and the rollouts inside it.
+    """
+    parts: list[str] = []
+    for specifier, path in VIEWER_MODULES:
+        module = ASSET_ROOT / path
+        if not module.is_file():  # pragma: no cover - a broken installation
+            _warn(f"the rollout viewer is missing from this installation: {module}")
+            return html
+        parts.append(_inline_payload("data-mkd-module", specifier, module.read_text(encoding="utf-8")))
+
+    carried: set[str] = set()
+    for slide in deck.slides:
+        for embed in slide.embeds:
+            if resolve_embed_kind(embed) != "rollout" or embed.src.startswith(REMOTE_PREFIXES):
+                continue
+            for name in (embed.src, _shared_meshes(embed.src, source=source)):
+                if name is None or name in carried:
+                    continue
+                carried.add(name)
+                origin = Path(source) / name if source is not None else Path(name)
+                if not origin.is_file():
+                    _warn(f"rollout left outside the document, it was not found: {name}")
+                    continue
+                payload = base64.b64encode(origin.read_bytes()).decode("ascii")
+                parts.append(_inline_payload("data-mkd-rollout", name, payload))
+
+    # The payloads go in the head: the loader looks for them the moment a slide
+    # asks for a rollout, which can be while the document is still parsing, so
+    # they have to be behind the parser before any script runs. They go at a
+    # marker rather than at "</head>", because by now the document carries
+    # three.js, whose own source holds that text and would be found first.
+    block = "\n".join(parts)
+    if PAYLOAD_MARKER in html:
+        return html.replace(PAYLOAD_MARKER, block, 1)
+    _warn("the deck template has no payload marker, so the rollouts went at the end of the document.")
+    return html + block
+
+
+def _shared_meshes(src: str, *, source: Path | None) -> str | None:
+    """Name the mesh file a rollout points at, as the document would.
+
+    Args:
+        src: The embed source, relative to the deck.
+        source: The deck source folder.
+
+    Returns:
+        The path relative to the deck, or ``None`` when there is no such file.
+    """
+    origin = Path(source) / src if source is not None else Path(src)
+    shared = meshes_of(origin) if origin.is_file() else None
+    return str(PurePosixPath(src).parent / shared) if shared else None

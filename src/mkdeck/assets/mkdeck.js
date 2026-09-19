@@ -4,6 +4,7 @@
  * your own custom element beside it. It provides:
  *
  *   <deck-embed src="...">   an iframe with a lifecycle (see syncEmbeds below)
+ *   <deck-rollout src="..."> a robot run, when mkdeck-rollout.js is on the deck
  *   <deck-mermaid>           a diagram, with Mermaid fetched only if one exists
  *   the KaTeX pass           every .mkd-math is rendered from its data-tex
  *   the dense pass           a crowded slide is marked so the figure shrinks
@@ -108,6 +109,18 @@
           unloadEmbed(host);
         }
       });
+      // A rollout holds a WebGL context of its own, so it keeps the same
+      // window. The element only answers when mkdeck-rollout.js is on the deck.
+      each(slide.querySelectorAll("deck-rollout"), function (host) {
+        if (typeof host.load !== "function") {
+          return;
+        }
+        if (distance <= 1) {
+          host.load(distance === 0);
+        } else {
+          host.unload();
+        }
+      });
     });
   }
 
@@ -117,6 +130,11 @@
       return;
     }
     each(slide.querySelectorAll("deck-embed"), reloadEmbed);
+    each(slide.querySelectorAll("deck-rollout"), function (host) {
+      if (typeof host.reload === "function") {
+        host.reload();
+      }
+    });
   }
 
   /* ------------------------------------------------------------------ *

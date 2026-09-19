@@ -318,6 +318,28 @@ def load_rollout(path: Path | str) -> tuple[dict[str, Any], bytes]:
     return header, gzip.decompress(raw[12 + length :])
 
 
+def meshes_of(path: Path | str) -> str | None:
+    """Name the shared mesh file a rollout points at.
+
+    Args:
+        path: A ``.rollout``, or any other file.
+
+    Returns:
+        The file name, or ``None`` when the file is not a split rollout — a
+        whole ``.rbundle`` carries its meshes itself.
+    """
+    try:
+        with Path(path).open("rb") as handle:
+            head = handle.read(12)
+            if head[:4] != MAGIC:
+                return None
+            header = json.loads(handle.read(struct.unpack("<Q", head[4:12])[0]))
+    except (OSError, ValueError, struct.error):
+        return None
+    name = header.get("meshes", {}).get("file")
+    return str(name) if name else None
+
+
 def convert_brax_html(src: Path | str, out: Path | str, *, name: str = "") -> Converted:
     """Convert one Brax page into a rollout and its shared meshes.
 

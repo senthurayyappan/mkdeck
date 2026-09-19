@@ -8,8 +8,9 @@ from array import array
 
 import pytest
 
-from mkdeck import DeckError
-from mkdeck.rollout import convert_brax_html, load_rollout, read_brax_scene, to_rollout
+from mkdeck import DeckError, Embed, build_source
+from mkdeck.model import resolve_embed_kind
+from mkdeck.rollout import convert_brax_html, load_rollout, meshes_of, read_brax_scene, to_rollout
 
 FRAMES = 3
 VERTS = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
@@ -83,6 +84,16 @@ def page(payload):
     """The Brax playback page that carries a scene."""
     blob = base64.b64encode(zlib.compress(json.dumps(payload).encode())).decode()
     return f'<!DOCTYPE html><html><script>var system = "{blob}";</script></html>'
+
+
+@pytest.fixture
+def deck_folder(tmp_path):
+    """A deck whose one figure is an ordinary page, for the negative case."""
+    folder = tmp_path / "plain"
+    (folder / "assets").mkdir(parents=True)
+    (folder / "assets" / "plot.html").write_text("<!doctype html><title>plot</title>")
+    (folder / "deck.md").write_text("---\ntitle: Plots\n---\n\nA plot.\n\n![p](assets/plot.html)\n")
+    return folder
 
 
 @pytest.fixture
@@ -192,3 +203,70 @@ def test_a_file_that_is_not_a_rollout_says_so(tmp_path):
     stray.write_bytes(b"NOPE" + b"\x00" * 16)
     with pytest.raises(DeckError, match="not a rollout"):
         load_rollout(stray)
+
+
+# --------------------------------------------------------------------------- #
+# A rollout on a slide
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def rollout_deck(tmp_path, brax):
+    """A deck folder whose one figure is a converted rollout."""
+    folder = tmp_path / "deck"
+    (folder / "assets").mkdir(parents=True)
+    convert_brax_html(brax, folder / "assets")
+    (folder / "deck.md").write_text(
+        "---\ntitle: Runs\ndate: 2026-09-18\n---\n\nThe robot crosses.\n\n![stage 0](assets/run.rollout)\n"
+    )
+    return folder
+
+
+def test_a_rollout_source_is_drawn_by_the_viewer():
+    assert resolve_embed_kind(Embed("assets/run.rollout")) == "rollout"
+    assert resolve_embed_kind(Embed("assets/run.rbundle")) == "rollout"
+    assert resolve_embed_kind(Embed("assets/plot.html")) == "iframe"
+
+
+def test_a_deck_with_a_rollout_carries_the_viewer(rollout_deck, tmp_path):
+    index = build_source(rollout_deck, tmp_path / "site")
+    html = index.read_text()
+    assert '<deck-rollout src="assets/run.rollout">' in html
+    assert "mkdeck-rollout.js" in html
+    assert (tmp_path / "site" / "mkdeck-assets" / "three" / "three.module.js").is_file()
+    assert (tmp_path / "site" / "mkdeck-assets" / "viewer" / "rollout_viewer.js").is_file()
+
+
+def test_the_shared_meshes_are_copied_beside_the_rollout(rollout_deck, tmp_path):
+    build_source(rollout_deck, tmp_path / "site")
+    built = sorted(path.name for path in (tmp_path / "site" / "assets").iterdir())
+    assert "run.rollout" in built
+    assert any(name.endswith(".meshes") for name in built)
+
+
+def test_a_deck_without_a_rollout_pays_for_no_viewer(deck_folder, tmp_path):
+    index = build_source(deck_folder, tmp_path / "site")
+    assert "mkdeck-rollout.js" not in index.read_text()
+    assert not (tmp_path / "site" / "mkdeck-assets" / "three").exists()
+    assert not (tmp_path / "site" / "mkdeck-assets" / "viewer").exists()
+
+
+def test_a_single_file_deck_carries_its_rollouts_inside_it(rollout_deck, tmp_path):
+    index = build_source(rollout_deck, tmp_path / "one" / "deck.html", single_file=True)
+    html = index.read_text()
+    for specifier in ("three", "rollout-bundle", "mkdeck-camera", "mkdeck-viewer"):
+        assert f'data-mkd-module="{specifier}"' in html
+    assert 'data-mkd-rollout="assets/run.rollout"' in html
+    assert html.count("data-mkd-rollout=") == 2  # the run and its shared meshes
+    # The payloads have to be behind the parser before any script runs.
+    assert html.index('data-mkd-module="three"') < html.index("<deck-rollout")
+    # and nothing is left beside the document to ship along with it.
+    assert not any((tmp_path / "one" / "assets").glob("*.rollout"))
+    assert not any((tmp_path / "one" / "assets").glob("*.meshes"))
+
+
+def test_a_file_that_is_not_a_rollout_names_no_meshes(tmp_path):
+    stray = tmp_path / "plot.html"
+    stray.write_text("<html></html>")
+    assert meshes_of(stray) is None
+    assert meshes_of(tmp_path / "missing.rollout") is None

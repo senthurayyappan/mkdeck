@@ -20,13 +20,13 @@ if TYPE_CHECKING:  # mkdeck.config imports this module, so the name is only for 
 Layout = Literal["auto", "title", "statement", "figures", "table"]
 """How a slide is laid out. ``"auto"`` is resolved by :func:`resolve_layout`."""
 
-EmbedKind = Literal["auto", "iframe", "image"]
+EmbedKind = Literal["auto", "iframe", "image", "rollout"]
 """How an embed is drawn. ``"auto"`` is resolved by :func:`resolve_embed_kind`."""
 
 LAYOUTS: tuple[Layout, ...] = ("auto", "title", "statement", "figures", "table")
 """Every accepted value of :attr:`Slide.layout`."""
 
-EMBED_KINDS: tuple[EmbedKind, ...] = ("auto", "iframe", "image")
+EMBED_KINDS: tuple[EmbedKind, ...] = ("auto", "iframe", "image", "rollout")
 """Every accepted value of :attr:`Embed.kind`."""
 
 MAX_EMBEDS = 2
@@ -34,6 +34,13 @@ MAX_EMBEDS = 2
 
 IFRAME_SUFFIXES: tuple[str, ...] = (".html", ".htm")
 """The file suffixes that an ``"auto"`` embed draws as an iframe."""
+
+ROLLOUT_SUFFIXES: tuple[str, ...] = (".rollout", ".rbundle")
+"""The file suffixes that an ``"auto"`` embed draws in the rollout viewer.
+
+``.rollout`` is what :mod:`mkdeck.rollout` writes; ``.rbundle`` is the whole
+bundle an artifacts server holds, which the same viewer reads unconverted.
+"""
 
 REMOTE_SCHEMES: tuple[str, ...] = ("http", "https")
 """The URL schemes an embed source may carry; everything else must be a relative path."""
@@ -223,18 +230,21 @@ def resolve_layout(slide: Slide) -> Layout:
     return "statement"
 
 
-def resolve_embed_kind(embed: Embed) -> Literal["iframe", "image"]:
+def resolve_embed_kind(embed: Embed) -> Literal["iframe", "image", "rollout"]:
     """Resolve ``kind="auto"`` from the suffix of the embed source.
 
     Args:
         embed: The embed to resolve.
 
     Returns:
-        ``"iframe"`` for an ``.html`` or ``.htm`` source, ``"image"`` for everything else.
+        ``"rollout"`` for a ``.rollout`` or ``.rbundle`` source, ``"iframe"``
+        for an ``.html`` or ``.htm`` one, ``"image"`` for everything else.
     """
     if embed.kind != "auto":
         return embed.kind
     suffix = PurePosixPath(embed.src.split("?", 1)[0].split("#", 1)[0]).suffix.lower()
+    if suffix in ROLLOUT_SUFFIXES:
+        return "rollout"
     return "iframe" if suffix in IFRAME_SUFFIXES else "image"
 
 

@@ -188,10 +188,10 @@ def inject_reload(index: Path) -> None:
     html = index.read_text(encoding="utf-8")
     if RELOAD_PATH in html:
         return
-    if "</body>" in html:
-        html = html.replace("</body>", f"{RELOAD_SNIPPET}</body>", 1)
-    else:
-        html += RELOAD_SNIPPET
+    # The last one: an inlined library can hold "</body>" in its own source,
+    # and the snippet has to land in the document rather than inside a script.
+    head, sep, tail = html.rpartition("</body>")
+    html = f"{head}{RELOAD_SNIPPET}{sep}{tail}" if sep else html + RELOAD_SNIPPET
     index.write_text(html, encoding="utf-8")
 
 

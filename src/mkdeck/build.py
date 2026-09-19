@@ -3,23 +3,33 @@
 import shutil
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from mkdeck.config import CONFIG_FILENAMES, DeckConfig, apply_config, load_config
 from mkdeck.errors import DeckError
 from mkdeck.markdown import parse_markdown, split_frontmatter
-from mkdeck.model import Deck
-from mkdeck.render import ASSET_ROOT, DEFAULT_ASSET_BASE, REMOTE_PREFIXES, inline_assets, render_deck
+from mkdeck.model import Deck, resolve_embed_kind
+from mkdeck.render import (
+    ASSET_ROOT,
+    DEFAULT_ASSET_BASE,
+    REMOTE_PREFIXES,
+    deck_has_rollouts,
+    inline_assets,
+    inline_rollouts,
+    render_deck,
+)
+from mkdeck.rollout import MESHES_SUFFIX, ROLLOUT_SUFFIX, meshes_of
 
 DECK_FILENAMES: tuple[str, ...] = ("deck.md", "slides.md")
 """Markdown filenames looked for when the path given is a folder."""
 
-UNSHIPPED_ASSETS = frozenset({"templates", "three"})
-"""Vendored folders a built deck does not carry.
+UNSHIPPED_ASSETS = frozenset({"templates"})
+"""Folders a built deck never carries; ``templates`` is mkdeck's Jinja source."""
 
-``templates`` is mkdeck's own Jinja source. ``three`` is the rollout viewer's
-renderer, which only a deck that holds a rollout needs; the viewer copies it in
-on its own once there is one to draw.
+ROLLOUT_ASSETS = frozenset({"three", "viewer", "mkdeck-rollout.js"})
+"""The viewer and its renderer, carried only by a deck that draws a rollout.
+
+three.js is a megabyte, so a deck of plots and images does not pay for it.
 """
 
 EMBED_WARN_BYTES = 2_000_000
@@ -112,19 +122,22 @@ def load_source(path: Path | str) -> DeckSource:
     return DeckSource(deck=deck, config=config, directory=directory, markdown=markdown, watched=watched)
 
 
-def _copy_vendor_assets(out: Path, *, theme: str) -> None:
+def _copy_vendor_assets(out: Path, *, theme: str, rollouts: bool = False) -> None:
     """Copy the vendored front-end assets next to ``index.html``.
 
     Args:
         out: The output folder.
         theme: The theme name, checked so a typo is reported at build time.
+        rollouts: True when a slide draws a rollout, which is what the viewer
+            and its renderer are carried for.
     """
     if not ASSET_ROOT.is_dir():  # pragma: no cover - a broken installation
         _warn(f"the vendored assets are missing from this installation: {ASSET_ROOT}")
         return
     target = out / DEFAULT_ASSET_BASE
+    skip = set(UNSHIPPED_ASSETS) | (set() if rollouts else set(ROLLOUT_ASSETS))
     for entry in sorted(ASSET_ROOT.iterdir()):
-        if entry.name in UNSHIPPED_ASSETS:
+        if entry.name in skip:
             continue
         destination = target / entry.name
         if entry.is_dir():
@@ -158,7 +171,7 @@ def _copy_file(rel: str, out: Path, *, source: Path, what: str) -> None:
     shutil.copy2(origin, destination)
 
 
-def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
+def _copy_deck_assets(deck: Deck, out: Path, *, source: Path, rollouts: bool = True) -> None:
     """Copy the deck's own assets into the output folder.
 
     The whole ``assets/`` tree is copied when there is one. Every embed and
@@ -169,10 +182,15 @@ def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
         deck: The deck being built.
         out: The output folder.
         source: The deck source folder.
+        rollouts: False when a single-file build has already folded the
+            rollouts into the document, so their files are not copied beside it.
     """
+    # A single-file build carries its rollouts inside the document, so the
+    # copies beside it would be dead weight -- often most of the deck's bytes.
+    ignore = None if rollouts else shutil.ignore_patterns(f"*{ROLLOUT_SUFFIX}", f"*{MESHES_SUFFIX}", "*.rbundle")
     tree = source / ASSETS_DIRNAME
     if tree.is_dir() and tree.resolve() != (out / ASSETS_DIRNAME).resolve():
-        shutil.copytree(tree, out / ASSETS_DIRNAME, dirs_exist_ok=True)
+        shutil.copytree(tree, out / ASSETS_DIRNAME, dirs_exist_ok=True, ignore=ignore)
     for rel in (*deck.extra_css, *deck.extra_js):
         _copy_file(rel, out, source=source, what="stylesheet or script")
     # A deck normally shows the same embed on several slides, so each one is
@@ -183,6 +201,8 @@ def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
             if embed.src.startswith(REMOTE_PREFIXES) or embed.src in seen:
                 continue
             seen.add(embed.src)
+            if not rollouts and resolve_embed_kind(embed) == "rollout":
+                continue
             origin = source / embed.src
             if not origin.is_file():
                 _warn(f"embed not found, so it was not copied: {embed.src}")
@@ -191,10 +211,14 @@ def _copy_deck_assets(deck: Deck, out: Path, *, source: Path) -> None:
             if size > EMBED_WARN_BYTES:
                 _warn(f"embed {embed.src} is {size / 1_000_000:.1f} MB; a deck full of these is slow to open.")
             destination = out / embed.src
-            if destination.exists():
-                continue
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(origin, destination)
+            if not destination.exists():
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(origin, destination)
+            # A rollout names its shared meshes rather than the document doing
+            # it, so the file every run of one model points at is copied here.
+            shared = meshes_of(origin)
+            if shared is not None:
+                _copy_file(str(PurePosixPath(embed.src).parent / shared), out, source=source, what="shared meshes")
 
 
 def build_deck(
@@ -232,14 +256,17 @@ def build_deck(
         raise DeckError("The output folder is the deck source folder; write the build somewhere else with -o.")
 
     html = render_deck(deck, config=config)
+    rollouts = deck_has_rollouts(deck)
     if single_file:
         html = inline_assets(html, source=source)
+        if rollouts:
+            html = inline_rollouts(html, deck, source=source)
     directory.mkdir(parents=True, exist_ok=True)
     index.write_text(html, encoding="utf-8")
     if not single_file:
-        _copy_vendor_assets(directory, theme=deck.theme or "minimal")
+        _copy_vendor_assets(directory, theme=deck.theme or "minimal", rollouts=rollouts)
     if source is not None:
-        _copy_deck_assets(deck, directory, source=Path(source))
+        _copy_deck_assets(deck, directory, source=Path(source), rollouts=not single_file)
     return index
 
 

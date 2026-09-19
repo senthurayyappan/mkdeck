@@ -190,6 +190,7 @@ section.mkd-slide {
 /* The embed host. `deck-embed` is an unknown element to the parser, so it has
  * to be told it is a block. */
 deck-embed,
+deck-rollout,
 .mkd-image {
   display: block;
   width: 100%;
@@ -198,16 +199,19 @@ deck-embed,
 /* The figure height comes from data-count. This is the fallback for a row that
  * somehow has none, so the figure is small rather than invisible. */
 .mkd-figures deck-embed,
+.mkd-figures deck-rollout,
 .mkd-figures .mkd-image {
   height: 56vh;
 }
 
 .mkd-figures[data-count="1"] deck-embed,
+.mkd-figures[data-count="1"] deck-rollout,
 .mkd-figures[data-count="1"] .mkd-image {
   height: 70vh;
 }
 
 .mkd-figures[data-count="2"] deck-embed,
+.mkd-figures[data-count="2"] deck-rollout,
 .mkd-figures[data-count="2"] .mkd-image {
   height: 56vh;
 }
@@ -215,11 +219,13 @@ deck-embed,
 /* A slide that also carries bullets or a stack of formulas gives the text more
  * room and the figure less. The class is set by mkdeck.js. */
 .mkd-slide.dense .mkd-figures[data-count="1"] deck-embed,
+.mkd-slide.dense .mkd-figures[data-count="1"] deck-rollout,
 .mkd-slide.dense .mkd-figures[data-count="1"] .mkd-image {
   height: 48vh;
 }
 
 .mkd-slide.dense .mkd-figures[data-count="2"] deck-embed,
+.mkd-slide.dense .mkd-figures[data-count="2"] deck-rollout,
 .mkd-slide.dense .mkd-figures[data-count="2"] .mkd-image {
   height: 42vh;
 }
@@ -228,6 +234,83 @@ deck-embed > iframe {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* --------------------------------------------------------------------------
+ * Rollouts
+ *
+ * The stage holds the viewer's canvas and has to carry the height on its own:
+ * a canvas sized from its parent and a parent sized from its canvas would
+ * settle nowhere. The controls sit under it, out of the way until wanted.
+ * ------------------------------------------------------------------------ */
+
+deck-rollout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.mkd-rollout-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mkd-rollout-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mkd-rollout-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px 0;
+  opacity: 0.35;
+  transition: opacity 120ms ease-in-out;
+}
+
+deck-rollout:hover .mkd-rollout-controls,
+.mkd-rollout-controls:focus-within {
+  opacity: 1;
+}
+
+.mkd-rollout-play {
+  flex: 0 0 auto;
+  width: 28px;
+  padding: 2px 0;
+  border: 1px solid var(--mkd-line);
+  border-radius: 3px;
+  background: var(--mkd-surface);
+  color: var(--mkd-ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.mkd-rollout-scrub {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--mkd-accent);
+}
+
+.mkd-rollout-time {
+  flex: 0 0 auto;
+  min-width: 56px;
+  color: var(--mkd-chrome);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mkd-rollout-error {
+  margin: 0;
+  padding: 12px;
+  color: var(--mkd-grey);
+  font-size: 15px;
 }
 
 .mkd-image {
