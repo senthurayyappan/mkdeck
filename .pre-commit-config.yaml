@@ -1,8 +1,8 @@
 default_stages: [pre-commit]
 
-# reveal.js, KaTeX and Roboto are vendored as released, so nothing rewrites them.
-# Our own files under assets/ are still checked.
-exclude: '^src/mkdeck/assets/(reveal\.js|katex|roboto)/'
+# reveal.js, KaTeX, Roboto and three.js are vendored as released, so nothing
+# rewrites them. Our own files under assets/ are still checked.
+exclude: '^src/mkdeck/assets/(reveal\.js|katex|roboto|three)/'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

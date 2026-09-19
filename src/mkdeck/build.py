@@ -14,6 +14,14 @@ from mkdeck.render import ASSET_ROOT, DEFAULT_ASSET_BASE, REMOTE_PREFIXES, inlin
 DECK_FILENAMES: tuple[str, ...] = ("deck.md", "slides.md")
 """Markdown filenames looked for when the path given is a folder."""
 
+UNSHIPPED_ASSETS = frozenset({"templates", "three"})
+"""Vendored folders a built deck does not carry.
+
+``templates`` is mkdeck's own Jinja source. ``three`` is the rollout viewer's
+renderer, which only a deck that holds a rollout needs; the viewer copies it in
+on its own once there is one to draw.
+"""
+
 EMBED_WARN_BYTES = 2_000_000
 """An embed larger than this is called out at build time."""
 
@@ -116,7 +124,7 @@ def _copy_vendor_assets(out: Path, *, theme: str) -> None:
         return
     target = out / DEFAULT_ASSET_BASE
     for entry in sorted(ASSET_ROOT.iterdir()):
-        if entry.name == "templates":
+        if entry.name in UNSHIPPED_ASSETS:
             continue
         destination = target / entry.name
         if entry.is_dir():
