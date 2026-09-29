@@ -1,6 +1,0 @@
-{
-  "kind": "app",
-  "name": "mkdeck",
-  "python": "3.13",
-  "ci": true
-}

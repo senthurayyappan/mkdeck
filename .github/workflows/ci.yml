@@ -27,16 +27,27 @@ jobs:
         run: uv run python .github/scripts/check_commit_message.py
       - run: uv run pre-commit run --all-files
       - run: uv run --group docs mkdocs build --strict
-      - run: uv build --no-sources
 
-  # Linux only. A deck is HTML, and nothing here touches a platform API, so the
-  # Windows and macOS runners cost minutes without testing anything new.
+  # The tests run against the source tree, and .gitignore swallows dist/, where
+  # reveal.js and KaTeX keep their files. Only the built wheel shows whether the
+  # package really carries them, so install it somewhere clean and run it.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - run: uv build --no-sources --clear
+      - run: uvx twine check --strict dist/*
+      - run: uv run --no-project python scripts/smoke_wheel.py dist
+
   tests:
     name: Python ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.13", "3.14"]
+        python: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,3 +57,23 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
+
+  # Windows and macOS are reported but do not block a merge yet. The code
+  # handles Windows drive letters and backslash paths, and the file watcher and
+  # the dev server behave differently per platform. Make these jobs required
+  # once they are green.
+  platforms:
+    name: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest -q

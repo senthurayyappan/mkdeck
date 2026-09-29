@@ -21,12 +21,12 @@ repos:
         name: Ruff lint
         entry: uv run ruff check --fix
         language: system
-        types_or: [python, pyi, jupyter]
+        types_or: [python, pyi]
       - id: ruff-format
         name: Ruff format
         entry: uv run ruff format
         language: system
-        types_or: [python, pyi, jupyter]
+        types_or: [python, pyi]
       - id: ty
         name: ty type check
         entry: uv run ty check

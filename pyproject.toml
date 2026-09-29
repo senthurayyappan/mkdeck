@@ -4,9 +4,36 @@ version = "0.1.0"
 description = "Minimal HTML slide decks from Markdown or Python, served like mkdocs."
 readme = "README.md"
 authors = [{ name = "Senthur Ayyappan" }]
-requires-python = ">=3.13"
-license = "MIT"
-license-files = ["LICENSE"]
+requires-python = ">=3.11"
+keywords = ["slides", "presentation", "markdown", "reveal.js", "katex", "brax", "mujoco", "robotics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Graphics :: Presentation",
+    "Typing :: Typed",
+]
+# mkdeck's own code is MIT. The wheel also carries reveal.js, KaTeX and three.js
+# (MIT) and the KaTeX and Roboto fonts (OFL-1.1); see THIRD_PARTY_NOTICES.md.
+# The vendored license files are listed one by one: a glob such as
+# assets/*/LICENSE* also pulls in the loose files of assets/ under uv_build.
+license = "MIT AND OFL-1.1"
+license-files = [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "src/mkdeck/assets/reveal.js/LICENSE",
+    "src/mkdeck/assets/katex/LICENSE",
+    "src/mkdeck/assets/katex/dist/fonts/OFL.txt",
+    "src/mkdeck/assets/roboto/LICENSE",
+    "src/mkdeck/assets/three/LICENSE",
+]
 dependencies = [
     "jinja2>=3.1",
     "markdown-it-py>=3",
@@ -20,6 +47,12 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/senthurayyappan/mkdeck"
 Documentation = "https://senthurayyappan.github.io/mkdeck/"
+Issues = "https://github.com/senthurayyappan/mkdeck/issues"
+Changelog = "https://github.com/senthurayyappan/mkdeck/blob/main/CHANGELOG.md"
+
+[tool.uv.build-backend]
+# The sdist carries the tests and the docs sources next to the package.
+source-include = ["tests/**", "docs/**", "mkdocs.yml", "CONTRIBUTING.md"]
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13"]
@@ -29,6 +62,9 @@ build-backend = "uv_build"
 mkdeck = "mkdeck.cli:app"
 
 [project.optional-dependencies]
+# The extra is named "check" because `mkdeck check` is what asks for it, and the
+# hint in that error message says `mkdeck[check]`. `mkdeck export` needs the
+# same thing: headless Chromium through Playwright.
 check = [
     "playwright>=1.48",
 ]
@@ -51,7 +87,7 @@ docs = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
+target-version = "py311"
 src = ["src"]
 
 [tool.ruff.lint]
@@ -63,11 +99,13 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D"]
-"**/*.ipynb" = ["D", "E402", "I"]
 
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true
+
+[tool.ty.environment]
+python-version = "3.11"
 
 [tool.ty.src]
 include = ["src", "tests", ".github/scripts"]
@@ -79,7 +117,6 @@ addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib"]
 [tool.coverage.run]
 branch = true
 source = ["src"]
-omit = ["tests/*"]
 
 [tool.coverage.report]
 show_missing = true
