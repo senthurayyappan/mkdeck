@@ -45,12 +45,12 @@ def test_a_build_writes_the_page_the_assets_and_the_vendored_tree(deck_folder, t
     assert (tmp_path / "site" / "assets" / "g3_18.html").is_file()
     assert (tmp_path / "site" / "mkdeck-assets" / "mkdeck.js").is_file()
     assert (tmp_path / "site" / "mkdeck-assets" / "reveal.js" / "dist" / "reveal.js").is_file()
-    assert 'src="assets/g3_18.html"' in index.read_text()
+    assert 'src="assets/g3_18.html"' in index.read_text(encoding="utf-8")
 
 
 def test_a_single_file_build_leaves_only_the_deck_assets_outside(deck_folder, tmp_path):
     index = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True)
-    html = index.read_text()
+    html = index.read_text(encoding="utf-8")
     assert index.name == "deck.html"
     assert not (tmp_path / "one" / "mkdeck-assets").exists()
     assert (tmp_path / "one" / "assets" / "g3_18.html").is_file()
@@ -85,7 +85,7 @@ def test_a_python_deck_builds_through_its_own_method(tmp_path):
     with pytest.warns(DeckWarning, match="assets/g1.html"):
         index = deck.build(tmp_path / "site")
     assert index.is_file()
-    assert '<deck-embed src="assets/g1.html">' in index.read_text()
+    assert '<deck-embed src="assets/g1.html">' in index.read_text(encoding="utf-8")
 
 
 def test_the_stylesheets_and_scripts_a_deck_adds_are_copied(deck_folder, tmp_path):
@@ -96,7 +96,7 @@ def test_the_stylesheets_and_scripts_a_deck_adds_are_copied(deck_folder, tmp_pat
 
     index = load_source(deck_folder).build(tmp_path / "site")
 
-    assert 'href="theme/mine.css"' in index.read_text()
+    assert 'href="theme/mine.css"' in index.read_text(encoding="utf-8")
     assert (tmp_path / "site" / "theme" / "mine.css").is_file()
     assert (tmp_path / "site" / "theme" / "marks.js").is_file()
 
@@ -114,7 +114,7 @@ def test_a_stylesheet_outside_the_deck_is_refused(deck_folder, tmp_path):
     with pytest.raises(DeckError, match="inside the deck folder") as caught:
         load_source(deck_folder).build(tmp_path / "out")
     assert "deck.yml" in str(caught.value)
-    assert secret.read_text() == "SECRET-TOKEN"
+    assert secret.read_text(encoding="utf-8") == "SECRET-TOKEN"
     assert not (tmp_path / "out").exists()
 
 
@@ -161,7 +161,7 @@ def test_editing_an_embed_reaches_a_rebuild_into_the_same_folder(deck_folder, tm
     load_source(deck_folder).build(tmp_path / "site")
     (deck_folder / "assets" / "g3_18.html").write_text("edited page")
     load_source(deck_folder).build(tmp_path / "site")
-    assert (tmp_path / "site" / "assets" / "g3_18.html").read_text() == "edited page"
+    assert (tmp_path / "site" / "assets" / "g3_18.html").read_text(encoding="utf-8") == "edited page"
 
 
 def test_editing_an_extra_stylesheet_reaches_a_rebuild(deck_folder, tmp_path):
@@ -171,7 +171,7 @@ def test_editing_an_extra_stylesheet_reaches_a_rebuild(deck_folder, tmp_path):
     load_source(deck_folder).build(tmp_path / "site")
     (deck_folder / "theme" / "mine.css").write_text("body { color: blue; }")
     load_source(deck_folder).build(tmp_path / "site")
-    assert (tmp_path / "site" / "theme" / "mine.css").read_text() == "body { color: blue; }"
+    assert (tmp_path / "site" / "theme" / "mine.css").read_text(encoding="utf-8") == "body { color: blue; }"
 
 
 def test_an_embed_outside_the_assets_folder_is_refreshed_too(deck_folder, tmp_path):
@@ -181,7 +181,7 @@ def test_an_embed_outside_the_assets_folder_is_refreshed_too(deck_folder, tmp_pa
     load_source(deck_folder).build(tmp_path / "site")
     (deck_folder / "figs" / "plot.html").write_text("two")
     load_source(deck_folder).build(tmp_path / "site")
-    assert (tmp_path / "site" / "figs" / "plot.html").read_text() == "two"
+    assert (tmp_path / "site" / "figs" / "plot.html").read_text(encoding="utf-8") == "two"
 
 
 def test_a_rebuild_removes_what_the_last_build_wrote_and_this_one_does_not_need(deck_folder, tmp_path):
@@ -198,8 +198,8 @@ def test_a_rebuild_removes_what_the_last_build_wrote_and_this_one_does_not_need(
 
     assert not (site / "assets" / "sub").exists()
     assert (site / "assets" / "g3_18.html").is_file()
-    assert (site / "mine.txt").read_text() == "not from mkdeck"
-    assert "assets/g3_18.html" in json.loads((site / MANIFEST_NAME).read_text())["files"]
+    assert (site / "mine.txt").read_text(encoding="utf-8") == "not from mkdeck"
+    assert "assets/g3_18.html" in json.loads((site / MANIFEST_NAME).read_text(encoding="utf-8"))["files"]
 
 
 def test_switching_to_a_deck_without_a_rollout_sweeps_the_viewer(rollout_deck_folder, tmp_path):
@@ -217,7 +217,7 @@ def test_a_damaged_manifest_is_ignored(deck_folder, tmp_path):
     load_source(deck_folder).build(site)
     (site / MANIFEST_NAME).write_text("{not json")
     load_source(deck_folder).build(site)
-    assert json.loads((site / MANIFEST_NAME).read_text())["files"]
+    assert json.loads((site / MANIFEST_NAME).read_text(encoding="utf-8"))["files"]
 
 
 def test_a_manifest_cannot_make_a_build_delete_outside_the_folder(deck_folder, tmp_path):
@@ -227,7 +227,7 @@ def test_a_manifest_cannot_make_a_build_delete_outside_the_folder(deck_folder, t
     site.mkdir()
     (site / MANIFEST_NAME).write_text(json.dumps({"files": ["../victim.txt"]}))
     load_source(deck_folder).build(site)
-    assert victim.read_text() == "keep me"
+    assert victim.read_text(encoding="utf-8") == "keep me"
 
 
 def test_an_embed_with_a_query_is_copied_and_linked_whole(deck_folder, tmp_path):
@@ -235,7 +235,7 @@ def test_an_embed_with_a_query_is_copied_and_linked_whole(deck_folder, tmp_path)
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
         index = load_source(deck_folder).build(tmp_path / "site")
-    assert 'src="assets/g3_18.html?seed=2#top"' in index.read_text()
+    assert 'src="assets/g3_18.html?seed=2#top"' in index.read_text(encoding="utf-8")
     assert (tmp_path / "site" / "assets" / "g3_18.html").is_file()
 
 
@@ -245,7 +245,7 @@ def test_an_embed_with_a_space_in_its_name_is_found_by_its_encoded_src(deck_fold
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
         load_source(deck_folder).build(tmp_path / "site")
-    assert (tmp_path / "site" / "assets" / "big plot.html").read_text() == "big"
+    assert (tmp_path / "site" / "assets" / "big plot.html").read_text(encoding="utf-8") == "big"
 
 
 def test_an_embed_that_is_not_there_is_a_warning_naming_it(deck_folder, tmp_path):
@@ -260,8 +260,8 @@ def test_a_single_file_build_does_not_copy_what_it_inlined(deck_folder, tmp_path
     (deck_folder / "theme" / "marks.js").write_text('console.log("marks");')
     (deck_folder / "deck.yml").write_text("extra_css: [theme/mine.css]\nextra_js: [theme/marks.js]\n")
     index = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True)
-    assert "body { color: red; }" in index.read_text()
-    assert 'console.log("marks");' in index.read_text()
+    assert "body { color: red; }" in index.read_text(encoding="utf-8")
+    assert 'console.log("marks");' in index.read_text(encoding="utf-8")
     assert not (tmp_path / "one" / "theme").exists()
     assert (tmp_path / "one" / "assets" / "g3_18.html").is_file()
     assert not (tmp_path / "one" / MANIFEST_NAME).exists()
@@ -308,7 +308,7 @@ def test_a_python_deck_built_into_its_own_folder_is_left_alone(deck_folder, monk
     monkeypatch.chdir(deck_folder)
     deck = Deck(title="Runs", slides=[Slide(sentence="Hi.", embeds=[Embed("assets/g3_18.html")])])
     deck.build(".")
-    assert (deck_folder / "assets" / "g3_18.html").read_text() == "<!doctype html><title>g3</title>"
+    assert (deck_folder / "assets" / "g3_18.html").read_text(encoding="utf-8") == "<!doctype html><title>g3</title>"
     assert (deck_folder / "index.html").is_file()
 
 
@@ -344,8 +344,8 @@ def test_a_link_left_in_the_output_is_not_written_through(deck_folder, tmp_path)
     (site / "assets").mkdir(parents=True)
     (site / "assets" / "g3_18.html").symlink_to(keep)
     load_source(deck_folder).build(site)
-    assert keep.read_text() == "mine"
-    assert (site / "assets" / "g3_18.html").read_text() == "<!doctype html><title>g3</title>"
+    assert keep.read_text(encoding="utf-8") == "mine"
+    assert (site / "assets" / "g3_18.html").read_text(encoding="utf-8") == "<!doctype html><title>g3</title>"
 
 
 def test_the_output_folder_may_not_sit_on_the_source_by_any_spelling(deck_folder):
@@ -407,7 +407,11 @@ def test_a_mesh_name_that_is_a_path_is_refused_in_both_kinds_of_build(deck_folde
 
 
 def test_a_rollout_and_its_meshes_are_inlined_and_copied(rollout_deck_folder, tmp_path):
-    one = load_source(rollout_deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+    one = (
+        load_source(rollout_deck_folder)
+        .build(tmp_path / "one" / "deck.html", single_file=True)
+        .read_text(encoding="utf-8")
+    )
     assert 'data-mkd-rollout="assets/run.rollout"' in one
     assert 'data-mkd-rollout="assets/abc.meshes"' in one
     site = tmp_path / "site"
@@ -417,7 +421,11 @@ def test_a_rollout_and_its_meshes_are_inlined_and_copied(rollout_deck_folder, tm
 
 def test_a_rollout_src_with_a_query_is_inlined_under_the_name_the_page_asks_for(rollout_deck_folder, tmp_path):
     (rollout_deck_folder / "deck.md").write_text("---\ntitle: T\n---\n\nHi.\n\n![run](assets/run.rollout?v=2)\n")
-    html = load_source(rollout_deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+    html = (
+        load_source(rollout_deck_folder)
+        .build(tmp_path / "one" / "deck.html", single_file=True)
+        .read_text(encoding="utf-8")
+    )
     assert 'data-mkd-rollout="assets/run.rollout?v=2"' in html
     assert 'data-mkd-rollout="assets/abc.meshes"' in html
 
@@ -445,7 +453,7 @@ def test_a_rollout_link_out_of_the_deck_is_refused(rollout_deck_folder, tmp_path
 
 def test_building_a_deck_directly_still_defaults_the_flag_to_off(rollout_deck_folder, tmp_path):
     index = build_deck(load_source(rollout_deck_folder).deck, tmp_path / "site", source=rollout_deck_folder)
-    assert "EventSource" not in index.read_text()
+    assert "EventSource" not in index.read_text(encoding="utf-8")
 
 
 def test_a_single_file_build_into_the_deck_folder_still_inlines_its_extras(deck_folder, monkeypatch):
@@ -454,11 +462,11 @@ def test_a_single_file_build_into_the_deck_folder_still_inlines_its_extras(deck_
     monkeypatch.chdir(deck_folder)
     deck = Deck(title="Runs", extra_css=["theme/mine.css"], slides=[Slide(sentence="Hi.")])
     deck.build("deck.html", single_file=True)
-    assert "body { color: teal; }" in (deck_folder / "deck.html").read_text()
+    assert "body { color: teal; }" in (deck_folder / "deck.html").read_text(encoding="utf-8")
 
 
 def test_mermaid_is_fetched_as_an_exact_release_and_checked_against_its_hash():
-    script = (ASSET_ROOT / "mkdeck.js").read_text()
+    script = (ASSET_ROOT / "mkdeck.js").read_text(encoding="utf-8")
     assert re.search(r"cdn\.jsdelivr\.net/npm/mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js", script)
     assert re.search(r'MERMAID_INTEGRITY = "sha384-[A-Za-z0-9+/]{64}"', script)
     assert "script.integrity = MERMAID_INTEGRITY" in script

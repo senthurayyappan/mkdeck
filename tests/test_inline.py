@@ -35,7 +35,7 @@ def test_a_font_url_inside_the_deck_is_inlined(deck_folder, tmp_path):
     (deck_folder / "theme" / "mine.css").write_text('@font-face { src: url("../assets/fonts/myhand.woff2"); }\n')
     (deck_folder / "deck.yml").write_text("extra_css: [theme/mine.css]\n")
     index = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True)
-    assert base64.b64encode(font).decode("ascii") in index.read_text()
+    assert base64.b64encode(font).decode("ascii") in index.read_text(encoding="utf-8")
 
 
 def test_a_font_url_outside_the_deck_is_not_inlined(deck_folder, tmp_path):
@@ -46,7 +46,7 @@ def test_a_font_url_outside_the_deck_is_not_inlined(deck_folder, tmp_path):
     (deck_folder / "deck.yml").write_text("extra_css: [theme/mine.css]\n")
     with pytest.warns(DeckWarning, match="leaves the deck folder"):
         index = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True)
-    html = index.read_text()
+    html = index.read_text(encoding="utf-8")
     assert "SECRET-TOKEN" not in html
     assert "../../secret.txt" not in html
 
@@ -85,7 +85,7 @@ def test_a_stylesheet_import_is_inlined_with_what_it_refers_to(deck_folder, tmp_
             "wide.css": ".wide { color: teal; }",
         },
     )
-    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
     assert "@import" not in html
     assert base64.b64encode(font).decode("ascii") in html
     assert "@media screen and (min-width: 600px) {.wide { color: teal; }}" in html
@@ -95,7 +95,9 @@ def test_a_remote_import_is_left_alone(deck_folder, tmp_path):
     single_file_deck(deck_folder, {"mine.css": '@import url("https://fonts.example.org/x.css");\nbody {}'})
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
-        html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+        html = (
+            load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
+        )
     assert '@import url("https://fonts.example.org/x.css");' in html
 
 
@@ -105,7 +107,9 @@ def test_an_import_that_is_missing_or_loops_is_reported(deck_folder, tmp_path):
         {"mine.css": '@import "gone.css";\n@import "loop.css";', "loop.css": '@import "loop.css";\n.a {}'},
     )
     with pytest.warns(DeckWarning) as caught:
-        html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+        html = (
+            load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
+        )
     messages = " ".join(str(warning.message) for warning in caught)
     assert "gone.css" in messages
     assert "imports itself" in messages
@@ -116,14 +120,18 @@ def test_an_import_outside_the_deck_is_dropped(deck_folder, tmp_path):
     (tmp_path / "secret.css").write_text(".secret { content: 'SECRET-TOKEN'; }")
     single_file_deck(deck_folder, {"mine.css": '@import "../../secret.css";\nbody {}'})
     with pytest.warns(DeckWarning, match="leaves the deck folder"):
-        html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+        html = (
+            load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
+        )
     assert "SECRET-TOKEN" not in html
 
 
 def test_a_url_that_points_at_nothing_is_reported_and_left_as_written(deck_folder, tmp_path):
     single_file_deck(deck_folder, {"mine.css": 'a { background: url("../assets/gone.png"); }\nb { fill: url(#clip); }'})
     with pytest.warns(DeckWarning, match="gone.png") as caught:
-        html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+        html = (
+            load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
+        )
     assert len(caught) == 1  # the fragment reference is not a file
     assert 'url("../assets/gone.png")' in html
 
@@ -131,7 +139,9 @@ def test_a_url_that_points_at_nothing_is_reported_and_left_as_written(deck_folde
 def test_the_bundled_stylesheets_leave_nothing_unresolved(deck_folder, tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
-        html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+        html = (
+            load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
+        )
     assert "url(fonts/" not in html
     assert 'url("fonts/' not in html
 
@@ -142,14 +152,16 @@ def test_a_stylesheet_that_is_a_cdn_link_is_left_linked_without_a_warning(deck_f
     )
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
-        html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+        html = (
+            load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
+        )
     assert '<link rel="stylesheet" href="https://cdn.example.org/a.css">' in html
     assert '<script src="//cdn.example.org/a.js"></script>' in html
 
 
 def test_a_path_with_an_ampersand_is_found_when_inlining(deck_folder, tmp_path):
     single_file_deck(deck_folder, {"a&b.css": "body { color: teal; }"})
-    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
     assert "body { color: teal; }" in html
     assert "a&amp;b.css" not in html
 
@@ -158,7 +170,7 @@ def test_a_script_cannot_end_its_element_or_open_a_comment(deck_folder, tmp_path
     (deck_folder / "theme").mkdir()
     (deck_folder / "theme" / "marks.js").write_text('var a = "</script><!--"; var b = "<!-- <script>";')
     (deck_folder / "deck.yml").write_text("extra_js: [theme/marks.js]\n")
-    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
     assert '"<\\/script><\\!--"' in html
     assert '"<\\!-- <script>"' in html
     assert '"</script><!--"' not in html
@@ -170,7 +182,7 @@ def test_the_authors_own_html_is_not_inlined(deck_folder, tmp_path):
         '---\ntitle: T\n---\n\nHi.\n\n<link rel="stylesheet" href="mkdeck-assets/mkdeck.css">\n'
         '<script src="mkdeck-assets/mkdeck.js"></script>\n'
     )
-    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text()
+    html = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True).read_text(encoding="utf-8")
     slides = html.split("<!--mkdeck-slides-->")[1].split("<!--/mkdeck-slides-->")[0]
     assert '<link rel="stylesheet" href="mkdeck-assets/mkdeck.css">' in slides
     assert '<script src="mkdeck-assets/mkdeck.js"></script>' in slides

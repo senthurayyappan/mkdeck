@@ -2,6 +2,7 @@
 
 import base64
 import json
+import sys
 import zlib
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -75,7 +76,7 @@ def test_build_writes_the_page(deck_file, tmp_path) -> None:
     assert result.exit_code == 0, result.output
     index = tmp_path / "site" / "index.html"
     assert index.is_file()
-    assert '<span class="mkd-num">0.65 m</span>' in index.read_text()
+    assert '<span class="mkd-num">0.65 m</span>' in index.read_text(encoding="utf-8")
 
 
 def test_new_scaffolds_a_deck_that_builds(tmp_path) -> None:
@@ -86,7 +87,7 @@ def test_new_scaffolds_a_deck_that_builds(tmp_path) -> None:
     assert (folder / "assets").is_dir()
     result = runner.invoke(app, ["build", str(folder), "-o", str(tmp_path / "site")])
     assert result.exit_code == 0, result.output
-    assert "Vault Runs" in (tmp_path / "site" / "index.html").read_text()
+    assert "Vault Runs" in (tmp_path / "site" / "index.html").read_text(encoding="utf-8")
 
 
 def test_new_refuses_a_folder_that_holds_something(tmp_path) -> None:
@@ -142,7 +143,9 @@ def test_check_says_how_to_install_playwright(deck_file, tmp_path, monkeypatch) 
     ("folder", "title"),
     [
         ("vault-runs", "Vault Runs"),
-        ("a:b", "A:b"),
+        pytest.param(
+            "a:b", "A:b", marks=pytest.mark.skipif(sys.platform == "win32", reason="a folder cannot hold a colon")
+        ),
         ("q3 #1", "Q3 #1"),
         ("[x]", "[x]"),
         ("it's", "It's"),
@@ -167,7 +170,7 @@ def test_new_refuses_a_file(tmp_path) -> None:
     assert result.exit_code == 1
     assert "not a folder" in result.output
     assert "Traceback" not in result.output
-    assert afile.read_text() == "mine"
+    assert afile.read_text(encoding="utf-8") == "mine"
 
 
 # --------------------------------------------------------------------------- #

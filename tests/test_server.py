@@ -257,7 +257,7 @@ def test_an_edit_made_the_moment_the_url_is_handed_out_is_not_missed(folder, mon
     seen: list[str] = []
 
     def build(root: Path, live: bool) -> None:
-        seen.append((folder / "deck.md").read_text())
+        seen.append((folder / "deck.md").read_text(encoding="utf-8"))
         (root / "index.html").write_text("deck")
 
     with dev_server(build, watch_paths=[folder], port=0):

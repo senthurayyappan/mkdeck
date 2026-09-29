@@ -237,7 +237,9 @@ def test_an_unknown_option_names_the_slide_and_suggests_the_key() -> None:
     with pytest.raises(DeckError) as caught:
         parse("<!--\nid: a1-crate\nlayot: figures\n-->\n\nFive seeds cross.\n")
     message = str(caught.value)
-    assert message.startswith('slides/deck.md: slide 1 "a1-crate": This slide has the unknown option "layot".')
+    assert message.startswith(
+        f'{Path("slides/deck.md")}: slide 1 "a1-crate": This slide has the unknown option "layot".'
+    )
     assert 'Did you mean "layout"?' in message
 
 
@@ -289,7 +291,7 @@ def test_a_construct_with_no_home_on_a_slide_is_an_error() -> None:
 def test_unreadable_options_name_the_slide() -> None:
     with pytest.raises(DeckError) as caught:
         parse("# One\n\n---\n<!--\nid: [unclosed\n-->\n\nFive seeds cross.\n")
-    assert str(caught.value).startswith("slides/deck.md: slide 2: The options comment is not valid.")
+    assert str(caught.value).startswith(f"{Path('slides/deck.md')}: slide 2: The options comment is not valid.")
 
 
 def test_duplicate_slide_ids_are_rejected() -> None:

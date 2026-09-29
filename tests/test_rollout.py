@@ -258,7 +258,7 @@ def test_a_rollout_source_is_drawn_by_the_viewer():
 
 def test_a_deck_with_a_rollout_carries_the_viewer(rollout_deck, tmp_path):
     index = load_source(rollout_deck).build(tmp_path / "site")
-    html = index.read_text()
+    html = index.read_text(encoding="utf-8")
     assert '<deck-rollout src="assets/run.rollout">' in html
     assert "mkdeck-rollout.js" in html
     assert (tmp_path / "site" / "mkdeck-assets" / "three" / "three.module.js").is_file()
@@ -274,14 +274,14 @@ def test_the_shared_meshes_are_copied_beside_the_rollout(rollout_deck, tmp_path)
 
 def test_a_deck_without_a_rollout_pays_for_no_viewer(deck_folder, tmp_path):
     index = load_source(deck_folder).build(tmp_path / "site")
-    assert "mkdeck-rollout.js" not in index.read_text()
+    assert "mkdeck-rollout.js" not in index.read_text(encoding="utf-8")
     assert not (tmp_path / "site" / "mkdeck-assets" / "three").exists()
     assert not (tmp_path / "site" / "mkdeck-assets" / "viewer").exists()
 
 
 def test_a_single_file_deck_carries_its_rollouts_inside_it(rollout_deck, tmp_path):
     index = load_source(rollout_deck).build(tmp_path / "one" / "deck.html", single_file=True)
-    html = index.read_text()
+    html = index.read_text(encoding="utf-8")
     for specifier in ("three", "rollout-bundle", "mkdeck-camera", "mkdeck-viewer"):
         assert f'data-mkd-module="{specifier}"' in html
     assert 'data-mkd-rollout="assets/run.rollout"' in html

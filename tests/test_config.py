@@ -1,5 +1,6 @@
 import dataclasses
 import datetime as dt
+import re
 from pathlib import Path
 
 import pytest
@@ -126,7 +127,7 @@ def test_the_yaml_suffix_is_accepted_too(tmp_path: Path) -> None:
 def test_the_frontmatter_wins_over_the_config_file(tmp_path: Path) -> None:
     write(tmp_path, "deck.yml", DECK_YML)
     source = write(tmp_path, "deck.md", "---\ndate: 2026-09-18\ntitle_slide: false\n---\n")
-    deck = parse_markdown(source.read_text(), source=source, defaults=read_config_file(source))
+    deck = parse_markdown(source.read_text(encoding="utf-8"), source=source, defaults=read_config_file(source))
     assert deck.date == "2026-09-18"
     assert deck.title_slide is False
     assert deck.title.startswith("Barkour vault")
@@ -142,7 +143,7 @@ def test_the_two_reveal_mappings_are_merged_option_by_option() -> None:
 def test_a_bad_key_names_the_file_it_came_from(tmp_path: Path) -> None:
     path = write(tmp_path, "deck.yml", "titel: Quadruped Vault Runs\n")
     source = write(tmp_path, "deck.md", "")
-    with pytest.raises(DeckError, match=str(path)):
+    with pytest.raises(DeckError, match=re.escape(str(path))):
         read_config_file(source)
     other = tmp_path / "other"
     other.mkdir()

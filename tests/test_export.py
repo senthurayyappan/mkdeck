@@ -19,7 +19,7 @@ def deck(tmp_path):
 
 def test_the_deck_is_printed_from_one_file_at_the_page_size(deck, tmp_path) -> None:
     document = _print_document(deck, tmp_path / "work", size=(1280, 720))
-    html = document.read_text()
+    html = document.read_text(encoding="utf-8")
     assert document.name == "deck.html"
     assert '"width": 1280' in html
     assert '"height": 720' in html

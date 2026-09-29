@@ -104,4 +104,4 @@ def test_vendoring_writes_the_pinned_files_and_removes_the_stale_ones(registry, 
         "package.json",
     ]
     assert not (folder / "gone").exists()
-    assert "removed thing/dist/old.js" in capsys.readouterr().out
+    assert f"removed {Path('thing/dist/old.js')}" in capsys.readouterr().out

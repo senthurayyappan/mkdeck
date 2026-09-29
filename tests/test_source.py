@@ -66,21 +66,21 @@ def test_a_deck_file_that_is_not_utf8_names_the_file(deck_folder):
 def test_a_loaded_deck_builds_with_one_call(deck_folder, tmp_path):
     index = load_source(deck_folder).build(tmp_path / "site")
     assert index == tmp_path / "site" / "index.html"
-    assert "Quadruped Vault Runs" in index.read_text()
+    assert "Quadruped Vault Runs" in index.read_text(encoding="utf-8")
     assert (tmp_path / "site" / "assets" / "g3_18.html").is_file()
 
 
 def test_a_loaded_deck_builds_into_one_file(deck_folder, tmp_path):
     index = load_source(deck_folder).build(tmp_path / "one" / "deck.html", single_file=True)
     assert index == tmp_path / "one" / "deck.html"
-    assert "<style>" in index.read_text()
+    assert "<style>" in index.read_text(encoding="utf-8")
 
 
 def test_a_loaded_deck_may_be_changed_before_it_is_built(deck_folder, tmp_path):
     loaded = load_source(deck_folder)
     loaded.deck.units.append("apples")
     loaded.deck.title = "Renamed"
-    assert "Renamed" in loaded.build(tmp_path / "site").read_text()
+    assert "Renamed" in loaded.build(tmp_path / "site").read_text(encoding="utf-8")
 
 
 def test_the_loaded_deck_is_frozen_but_names_its_files(deck_folder):

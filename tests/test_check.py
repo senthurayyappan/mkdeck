@@ -99,7 +99,7 @@ def test_the_report_text_has_a_header_and_a_row_per_slide() -> None:
 def test_the_probe_ships_beside_the_module_and_reports_rollouts() -> None:
     assert Path(check_module.__file__).with_name("probe.js").is_file()
     assert "rollout_errors" in PROBE
-    assert "MKDECK_BROWSER_LIBS" not in Path(check_module.__file__).read_text()
+    assert "MKDECK_BROWSER_LIBS" not in Path(check_module.__file__).read_text(encoding="utf-8")
 
 
 # --------------------------------------------------------------------------- #
@@ -153,7 +153,7 @@ def test_only_html_files_and_only_file_urls_are_stubbed(tmp_path) -> None:
 
 def test_a_deck_is_built_as_one_file_so_a_rollout_can_be_read(rollout_deck, tmp_path) -> None:
     document = _prepare(rollout_deck, tmp_path / "work")
-    html = document.read_text()
+    html = document.read_text(encoding="utf-8")
     assert document.name == "deck.html"
     assert 'data-mkd-rollout="assets/run.rollout"' in html
 
@@ -182,9 +182,9 @@ def test_a_check_reads_every_slide_and_a_rollout_on_one(chromium, rollout_deck, 
     assert all(record["flags"] == [] for record in records), [record["flags"] for record in records]
     assert records[2]["figures"] == 1
     assert sorted(path.name for path in out.glob("slide_*.png")) == [f"slide_0{n}.png" for n in (1, 2, 3, 4)]
-    written = json.loads((out / "report.json").read_text())
+    written = json.loads((out / "report.json").read_text(encoding="utf-8"))
     assert [row["flags"] for row in written] == [[]] * 4
-    assert (out / "report.txt").read_text().startswith("viewport 1280x720, deck ")
+    assert (out / "report.txt").read_text(encoding="utf-8").startswith("viewport 1280x720, deck ")
 
 
 def test_a_deck_larger_than_the_embed_limit_is_still_checked(chromium, rollout_deck, tmp_path) -> None:
