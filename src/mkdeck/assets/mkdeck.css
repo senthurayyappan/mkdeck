@@ -122,6 +122,11 @@ section.mkd-slide {
   max-width: 20ch;
 }
 
+/* A heading above a sentence, figures or a table. On a title slide the date sets its own gap. */
+.mkd-slide:not([data-layout="title"]) .mkd-title:not(:last-child) {
+  margin-bottom: 20px;
+}
+
 .mkd-date {
   margin: 20px 0 0;
 }

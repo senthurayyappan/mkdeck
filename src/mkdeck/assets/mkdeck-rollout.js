@@ -47,6 +47,17 @@
     return document.querySelector('script[' + attribute + '="' + value + '"]');
   }
 
+  // A browser will not read a neighbouring file from a file:// page, so a
+  // folder build has to be served. A single-file build carries its sources and
+  // rollouts inside the document and never reaches this.
+  function fileHint(error, what) {
+    if (window.location.protocol === "file:") {
+      return new Error("a deck opened from a file:// URL cannot read " + what
+        + "; serve the folder, or build it with --single-file");
+    }
+    return error;
+  }
+
   function sourceOf(specifier, path) {
     var inline = inlineNode("data-mkd-module", specifier);
     if (inline) {
@@ -57,6 +68,8 @@
         throw new Error("cannot load " + path + " (" + response.status + ")");
       }
       return response.text();
+    }).catch(function (error) {
+      throw fileHint(error, path);
     });
   }
 
@@ -80,14 +93,7 @@
       }
       return response.arrayBuffer();
     }).catch(function (error) {
-      // A browser will not read a neighbouring file from a file:// page, so a
-      // folder build has to be served. A single-file build carries its
-      // rollouts inside the document and never reaches this.
-      if (window.location.protocol === "file:") {
-        throw new Error("a deck opened from a file:// URL cannot read " + src
-          + "; serve the folder, or build it with --single-file");
-      }
-      throw error;
+      throw fileHint(error, src);
     }).then(function (buffer) {
       return new Uint8Array(buffer);
     });
@@ -155,43 +161,65 @@
     return { header: header, tail: bytes.subarray(12 + length) };
   }
 
-  function bundleFrom(bytes, dirname) {
-    if (magic(bytes) === RBDL) {
-      return Promise.resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  // One .rbundle from a header and the tail parts that follow it, with the
+  // header padded so the tail starts on an 8-byte boundary.
+  function assemble(header, parts) {
+    var encoded = new TextEncoder().encode(JSON.stringify(header));
+    var padding = (8 - ((encoded.length + 12) % 8)) % 8;
+    var total = parts.reduce(function (sum, part) {
+      return sum + part.byteLength;
+    }, 12 + encoded.length + padding);
+    var out = new Uint8Array(total);
+    var view = new DataView(out.buffer);
+    for (var i = 0; i < 4; i++) {
+      out[i] = RBDL.charCodeAt(i);
     }
-    if (magic(bytes) !== RSPL) {
+    view.setBigUint64(4, BigInt(encoded.length + padding), true);
+    out.set(encoded, 12);
+    out.fill(0x20, 12 + encoded.length, 12 + encoded.length + padding);
+    var at = 12 + encoded.length + padding;
+    parts.forEach(function (part) {
+      out.set(part, at);
+      at += part.byteLength;
+    });
+    return out.buffer;
+  }
+
+  function without(header, keys) {
+    var kept = {};
+    Object.keys(header).forEach(function (key) {
+      if (keys.indexOf(key) < 0) {
+        kept[key] = header[key];
+      }
+    });
+    return kept;
+  }
+
+  function bundleFrom(bytes, dirname) {
+    var kind = magic(bytes);
+    if (kind !== RBDL && kind !== RSPL) {
       return Promise.reject(new Error("not a rollout (bad magic)"));
     }
     var split = splitContainer(bytes);
+    if (kind === RBDL) {
+      // A whole .rbundle. The parser reads a raw tail, so a gzip'd one (v2) is
+      // inflated here and its header stops claiming compression.
+      if (split.header.compression !== "gzip") {
+        return Promise.resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+      }
+      return gunzip(split.tail).then(function (tail) {
+        return assemble(without(split.header, ["compression"]), [tail]);
+      });
+    }
     var file = split.header.meshes.file;
     if (!meshes[file]) {
       meshes[file] = bytesOf(dirname + file).then(gunzip);
     }
     return Promise.all([meshes[file], gunzip(split.tail)]).then(function (parts) {
-      var mesh = parts[0], poses = parts[1];
-      if (mesh.byteLength !== split.header.meshes.bytes) {
+      if (parts[0].byteLength !== split.header.meshes.bytes) {
         throw new Error("the shared meshes are not the ones this rollout was written against");
       }
-      var header = {};
-      Object.keys(split.header).forEach(function (key) {
-        if (key !== "meshes" && key !== "version") {
-          header[key] = split.header[key];
-        }
-      });
-      var encoded = new TextEncoder().encode(JSON.stringify(header));
-      var padding = (8 - ((encoded.length + 12) % 8)) % 8;
-      var total = 12 + encoded.length + padding + mesh.byteLength + poses.byteLength;
-      var out = new Uint8Array(total);
-      var view = new DataView(out.buffer);
-      for (var i = 0; i < 4; i++) {
-        out[i] = RBDL.charCodeAt(i);
-      }
-      view.setBigUint64(4, BigInt(encoded.length + padding), true);
-      out.set(encoded, 12);
-      out.fill(0x20, 12 + encoded.length, 12 + encoded.length + padding);
-      out.set(mesh, 12 + encoded.length + padding);
-      out.set(poses, 12 + encoded.length + padding + mesh.byteLength);
-      return out.buffer;
+      return assemble(without(split.header, ["meshes", "version"]), parts);
     });
   }
 
@@ -316,6 +344,38 @@
       });
   }
 
+  // For a PDF: draw the first frame into a picture and give the WebGL context
+  // back, so that any number of rollouts can be printed one after another.
+  function snapshotRollout(host) {
+    loadRollout(host, false);
+    return new Promise(function (resolve) {
+      (function wait() {
+        if (host.dataset.mkdState === "loading") {
+          setTimeout(wait, 50);
+        } else {
+          resolve();
+        }
+      })();
+    }).then(function () {
+      var viewer = host.mkdViewer;
+      var stage = host.querySelector(".mkd-rollout-stage");
+      if (!viewer || !stage) {
+        return null; // it failed, and the page says so where the run would be
+      }
+      viewer.render(); // toDataURL has to follow the draw in the same task
+      var picture = document.createElement("img");
+      picture.className = "mkd-rollout-canvas";
+      picture.alt = "";
+      picture.src = stage.querySelector("canvas").toDataURL("image/png");
+      viewer.dispose();
+      host.mkdViewer = null;
+      host.querySelector(".mkd-rollout-controls").remove();
+      stage.appendChild(picture);
+      host.dataset.mkdState = "printed";
+      return picture.decode().catch(function () {});
+    });
+  }
+
   function unloadRollout(host) {
     if (host.mkdViewer) {
       host.mkdViewer.dispose();
@@ -340,6 +400,9 @@
         reload() {
           unloadRollout(this);
           loadRollout(this, true);
+        }
+        snapshot() {
+          return snapshotRollout(this);
         }
         disconnectedCallback() {
           unloadRollout(this);

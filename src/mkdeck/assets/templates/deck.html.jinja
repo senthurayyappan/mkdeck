@@ -1,23 +1,22 @@
 {#- mkdeck deck template.
 
 Variables:
-  title      str          the deck title, for <title> and the browser tab
-  date       str | None   the deck date; the chrome shows it until a slide restamps it
-  theme      str          a file name under assets/themes/, without ".css"
-  slides     Markup       the rendered <section class="mkd-slide"> elements
-  assets     str          relative prefix of the vendored assets, e.g. "mkdeck-assets/"
-  extra_css  list[str]    extra stylesheet hrefs, relative, linked after mkdeck.css
-  extra_js   list[str]    extra script srcs, relative, loaded after mkdeck.js
-  reveal     dict         merged over mkdeck's own Reveal.initialize options
-  rollouts   bool         true when a slide draws a rollout, which loads the viewer
+  title        str          the deck title, for <title> and the browser tab
+  date         str | None   the deck date; the chrome shows it until a slide restamps it
+  theme        str          a file name under assets/themes/, without ".css"
+  slides       Markup       the rendered <section class="mkd-slide"> elements
+  assets       str          relative prefix of the vendored assets, e.g. "mkdeck-assets/"
+  extra_css    list[str]    extra stylesheet hrefs, relative, linked after mkdeck.css
+  extra_js     list[str]    extra script srcs, relative, loaded after mkdeck.js
+  reveal       dict         merged over mkdeck's own Reveal.initialize options
+  rollouts     bool         true when a slide draws a rollout, which loads the viewer
+  reload_path  str | None   the dev server's event stream, which adds the live-reload client
 
 Every path is relative, so a built deck opens from a file:// URL and from any
 subdirectory of a site.
+
+The <!--mkdeck-...--> comments are markers for the single-file build (render.py).
 -#}
-{#- Optional variables fall back, so a deck still renders if one is left out. -#}
-{%- set theme = theme | default("minimal", true) -%}
-{%- set prefix = assets | default("", true) -%}
-{%- set base = prefix if not prefix or prefix.endswith("/") else prefix ~ "/" -%}
 <!doctype html>
 <html lang="en" data-theme="{{ theme }}">
 <head>
@@ -25,34 +24,36 @@ subdirectory of a site.
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="mkdeck">
 <title>{{ title }}</title>
-<link rel="stylesheet" href="{{ base }}roboto/roboto.css">
-<link rel="stylesheet" href="{{ base }}reveal.js/dist/reset.css">
-<link rel="stylesheet" href="{{ base }}reveal.js/dist/reveal.css">
-<link rel="stylesheet" href="{{ base }}katex/dist/katex.min.css">
-<link rel="stylesheet" href="{{ base }}themes/{{ theme }}.css">
-<link rel="stylesheet" href="{{ base }}mkdeck.css">
-{%- for href in extra_css | default([], true) %}
+<link rel="stylesheet" href="{{ assets }}roboto/roboto.css">
+<link rel="stylesheet" href="{{ assets }}reveal.js/dist/reset.css">
+<link rel="stylesheet" href="{{ assets }}reveal.js/dist/reveal.css">
+<link rel="stylesheet" href="{{ assets }}katex/dist/katex.min.css">
+<link rel="stylesheet" href="{{ assets }}themes/{{ theme }}.css">
+<link rel="stylesheet" href="{{ assets }}mkdeck.css">
+{%- for href in extra_css %}
 <link rel="stylesheet" href="{{ href }}">
 {%- endfor %}
 <!--mkdeck-payloads-->
 </head>
 <body>
-<div class="reveal" data-mkd-assets="{{ base }}"{% if date %} data-deck-date="{{ date }}"{% endif %}>
+<div class="reveal" data-mkd-assets="{{ assets }}"{% if date %} data-deck-date="{{ date }}"{% endif %}>
   <div class="slides">
+<!--mkdeck-slides-->
 {{ slides }}
+<!--/mkdeck-slides-->
   </div>
   <div class="mkd-chrome mkd-chrome-left"></div>
   <div class="mkd-chrome mkd-chrome-right"></div>
 </div>
-<script src="{{ base }}reveal.js/dist/reveal.js"></script>
-<script src="{{ base }}reveal.js/dist/plugin/notes.js"></script>
-<script src="{{ base }}reveal.js/dist/plugin/zoom.js"></script>
-<script src="{{ base }}katex/dist/katex.min.js"></script>
-<script src="{{ base }}mkdeck.js"></script>
-{%- if rollouts | default(false, true) %}
-<script src="{{ base }}mkdeck-rollout.js"></script>
+<script src="{{ assets }}reveal.js/dist/reveal.js"></script>
+<script src="{{ assets }}reveal.js/dist/plugin/notes.js"></script>
+<script src="{{ assets }}reveal.js/dist/plugin/zoom.js"></script>
+<script src="{{ assets }}katex/dist/katex.min.js"></script>
+<script src="{{ assets }}mkdeck.js"></script>
+{%- if rollouts %}
+<script src="{{ assets }}mkdeck-rollout.js"></script>
 {%- endif %}
-{%- for src in extra_js | default([], true) %}
+{%- for src in extra_js %}
 <script src="{{ src }}"></script>
 {%- endfor %}
 <script>
@@ -73,7 +74,7 @@ subdirectory of a site.
     slideNumber: false,
     transition: "none"
   };
-  var overrides = {{ reveal | default({}, true) | tojson }};
+  var overrides = {{ reveal | tojson }};
   Object.keys(overrides).forEach(function (key) { config[key] = overrides[key]; });
   config.plugins = [];
   if (window.RevealNotes) { config.plugins.push(window.RevealNotes); }
@@ -81,5 +82,27 @@ subdirectory of a site.
   Reveal.initialize(config);
 })();
 </script>
+{%- if reload_path %}
+<script>
+/* mkdeck live reload: the dev server pushes "reload" when the deck is rebuilt and "deck-error" when it cannot be. */
+(function () {
+  "use strict";
+  var source = new EventSource({{ reload_path | tojson }});
+  var overlay = null;
+  source.addEventListener("reload", function () { window.location.reload(); });
+  source.addEventListener("deck-error", function (event) {
+    if (!overlay) {
+      overlay = document.createElement("pre");
+      overlay.setAttribute("role", "alert");
+      overlay.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:2147483647;margin:0;padding:12px 16px;" +
+        "max-height:40vh;overflow:auto;background:#7a1d1d;color:#fff;font:13px/1.4 ui-monospace,monospace;" +
+        "white-space:pre-wrap";
+      document.body.appendChild(overlay);
+    }
+    overlay.textContent = "mkdeck: the last rebuild failed, so this is still the previous deck.\n" + event.data;
+  });
+})();
+</script>
+{%- endif %}
 </body>
 </html>

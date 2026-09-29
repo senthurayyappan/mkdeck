@@ -1,8 +1,9 @@
 """Minimal HTML slide decks from Markdown or from Python.
 
-The public API is the slide model, the Markdown parser and the renderer::
+The public API is the slide model and the two ways to get a deck: build one in Python, or
+load one from a Markdown file. Either way, `build` writes it and `serve` shows it::
 
-    from mkdeck import Deck, Slide, Embed
+    from mkdeck import Deck, Slide, Embed, load_source
 
     deck = Deck(title="Quadruped Vault Runs", date="2026-09-18")
     deck.slides.append(
@@ -12,31 +13,33 @@ The public API is the slide model, the Markdown parser and the renderer::
         )
     )
     deck.build("site/")  # or deck.serve(port=5020)
+
+    load_source("talk").build("site/")  # a deck.md and its assets/ folder
+
+The public modules are `mkdeck`, `mkdeck.errors` and `mkdeck.rollout`. Every other module
+is an implementation detail and can change between releases.
 """
 
-from mkdeck.build import DeckSource, build_deck, build_source, load_source
-from mkdeck.config import DeckConfig
-from mkdeck.errors import DeckError
-from mkdeck.markdown import parse_markdown
-from mkdeck.model import Deck, Embed, Slide, Table
-from mkdeck.render import DEFAULT_UNITS, render_deck, render_slide
-from mkdeck.server import serve_deck, serve_source
+from importlib.metadata import PackageNotFoundError, version
+
+from mkdeck.errors import DeckError, DeckWarning
+from mkdeck.model import DEFAULT_UNITS, Deck, Embed, Slide, Table
+from mkdeck.source import DeckSource, load_source
+
+try:
+    __version__ = version("mkdeck")
+except PackageNotFoundError:  # a source tree that was never installed
+    __version__ = "0.0.0+unknown"
 
 __all__ = [
     "DEFAULT_UNITS",
     "Deck",
-    "DeckConfig",
     "DeckError",
     "DeckSource",
+    "DeckWarning",
     "Embed",
     "Slide",
     "Table",
-    "build_deck",
-    "build_source",
+    "__version__",
     "load_source",
-    "parse_markdown",
-    "render_deck",
-    "render_slide",
-    "serve_deck",
-    "serve_source",
 ]
