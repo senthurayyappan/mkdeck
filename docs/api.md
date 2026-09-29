@@ -1,95 +1,51 @@
 # API reference
 
+Everything on this page is importable from the top-level `mkdeck` package,
+apart from the rollout converter, which lives in `mkdeck.rollout`. The public
+modules are `mkdeck`, `mkdeck.errors` and `mkdeck.rollout`. Every other module
+is an implementation detail and can change between releases.
+
+`Deck.build` and `Deck.serve` write and show a deck built in Python.
+`load_source(...)` returns a `DeckSource` with the same two methods for a deck
+written in Markdown. Those are the only entry points; see
+[Building from Python](python-api.md) for how they fit together.
+
 ## The slide model
 
-The classes the parser produces and the renderer reads.
+The classes the Markdown loader produces and the renderer reads. You can also
+build them yourself.
 
-::: mkdeck.model
-    options:
-      members:
-        - Deck
-        - Slide
-        - Embed
-        - Table
-        - Layout
-        - EmbedKind
-        - MAX_EMBEDS
-        - resolve_layout
-        - resolve_embed_kind
-        - validate_deck
-        - validate_slide
+::: mkdeck.Deck
 
-## Settings
+::: mkdeck.Slide
 
-`deck.yml` and the deck frontmatter, merged into one object.
+::: mkdeck.Embed
 
-::: mkdeck.config
-    options:
-      members:
-        - DeckConfig
-        - DEFAULT_UNITS
-        - CONFIG_KEYS
-        - load_config
-        - apply_config
-        - find_config_file
+::: mkdeck.Table
 
-## Markdown
+::: mkdeck.DEFAULT_UNITS
 
-The parser that turns a Markdown file into a deck.
+## Load a deck from disk
 
-::: mkdeck.markdown
-    options:
-      members:
-        - parse_markdown
-        - split_frontmatter
-        - SLIDE_OPTION_KEYS
+::: mkdeck.load_source
 
-## Build and serve
+::: mkdeck.DeckSource
 
-::: mkdeck.build
-    options:
-      members:
-        - build_deck
-        - build_source
-        - load_source
-        - DeckSource
+## Errors and warnings
 
-::: mkdeck.server
-    options:
-      members:
-        - serve_deck
-        - serve_source
+::: mkdeck.DeckError
 
-## Render
-
-::: mkdeck.render
-    options:
-      members:
-        - render_deck
-        - render_slide
-        - highlight_numbers
-
-## Check and export
-
-::: mkdeck.check
-    options:
-      members:
-        - check_deck
-        - slide_flags
-
-::: mkdeck.export
-    options:
-      members:
-        - export_deck
-
-## Errors
-
-::: mkdeck.errors
+::: mkdeck.DeckWarning
 
 ## Rollouts
 
-::: mkdeck.rollout
+`mkdeck rollout` calls this function. It reads one Brax playback page and
+writes a `.rollout` file and, for a model it has not seen, its shared
+`.meshes` file. A page that holds no Brax scene raises `NotBraxPage`, a
+`DeckError` that a caller converting a folder of pages can catch and skip.
 
-## Commands
+::: mkdeck.rollout.convert_brax_html
 
-::: mkdeck.cli
+::: mkdeck.rollout.Converted
+
+::: mkdeck.rollout.NotBraxPage

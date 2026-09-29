@@ -7,15 +7,18 @@ mkdeck turns them into a single HTML page and serves it on a local port.
 
 ## What you get
 
-- **Python only.** mkdeck carries reveal.js, KaTeX and the Roboto font inside
-  the wheel. You do not install Node, and a built deck needs no network.
+- **Python only.** mkdeck needs Python 3.11 or newer. It carries reveal.js,
+  KaTeX and the Roboto font inside the wheel, so you do not install Node. A
+  built deck needs no network, apart from a diagram, which fetches Mermaid
+  unless you give it a local copy.
 - **Live figures.** Point a slide at an HTML page to embed it. A Brax viewer, a
   Plotly chart or a WebGL scene runs inside the slide.
 - **One deck, two ways to write it.** Author in Markdown, or build the slides
   from Python when the deck reports measured results. Both paths use the same
   slide model, so they cannot drift apart.
-- **Math and diagrams.** KaTeX renders `$...$` and `$$...$$`. A `mermaid` code
-  fence becomes a diagram.
+- **Math and diagrams.** KaTeX draws `$...$` and `$$...$$` in the browser,
+  offline. A `mermaid` code fence becomes a diagram, and the diagram loads
+  Mermaid from a CDN, so it needs a network connection.
 - **One visual language.** White page, one grey sentence, dark numbers. You
   change the colours with CSS variables, and you add components with custom
   elements.
