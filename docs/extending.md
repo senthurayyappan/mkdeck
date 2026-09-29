@@ -29,7 +29,8 @@ extra_css: [theme/mine.css]
 ```
 
 mkdeck links `extra_css` after the theme, so your file wins without
-`!important`. The full list of variables sits at the top of
+`!important`. The path stays inside the deck folder. An `http` or `https` URL
+is left as a link. The full list of variables sits at the top of
 `mkdeck/assets/themes/minimal.css`.
 
 ## Fonts
@@ -53,10 +54,9 @@ The path is relative to the stylesheet, not to the deck. mkdeck copies the
 whole `assets/` tree and each file you name in `extra_css` or `extra_js`, so
 the deck stays offline.
 
-A `--single-file` build folds the stylesheet into the document. A relative
-`url()` then resolves against the document instead. Keep the font stylesheet
-out of `extra_css` if you build single-file decks, and load the font from the
-network instead.
+A `--single-file` build folds the stylesheet into the document and inlines a
+`url()` that stays inside the deck folder, so the font comes along. A path
+that leaves the folder is left out.
 
 ## Custom elements
 
@@ -74,42 +74,63 @@ Markdown passes HTML through, so you use the element in the slide text:
 Departure speed reaches <deck-mark type="circle">2.10 m/s</deck-mark> at 22 N m.
 ```
 
+### Scripts run as classic scripts
+
+mkdeck loads each `extra_js` file as a classic script, not as a module. A folder
+build links it with `<script src>`, and a `--single-file` build writes it inline
+into a `<script>`. A top-level `import ... from "..."` is then a syntax error
+("Cannot use import statement outside a module"). Browsers refuse to load a
+module from a `file://` page, which is how a deck that someone double-clicks
+opens, so mkdeck keeps to classic scripts.
+
+To use an ES module, load it with a dynamic `import()`, which a classic script
+may call. It works from a served deck and from a file, as long as the module's
+address can be reached: a full `https://` URL always can. A library that
+ships a plain script build, one that defines a global, needs no `import` at all:
+list it in `extra_js` before your file.
+
 ### Example: hand-drawn marks
 
 This component circles a number on the slide. It uses
 [rough-notation](https://roughnotation.com/), a 10 KB library that draws
-sketched marks over any element.
+sketched marks over any element. The example imports it from a CDN with a
+dynamic `import()`, so the slide needs a network connection.
 
 ```js
 // theme/marks.js
-import { annotate } from "https://esm.sh/rough-notation@0.5.1";
+(async () => {
+  const { annotate } = await import("https://esm.sh/rough-notation@0.5.1");
 
-class DeckMark extends HTMLElement {
-  connectedCallback() {
-    if (this.annotation) { return; }           // reveal moves the node, so guard it
-    this.annotation = annotate(this, {
-      type: this.getAttribute("type") || "circle",   // circle, underline, box, highlight
-      color: this.getAttribute("color") || "var(--mkd-accent)",
-      strokeWidth: 2,
-      padding: 6,
-      animationDuration: 700,
-      multiline: this.hasAttribute("multiline"),
-    });
-    // Draw the mark when the slide arrives. Reset it when the slide leaves,
-    // so a second visit draws it again.
-    this.unsubscribe = window.mkdeck.onSlide(({ slide }) => {
-      if (slide && slide.contains(this)) { this.annotation.show(); }
-      else { this.annotation.hide(); }
-    });
+  class DeckMark extends HTMLElement {
+    connectedCallback() {
+      if (this.annotation) { return; }           // reveal moves the node, so guard it
+      this.annotation = annotate(this, {
+        type: this.getAttribute("type") || "circle",   // circle, underline, box, highlight
+        color: this.getAttribute("color") || "var(--mkd-accent)",
+        strokeWidth: 2,
+        padding: 6,
+        animationDuration: 700,
+        multiline: this.hasAttribute("multiline"),
+      });
+      // Draw the mark when the slide arrives. Reset it when the slide leaves,
+      // so a second visit draws it again.
+      this.unsubscribe = window.mkdeck.onSlide(({ slide }) => {
+        if (slide && slide.contains(this)) { this.annotation.show(); }
+        else { this.annotation.hide(); }
+      });
+    }
+
+    disconnectedCallback() {
+      if (this.unsubscribe) { this.unsubscribe(); }
+    }
   }
 
-  disconnectedCallback() {
-    if (this.unsubscribe) { this.unsubscribe(); }
-  }
-}
-
-customElements.define("deck-mark", DeckMark);
+  customElements.define("deck-mark", DeckMark);
+})();
 ```
+
+The element is defined once the import has arrived. A `<deck-mark>` already on
+the page is upgraded at that moment, so the order does not matter.
 
 ```css
 /* theme/marks.css — the element is inline, and must not move the line. */
@@ -160,3 +181,26 @@ await document.fonts.ready;
 
 The same rule applies to a figure you generate with a plotting library, because
 the library computes its own label boxes.
+
+## Vendored libraries
+
+mkdeck carries the libraries a deck needs, so nothing is fetched when you
+present. Each one is a pinned release, downloaded from its npm package and
+committed to the repository:
+
+| Library | Version | Used for |
+| --- | --- | --- |
+| reveal.js | 6.0.2 | The slides, with the notes and zoom plugins |
+| KaTeX | 0.18.7 | Math, drawn in the browser, with its fonts |
+| Roboto | 5.3.0 (`@fontsource/roboto`) | The default font, three weights of the latin subset |
+| three.js | r150 (0.150.1) | The rollout viewer, and only in a deck that has a rollout |
+
+[Mermaid](writing-slides.md#math-and-diagrams) is the exception: a pinned
+release (12.0.0, checked against its SRI hash) is loaded from a CDN when a slide
+holds a diagram, unless the diagram's `data-src` names a local copy.
+
+three.js stays on r150 on purpose. The rollout viewer works around the way
+r150's `OrbitControls` reads the camera's `up` vector once, when the controls
+are created, and moving to a newer three.js means re-reading that workaround
+first. The licenses of everything above are in
+[THIRD_PARTY_NOTICES.md](https://github.com/senthurayyappan/mkdeck/blob/main/THIRD_PARTY_NOTICES.md).

@@ -1,8 +1,13 @@
-"""Markdown to :class:`~mkdeck.model.Deck`.
+"""Markdown to `mkdeck.model.Deck`.
 
-A deck file opens with YAML frontmatter, and its slides are separated by ``---`` on a
-line of its own. Per-slide options follow the separator as an HTML comment holding YAML,
-so the file still reads as ordinary Markdown everywhere else::
+A deck file may open with YAML frontmatter, and its slides are separated by a line of
+dashes (`---`) on its own. The separator is a thematic break in the Markdown syntax tree,
+so a `---` inside a code fence, an HTML comment or a `$$` block never cuts a slide. Setext
+headings (a line underlined with `---` or `===`) are not supported, which is what lets a
+`---` right under a paragraph be a separator; write headings with `#`.
+
+Per-slide options follow the separator as an HTML comment holding YAML, so the file still
+reads as ordinary Markdown everywhere else::
 
     ---
     title: Quadruped Vault Runs
@@ -21,25 +26,40 @@ so the file still reads as ordinary Markdown everywhere else::
     ![Unitree Go2](assets/a1_go2_crate.html)
     ![Barkour CAD](assets/a1_cad_crate.html)
 
-The body is parsed with ``markdown-it-py`` in CommonMark mode, with tables enabled and
-with the container, definition-list and dollar-math plugins. Text is carried into the
-model as its raw Markdown source, so inline ``$...$`` math survives to the renderer.
+The first comment of a slide is read as options when one of its `key:` lines names an
+option, or is close enough to one to be a typo of it (`layot:`). Any other comment, such as
+`<!-- TODO: fix -->`, is an ordinary Markdown comment: it stays invisible and is never
+checked. A comment that reads as options must be valid YAML and hold only known options.
+The one exception is a comment that starts with `notes:`. It is speaker notes, wherever it
+sits on the slide, and everything after `notes:` is the text of the notes, as written, so a
+colon or a `#` in it is just text. To set `notes` next to other options, list it after them
+and quote it if it needs to be YAML.
+
+The body is parsed with `markdown-it-py` in CommonMark mode, with tables enabled and with
+the container, definition-list and dollar-math plugins. Text is carried into the model as
+its raw Markdown source, so inline Markdown and `$...$` math survive to the renderer.
 """
 
+import difflib
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from functools import partial
 from html import escape as html_escape
 from pathlib import Path
 from typing import Any
 
 from markdown_it import MarkdownIt
+from markdown_it.rules_inline import StateInline
+from markdown_it.rules_inline import image as image_rule
 from markdown_it.token import Token
 from mdit_py_plugins.container import container_plugin
 from mdit_py_plugins.deflist import deflist_plugin
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 
-from mkdeck.config import DeckConfig, coerce_text, coerce_text_list, parse_yaml, suggest
+from mkdeck._coerce import coerce_text, coerce_text_list, parse_yaml
+from mkdeck._messages import suggest
+from mkdeck.config import DEFAULT_TITLE, merge_settings, normalize_settings
 from mkdeck.errors import DeckError
 from mkdeck.model import (
     LAYOUTS,
@@ -50,8 +70,9 @@ from mkdeck.model import (
     resolve_embed_kind,
     slide_name,
     validate_deck,
-    validate_slide,
 )
+
+__all__ = ["BODY_ONLY_KEYS", "MATH_RULES", "SLIDE_OPTION_KEYS", "parse_markdown", "split_frontmatter"]
 
 SLIDE_OPTION_KEYS: tuple[str, ...] = (
     "id",
@@ -69,32 +90,60 @@ SLIDE_OPTION_KEYS: tuple[str, ...] = (
 BODY_ONLY_KEYS: tuple[str, ...] = ("embeds", "table", "html")
 """Slide fields that are written in the Markdown body, never in the options comment."""
 
-_SEPARATOR = re.compile(r"^---[ \t]*$")
-_FENCE = re.compile(r"^(?P<marker>`{3,}|~{3,})")
-_OPTIONS = re.compile(r"\A\s*<!--(?P<body>.*?)-->[ \t]*\n?", re.DOTALL)
+MATH_RULES: dict[str, bool] = {"allow_space": False, "allow_digits": False}
+"""How `$...$` opens and closes a formula: not before a space, and not before a digit, so
+"costs $5 and $10" is text. The parser here and the one that renders the text share them."""
+
+_OPTION_KEY = re.compile(r"^[ \t]*(?P<key>[A-Za-z_][\w-]*)[ \t]*:", re.MULTILINE)
+_BLANK_RUN = re.compile(r"[ \t]*\n(?:[ \t]*\n)+")
+_LINK_TAIL = re.compile(r"\]\([^)]*\)")
+_EMPHASIS = ("***", "___", "**", "__", "~~", "*", "_")
 _FRONTMATTER_END = ("---", "...")
-_TEXT_CHILDREN = frozenset({"text", "code_inline"})
-_IGNORED_TOKENS = frozenset({"hr"})
+_TOKEN_NAMES = {
+    "fence": "a code block",
+    "code_block": "a code block",
+    "html_block": "raw HTML",
+    "hr": "a horizontal rule",
+}
+
+
+def _image_with_span(state: StateInline, silent: bool) -> bool:
+    """Parse an image and record where it sat in the paragraph source.
+
+    Args:
+        state: The inline parser state.
+        silent: True when the parser only checks that an image is there.
+
+    Returns:
+        True when an image was parsed.
+    """
+    start = state.pos
+    if not image_rule(state, silent):
+        return False
+    if not silent:
+        state.tokens[-1].meta["span"] = (start, state.pos)
+    return True
 
 
 def _build_parser() -> MarkdownIt:
     """Build the Markdown parser the deck format uses.
 
     Returns:
-        A CommonMark parser with tables, the ``figures`` and ``notes`` containers,
-        definition lists and dollar math enabled.
+        A CommonMark parser with tables, the `figures` and `notes` containers, definition
+        lists and dollar math enabled, and setext headings disabled.
     """
     md = MarkdownIt("commonmark")
     md.enable("table")
+    md.disable("lheading")
+    md.inline.ruler.at("image", _image_with_span)
     md.use(container_plugin, "figures")
     md.use(container_plugin, "notes")
     md.use(deflist_plugin)
-    md.use(dollarmath_plugin)
+    md.use(dollarmath_plugin, **MATH_RULES)
     return md
 
 
-PARSER = _build_parser()
-"""The shared parser instance. Building one costs more than parsing a small deck."""
+_PARSER = _build_parser()  # building one costs more than parsing a small deck
 
 
 @dataclass(slots=True)
@@ -119,43 +168,51 @@ def split_frontmatter(text: str, *, source: Path | str) -> tuple[dict[str, Any],
         source: The file the text came from, used in the error messages.
 
     Returns:
-        The frontmatter mapping, empty when the file has none, and the rest of the file.
+        The frontmatter mapping, empty when the file has none, and the rest of the file,
+        with its line endings normalised.
 
     Raises:
         DeckError: If the frontmatter block is never closed, holds unreadable YAML, or
-            does not hold a mapping.
+            does not hold a mapping. A first line of `---` always opens frontmatter, so
+            a file that starts with a slide separator gets this error, not a silent skip.
     """
-    body = text.lstrip("﻿")
+    body = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
     lines = body.split("\n")
-    if not lines or lines[0].strip() != "---":
+    if lines[0].strip() != "---":
         return {}, body
+    hint = 'If that first "---" is meant as a slide separator, delete it; otherwise write the settings as key: value lines.'
     for number, line in enumerate(lines[1:], start=1):
         if line.strip() in _FRONTMATTER_END:
-            data = parse_yaml("\n".join(lines[1:number]), origin=source)
-            if data is None:
-                return {}, "\n".join(lines[number + 1 :])
-            if not isinstance(data, Mapping):
-                raise DeckError(
-                    "opens with frontmatter that does not hold deck settings; "
-                    "write it as key: value lines, or delete the block.",
-                    source=source,
-                )
-            return dict(data), "\n".join(lines[number + 1 :])
+            block = "\n".join(lines[1:number])
+            data = parse_yaml(block, origin=source)
+            rest = "\n".join(lines[number + 1 :])
+            if isinstance(data, Mapping):
+                return dict(data), rest
+            if data is None and not block.strip():
+                return {}, rest
+            raise DeckError(
+                f'The file opens with "---", which starts frontmatter, but the block up to the next "---" '
+                f"does not hold deck settings. {hint}",
+                source=source,
+            )
     raise DeckError(
-        "opens with a frontmatter block that is never closed; add a line holding --- after the deck settings.",
+        f"The file opens with a frontmatter block that is never closed; add a line holding --- after the deck settings. {hint}",
         source=source,
     )
 
 
-def parse_markdown(text: str, *, source: Path) -> Deck:
-    """Parse a Markdown deck file into a :class:`~mkdeck.model.Deck`.
+def parse_markdown(text: str, *, source: Path | str, defaults: Mapping[str, Any] | None = None) -> Deck:
+    """Parse a Markdown deck file into a `mkdeck.model.Deck`.
 
-    The deck takes its title, date and other settings from the frontmatter alone. A
-    ``deck.yml`` beside the file is merged in later by :func:`mkdeck.config.load_config`.
+    The deck takes its settings from the frontmatter, laid over `defaults`. A deck that
+    sets no `title` opens with no generated title slide, and takes the first `#` heading
+    of the deck, else `DEFAULT_TITLE`, as the title of the page.
 
     Args:
         text: The whole Markdown file.
         source: The path of the file, used in the error messages. It is never read.
+        defaults: Deck settings the frontmatter overrides, as `mkdeck.config` reads them
+            from a `deck.yml`.
 
     Returns:
         The parsed deck, already validated.
@@ -164,79 +221,58 @@ def parse_markdown(text: str, *, source: Path) -> Deck:
         DeckError: If the file, or one of its slides, breaks a rule of the format.
     """
     frontmatter, body = split_frontmatter(text, source=source)
-    config = DeckConfig.from_mapping(frontmatter, origin=source)
-    deck = Deck(
-        title=config.title,
-        date=config.date,
-        theme=config.theme,
-        extra_css=list(config.extra_css),
-        extra_js=list(config.extra_js),
-        reveal=dict(config.reveal),
-        title_slide=config.title_slide,
-    )
-    for chunk in _split_slides(body):
-        slide = _parse_slide(chunk, index=len(deck.slides), source=source)
+    settings = merge_settings(defaults or {}, normalize_settings(frontmatter, origin=source))
+    fields: dict[str, Any] = {"title": DEFAULT_TITLE, **settings}
+    if "title" not in settings:
+        fields["title_slide"] = False  # a deck that names no title has nothing to put on an opening slide
+    deck = Deck(**fields)
+    for tokens in _split_slides(_PARSER.parse(body)):
+        slide = _parse_slide(tokens, index=len(deck.slides), source=source)
         if slide is not None:
             deck.slides.append(slide)
+    if "title" not in settings:  # the browser tab still wants a name: the first heading of the deck
+        deck.title = next((slide.title for slide in deck.slides if slide.title), DEFAULT_TITLE)
     validate_deck(deck, source=source)
     return deck
 
 
-def _split_slides(body: str) -> list[str]:
-    """Cut the body of a deck file at every ``---`` line outside a code fence.
+def _split_slides(tokens: list[Token]) -> list[list[Token]]:
+    """Cut the token stream of a deck file at every top-level line of dashes.
 
     Args:
-        body: The deck file with its frontmatter removed.
+        tokens: The block tokens of the deck file, frontmatter removed.
 
     Returns:
-        One piece of text per slide, in order.
+        The tokens of each slide, in order. A run of dashes nested in a list, a quote or a
+        container is not a separator.
     """
-    chunks: list[list[str]] = [[]]
-    fence: str | None = None
-    for line in body.split("\n"):
-        stripped = line.strip()
-        if fence is not None:
-            chunks[-1].append(line)
-            if stripped.startswith(fence) and set(stripped) == {fence[0]}:
-                fence = None
-            continue
-        opening = _FENCE.match(stripped)
-        if opening is not None:
-            fence = opening.group("marker")
-            chunks[-1].append(line)
-            continue
-        if _SEPARATOR.match(line):
-            chunks.append([])
-            continue
-        chunks[-1].append(line)
-    return ["\n".join(chunk) for chunk in chunks]
+    slides: list[list[Token]] = [[]]
+    for token in tokens:
+        if token.type == "hr" and token.level == 0 and token.markup.startswith("-"):
+            slides.append([])
+        else:
+            slides[-1].append(token)
+    return slides
 
 
-def _parse_slide(chunk: str, *, index: int, source: Path) -> Slide | None:
-    """Parse one piece of the deck file into a slide.
+def _parse_slide(tokens: list[Token], *, index: int, source: Path | str) -> Slide | None:
+    """Parse the tokens between two slide separators into a slide.
 
     Args:
-        chunk: The text between two slide separators.
+        tokens: The block tokens of the slide.
         index: The zero-based position the slide will take, used to name it.
         source: The path of the deck file, used in the error messages.
 
     Returns:
-        The slide, or ``None`` when the piece holds nothing at all.
+        The slide, or `None` when the piece holds nothing at all.
 
     Raises:
-        DeckError: If the slide breaks a rule of the format or of the model.
+        DeckError: If the slide breaks a rule of the format.
     """
-    options, body = _take_options(chunk, index=index, source=source)
-    if not options and not body.strip():
-        return None
-
-    name = slide_name(Slide(id=_option_id(options)), index)
-
-    def fail(message: str) -> DeckError:
-        return DeckError(message, slide=name, source=source)
-
+    options, tokens = _take_options(tokens, index=index, source=source)
+    fail = partial(DeckError, slide=slide_name(Slide(id=_option_id(options)), index), source=source)
     draft = _Draft()
-    _consume(PARSER.parse(body), draft, fail=fail)
+    _consume(tokens, draft, fail=fail)
     slide = Slide(
         title=draft.title,
         sentence="\n\n".join(draft.sentences) or None,
@@ -247,10 +283,11 @@ def _parse_slide(chunk: str, *, index: int, source: Path) -> Slide | None:
         html="\n".join(draft.html) or None,
         notes="\n\n".join(draft.notes) or None,
     )
+    if not options and slide == Slide():
+        return None
     _apply_options(slide, options, fail=fail)
     if slide.layout == "auto" and slide.title and _is_bare_title(slide):
         slide.layout = "title"
-    validate_slide(slide, index=index, source=source)
     return slide
 
 
@@ -261,39 +298,71 @@ def _option_id(options: Mapping[str, Any]) -> str | None:
         options: The options mapping, which has not been validated yet.
 
     Returns:
-        The id as text, or ``None`` when the slide has none.
+        The id as text, or `None` when the slide has none.
     """
     raw = options.get("id")
     return None if raw is None else str(raw)
 
 
-def _take_options(chunk: str, *, index: int, source: Path) -> tuple[dict[str, Any], str]:
-    """Split the options comment off the front of a slide.
-
-    A comment that does not hold a YAML mapping is an ordinary Markdown comment: it is
-    invisible in every Markdown renderer and it stays invisible here.
+def _starts_notes(comment: str) -> bool:
+    """Say whether an HTML comment is speaker notes: its first text is `notes:`.
 
     Args:
-        chunk: The text of the slide.
+        comment: The text between `<!--` and `-->`.
+
+    Returns:
+        True when the comment opens with `notes:`, in any case.
+    """
+    return comment.lstrip().lower().startswith("notes:")
+
+
+def _looks_like_options(comment: str) -> bool:
+    """Say whether an HTML comment is meant as slide options.
+
+    Args:
+        comment: The text between `<!--` and `-->`.
+
+    Returns:
+        True when a `key:` line names an option, or nearly does. A comment that starts
+        with `notes:` is speaker notes, never options.
+    """
+    if _starts_notes(comment):
+        return False
+    known = (*SLIDE_OPTION_KEYS, *BODY_ONLY_KEYS)
+    keys = (found.group("key").lower() for found in _OPTION_KEY.finditer(comment))
+    return any(key in known or difflib.get_close_matches(key, known, n=1, cutoff=0.75) for key in keys)
+
+
+def _take_options(tokens: list[Token], *, index: int, source: Path | str) -> tuple[dict[str, Any], list[Token]]:
+    """Split the options comment off the front of a slide.
+
+    Only a comment that reads as options is taken; any other comment is left for the body,
+    where it stays invisible.
+
+    Args:
+        tokens: The block tokens of the slide.
         index: The zero-based position of the slide, used to name it.
         source: The path of the deck file, used in the error messages.
 
     Returns:
-        The options mapping, empty when the slide has none, and the rest of the slide.
+        The options mapping, empty when the slide has none, and the rest of the tokens.
 
     Raises:
-        DeckError: If the comment holds YAML that cannot be read.
+        DeckError: If the comment reads as options but is not a YAML mapping.
     """
-    match = _OPTIONS.match(chunk)
-    if match is None:
-        return {}, chunk
+    if not tokens or tokens[0].type != "html_block":
+        return {}, tokens
+    raw = tokens[0].content.strip()
+    if not (raw.startswith("<!--") and raw.endswith("-->") and _looks_like_options(raw[4:-3])):
+        return {}, tokens
+    fail = partial(DeckError, slide=slide_name(Slide(), index), source=source)
     try:
-        data = parse_yaml(match.group("body"), origin=source)
+        data = parse_yaml(raw[4:-3], origin=source)
     except DeckError as error:
-        raise DeckError(error.message, slide=slide_name(Slide(), index), source=source) from error
+        raise fail(f"The options comment is not valid. {error.message}") from error
     if not isinstance(data, Mapping):
-        return {}, chunk[match.end() :]
-    return dict(data), chunk[match.end() :]
+        raise fail("The options comment has to be a list of key: value lines.")
+    return dict(data), tokens[1:]
 
 
 def _apply_options(slide: Slide, options: Mapping[str, Any], *, fail: Callable[[str], DeckError]) -> None:
@@ -302,7 +371,7 @@ def _apply_options(slide: Slide, options: Mapping[str, Any], *, fail: Callable[[
     Args:
         slide: The slide built from the Markdown body.
         options: The mapping from the options comment.
-        fail: A callable that turns a message into a :class:`DeckError`.
+        fail: Builds the `DeckError` to raise from a message.
 
     Raises:
         DeckError: If an option is unknown, has the wrong shape, or repeats something the
@@ -312,17 +381,19 @@ def _apply_options(slide: Slide, options: Mapping[str, Any], *, fail: Callable[[
         name = str(key)
         if name in BODY_ONLY_KEYS:
             raise fail(
-                f'sets "{name}" in its options, but embeds, tables and raw HTML are written in the Markdown '
-                "body; move it there."
+                f'This slide sets "{name}" in its options, but embeds, tables and raw HTML are written in the '
+                "Markdown body; move it there."
             )
         if name not in SLIDE_OPTION_KEYS:
-            raise fail(f'has the unknown option "{name}". {suggest(name, SLIDE_OPTION_KEYS)}')
+            raise fail(
+                f'This slide has the unknown option "{name}". {suggest(name, SLIDE_OPTION_KEYS, noun="options")}'
+            )
         if raw is None:
             continue
         value = _option_value(name, raw, fail=fail)
         current = getattr(slide, name)
         if _is_set(name, current) and current != value:
-            raise fail(f'sets "{name}" in its options and in its Markdown body; keep one of the two.')
+            raise fail(f'This slide sets "{name}" in its options and in its Markdown body; keep one of the two.')
         setattr(slide, name, value)
 
 
@@ -332,7 +403,7 @@ def _option_value(name: str, raw: Any, *, fail: Callable[[str], DeckError]) -> A
     Args:
         name: The option key.
         raw: The value the author wrote.
-        fail: A callable that turns a message into a :class:`DeckError`.
+        fail: Builds the `DeckError` to raise from a message.
 
     Returns:
         The coerced value.
@@ -344,7 +415,7 @@ def _option_value(name: str, raw: Any, *, fail: Callable[[str], DeckError]) -> A
         return coerce_text_list(raw, key=name, fail=fail)
     value = coerce_text(raw, key=name, fail=fail)
     if name == "layout" and value not in LAYOUTS:
-        raise fail(f'has the unknown layout "{value}". {suggest(value, LAYOUTS)}')
+        raise fail(f'This slide has the unknown layout "{value}". {suggest(value, LAYOUTS, noun="layouts")}')
     return value
 
 
@@ -356,7 +427,7 @@ def _is_set(name: str, value: Any) -> bool:
         value: The value the field holds.
 
     Returns:
-        ``True`` when the field is not at its default.
+        `True` when the field is not at its default.
     """
     if name == "layout":
         return value != "auto"
@@ -372,7 +443,7 @@ def _is_bare_title(slide: Slide) -> bool:
         slide: The slide to check.
 
     Returns:
-        ``True`` when the heading is the only content, which makes it a title slide.
+        `True` when the heading is the only content, which makes it a title slide.
     """
     return not (slide.sentence or slide.bullets or slide.math or slide.embeds or slide.table or slide.html)
 
@@ -383,11 +454,11 @@ def _consume(tokens: list[Token], draft: _Draft, *, fail: Callable[[str], DeckEr
     Args:
         tokens: The tokens of the slide body, or of one container inside it.
         draft: The draft to fill.
-        fail: A callable that turns a message into a :class:`DeckError`.
+        fail: Builds the `DeckError` to raise from a message.
 
     Raises:
-        DeckError: If the body holds a second heading or a construct with no home in the
-            slide model.
+        DeckError: If the body holds a second heading or table, or a construct with no home
+            in the slide model.
     """
     index = 0
     while index < len(tokens):
@@ -395,10 +466,9 @@ def _consume(tokens: list[Token], draft: _Draft, *, fail: Callable[[str], DeckEr
         kind = token.type
         if kind == "heading_open":
             end = _close(tokens, index)
-            heading = _inline_text(tokens[index + 1 : end])
             if draft.title is not None:
-                raise fail("holds two headings, but a slide takes one; move the second onto a new slide.")
-            draft.title = heading
+                raise fail("This slide holds two headings, but a slide takes one; move the second onto a new slide.")
+            draft.title = _inline_text(tokens[index + 1 : end])
             index = end + 1
         elif kind == "paragraph_open":
             end = _close(tokens, index)
@@ -406,17 +476,19 @@ def _consume(tokens: list[Token], draft: _Draft, *, fail: Callable[[str], DeckEr
             index = end + 1
         elif kind in {"bullet_list_open", "ordered_list_open"}:
             end = _close(tokens, index)
-            draft.bullets.extend(_list_items(tokens[index + 1 : end]))
+            draft.bullets.extend(_list_items(tokens[index + 1 : end], fail=fail))
             index = end + 1
         elif kind == "dl_open":
             end = _close(tokens, index)
-            draft.bullets.extend(_definition_items(tokens[index + 1 : end]))
+            draft.bullets.extend(_definition_items(tokens[index + 1 : end], fail=fail))
             index = end + 1
         elif kind in {"math_block", "math_block_label"}:
             draft.math.append(token.content.strip())
             index += 1
         elif kind == "table_open":
             end = _close(tokens, index)
+            if draft.table is not None:
+                raise fail("This slide holds two tables, but a slide takes one; move the second onto a new slide.")
             draft.table = _parse_table(tokens[index : end + 1])
             index = end + 1
         elif kind in {"fence", "code_block"}:
@@ -433,32 +505,31 @@ def _consume(tokens: list[Token], draft: _Draft, *, fail: Callable[[str], DeckEr
             end = _close(tokens, index)
             draft.notes.append(_inline_text(tokens[index + 1 : end], join="\n\n"))
             index = end + 1
-        elif kind in _IGNORED_TOKENS:
+        elif kind == "hr":
             index += 1
         else:
             raise fail(
-                f"holds {_describe_token(kind)}, which has no place on a slide; "
+                f"This slide holds {_describe_token(kind)}, which has no place on a slide; "
                 "write it as bullets, a table, or raw HTML."
             )
 
 
 def _close(tokens: list[Token], start: int) -> int:
-    """Find the token that closes the one at ``start``.
+    """Find the token that closes the one at `start`.
 
     Args:
         tokens: The run of tokens.
         start: The index of an opening token.
 
     Returns:
-        The index of the matching closing token, or the last index when the run is cut
-        short, which the parser does not produce.
+        The index of the matching closing token.
     """
     depth = 0
     for index in range(start, len(tokens)):
         depth += tokens[index].nesting
         if depth == 0:
             return index
-    return len(tokens) - 1
+    raise AssertionError("markdown-it left a block token open")  # its own parser balances every pair
 
 
 def _inline_text(tokens: list[Token], *, join: str = " ") -> str:
@@ -478,39 +549,92 @@ def _inline_text(tokens: list[Token], *, join: str = " ") -> str:
 def _consume_paragraph(tokens: list[Token], draft: _Draft) -> None:
     """Turn one paragraph into embeds, a sentence, or both.
 
-    A paragraph of images is a row of figures. Any other paragraph keeps its Markdown
-    source, so that inline ``$...$`` math reaches the renderer untouched.
+    A paragraph of images is a row of figures. The Markdown around an image stays a
+    sentence, exactly as it was written, so that inline formatting and `$...$` math reach
+    the renderer untouched.
 
     Args:
-        tokens: The tokens between ``paragraph_open`` and ``paragraph_close``.
+        tokens: The tokens between `paragraph_open` and `paragraph_close`.
         draft: The draft to fill.
     """
     inline = next((token for token in tokens if token.type == "inline"), None)
     if inline is None:
         return
-    children = inline.children or []
-    images = [child for child in children if child.type == "image"]
-    if not images:
-        text = inline.content.strip()
-        if text:
-            draft.sentences.append(text)
-        return
-    for child in images:
-        src = str(child.attrGet("src") or "")
-        label = child.content.strip()
-        draft.embeds.append(Embed(src=src, label=label or None, kind=resolve_embed_kind(Embed(src=src))))
-    leftover = " ".join(
-        child.content.strip() for child in children if child.type in _TEXT_CHILDREN and child.content.strip()
-    )
-    if leftover:
-        draft.sentences.append(leftover)
+    images = [child for child in inline.children or [] if child.type == "image"]
+    for image in images:
+        embed = Embed(src=str(image.attrGet("src") or ""), label=image.content.strip() or None)
+        embed.kind = resolve_embed_kind(embed)
+        draft.embeds.append(embed)
+    text = inline.content
+    for image in reversed(images):
+        text = _cut_image(text, *image.meta["span"])
+    text = _BLANK_RUN.sub("\n", text).strip()
+    if text:
+        draft.sentences.append(text)
 
 
-def _list_items(tokens: list[Token]) -> list[str]:
+def _cut_image(text: str, start: int, end: int) -> str:
+    """Cut an image out of its paragraph, and the link or emphasis that held nothing else.
+
+    `[![Run](a.png)](https://example.org)` and `*![Run](a.png)*` are still a figure, and
+    what wrapped the image must not be left behind as an empty link or a stray `**`.
+
+    Args:
+        text: The source of the paragraph.
+        start: Where the image begins in it.
+        end: Where the image ends.
+
+    Returns:
+        The text without the image and its now empty wrappers.
+    """
+    before, after = text[:start], text[end:]
+    while True:
+        link = _LINK_TAIL.match(after)
+        if link and before.endswith("["):
+            before, after = before[:-1], after[link.end() :]
+            continue
+        mark = next((mark for mark in _EMPHASIS if before.endswith(mark) and after.startswith(mark)), None)
+        if mark is None:
+            return before + after
+        before, after = before[: -len(mark)], after[len(mark) :]
+
+
+def _item_text(tokens: list[Token], *, fail: Callable[[str], DeckError]) -> str:
+    """Read the text of one list item or definition.
+
+    Args:
+        tokens: The tokens between the item's open and close.
+        fail: Builds the `DeckError` to raise from a message.
+
+    Returns:
+        The Markdown text of the item, its paragraphs joined by a space.
+
+    Raises:
+        DeckError: If the item holds anything but paragraphs of text, such as a nested list.
+    """
+    pieces: list[str] = []
+    for token in tokens:
+        if token.type == "inline":
+            pieces.append(token.content.strip())
+        elif token.type in {"bullet_list_open", "ordered_list_open"}:
+            raise fail(
+                "This slide holds a nested list, but a slide takes one flat list of bullets; "
+                "flatten it, or write the sub-points in the text of the bullet."
+            )
+        elif token.type not in {"paragraph_open", "paragraph_close"}:
+            raise fail(
+                f"This slide holds {_describe_token(token.type)} inside a bullet, but a bullet holds only text; "
+                "move it out of the list, or write it as raw HTML."
+            )
+    return " ".join(piece for piece in pieces if piece)
+
+
+def _list_items(tokens: list[Token], *, fail: Callable[[str], DeckError]) -> list[str]:
     """Read the items of a list.
 
     Args:
         tokens: The tokens between the list open and close.
+        fail: Builds the `DeckError` to raise from a message.
 
     Returns:
         One piece of Markdown text per item.
@@ -520,8 +644,7 @@ def _list_items(tokens: list[Token]) -> list[str]:
     while index < len(tokens):
         if tokens[index].type == "list_item_open":
             end = _close(tokens, index)
-            text = _inline_text(tokens[index + 1 : end])
-            if text:
+            if text := _item_text(tokens[index + 1 : end], fail=fail):
                 items.append(text)
             index = end + 1
         else:
@@ -529,11 +652,12 @@ def _list_items(tokens: list[Token]) -> list[str]:
     return items
 
 
-def _definition_items(tokens: list[Token]) -> list[str]:
-    """Read a definition list as bullets of the form ``term: definition``.
+def _definition_items(tokens: list[Token], *, fail: Callable[[str], DeckError]) -> list[str]:
+    """Read a definition list as bullets of the form `term: definition`.
 
     Args:
-        tokens: The tokens between ``dl_open`` and ``dl_close``.
+        tokens: The tokens between `dl_open` and `dl_close`.
+        fail: Builds the `DeckError` to raise from a message.
 
     Returns:
         One bullet per definition.
@@ -545,7 +669,7 @@ def _definition_items(tokens: list[Token]) -> list[str]:
         kind = tokens[index].type
         if kind in {"dt_open", "dd_open"}:
             end = _close(tokens, index)
-            text = _inline_text(tokens[index + 1 : end])
+            text = _item_text(tokens[index + 1 : end], fail=fail)
             if kind == "dt_open":
                 term = text
             elif text:
@@ -560,7 +684,7 @@ def _parse_table(tokens: list[Token]) -> Table:
     """Read a GFM table.
 
     Args:
-        tokens: The tokens from ``table_open`` to ``table_close``.
+        tokens: The tokens from `table_open` to `table_close`.
 
     Returns:
         The table, with the header cells as its columns.
@@ -589,17 +713,17 @@ def _parse_table(tokens: list[Token]) -> Table:
 def _code_html(token: Token) -> str:
     """Turn a code block into the raw HTML a slide carries.
 
-    A ``mermaid`` fence becomes a ``<deck-mermaid>`` element, which the front-end renders
-    on the slides that hold one. Every other fence becomes a highlightable code block.
+    A `mermaid` fence becomes a `<deck-mermaid>` element, which the front-end renders on
+    the slides that hold one. Every other fence becomes a code block.
 
     Args:
-        token: The ``fence`` or ``code_block`` token.
+        token: The `fence` or `code_block` token.
 
     Returns:
-        The HTML for the block, with the code escaped.
+        The HTML for the block, with the code escaped and its indentation kept.
     """
     info = token.info.strip().split()[0].lower() if token.info.strip() else ""
-    code = html_escape(token.content.strip(), quote=False)
+    code = html_escape(token.content.rstrip("\n"), quote=False)
     if info == "mermaid":
         return f"<deck-mermaid>{code}</deck-mermaid>"
     language = f' class="language-{html_escape(info)}"' if info else ""
@@ -609,17 +733,17 @@ def _code_html(token: Token) -> str:
 def _consume_html(token: Token, draft: _Draft) -> None:
     """Take a raw HTML block, or the speaker notes hidden in a comment.
 
+    A comment that is not a `notes:` comment is dropped, as in any Markdown renderer.
+
     Args:
-        token: The ``html_block`` token.
+        token: The `html_block` token.
         draft: The draft to fill.
     """
     raw = token.content.strip()
     if raw.startswith("<!--") and raw.endswith("-->"):
         inner = raw[4:-3].strip()
-        if inner.lower().startswith("notes:"):
-            note = inner[len("notes:") :].strip()
-            if note:
-                draft.notes.append(note)
+        if _starts_notes(inner) and (note := inner[len("notes:") :].strip()):
+            draft.notes.append(note)
         return
     if raw:
         draft.html.append(raw)
@@ -629,11 +753,13 @@ def _describe_token(kind: str) -> str:
     """Name a block token for an error message.
 
     Args:
-        kind: The token type, such as ``blockquote_open``.
+        kind: The token type, such as `blockquote_open`.
 
     Returns:
-        A phrase such as ``a block quote``.
+        A phrase such as `a blockquote`.
     """
+    if kind in _TOKEN_NAMES:
+        return _TOKEN_NAMES[kind]
     name = kind.removesuffix("_open").replace("_", " ")
     article = "an" if name[:1] in {"a", "e", "i", "o", "u"} else "a"
     return f"{article} {name}"

@@ -1,4 +1,5 @@
-// Dependency-free .rbundle parser, vendored from the artifacts server (see VENDOR.md).
+// Dependency-free .rbundle parser, taken from the rollout gallery this viewer was forked from
+// (its origin is written down in scripts/VENDOR_VIEWER.md of the mkdeck source repository).
 // Imported by rollout_viewer.js as "rollout-bundle". NO `three` import.
 //
 // .rbundle wire format (authoritative twin of mkdeck/rollout.py, which writes the
@@ -7,46 +8,36 @@
 // Tail starts 8-byte aligned; every buffer is 4-byte-element f32/u32; off=byte offset
 // from tail start, count=element count.
 //
-// v2 (header.compression === "gzip") gzip's the tail; v1 has a raw tail. Pass an
-// inflate(Uint8Array)->Uint8Array to read v2 (browser: pako.inflate; node: zlib gunzip).
-// off/count index the UNCOMPRESSED tail, so we inflate first, then view from its start.
+// A gzip tail (header.compression === "gzip") is inflated before it gets here, by
+// mkdeck-rollout.js with the browser's own DecompressionStream, which drops the
+// header key once it has. Only the body poses are read; a gallery bundle's force
+// and prediction buffers are left in the tail unread.
 
 const MAGIC = 0x4c444252; // "RBDL" little-endian (bytes R=0x52,B=0x42,D=0x44,L=0x4c -> LE u32 0x4c444252)
 
-export function parseBundle(buf, inflate) {
+export function parseBundle(buf) {
   const dv = new DataView(buf);
   if (dv.getUint32(0, true) !== MAGIC) throw new Error("not an .rbundle (bad magic)");
   const headerLen = Number(dv.getBigUint64(4, true));
   const headerBytes = new Uint8Array(buf, 12, headerLen);
   const header = JSON.parse(new TextDecoder().decode(headerBytes));
+  if (header.compression === "gzip") throw new Error("the .rbundle tail is gzip'd and has to be inflated first");
   const tailStart = 12 + headerLen;
 
-  // v1: view the tail in place. v2: inflate into a fresh buffer and index from its start.
-  let tailBuf = buf;
-  let tailBase = tailStart;
-  if (header.compression === "gzip") {
-    if (typeof inflate !== "function")
-      throw new Error(".rbundle tail is gzip'd but no inflate() was provided");
-    let u8 = inflate(new Uint8Array(buf, tailStart));
-    if (u8.byteOffset % 4 !== 0) u8 = new Uint8Array(u8); // realign for typed-array views (rare)
-    tailBuf = u8.buffer;
-    tailBase = u8.byteOffset;
-  }
-
   function f32(spec) {
-    return { data: new Float32Array(tailBuf, tailBase + spec.off, spec.count), shape: spec.shape };
+    return { data: new Float32Array(buf, tailStart + spec.off, spec.count), shape: spec.shape };
   }
   const buffers = {};
-  for (const key of ["body_pos", "body_quat", "forces", "predictions"]) {
+  for (const key of ["body_pos", "body_quat"]) {
     if (header.buffers[key]) buffers[key] = f32(header.buffers[key]);
   }
   const geoms = header.geoms.map(function (g) {
     const out = Object.assign({}, g);
     if (g.mesh) {
-      out.verts = new Float32Array(tailBuf, tailBase + g.mesh.verts_off, g.mesh.verts_count);
-      out.faces = new Uint32Array(tailBuf, tailBase + g.mesh.faces_off, g.mesh.faces_count);
+      out.verts = new Float32Array(buf, tailStart + g.mesh.verts_off, g.mesh.verts_count);
+      out.faces = new Uint32Array(buf, tailStart + g.mesh.faces_off, g.mesh.faces_count);
     }
     return out;
   });
-  return { meta: header.meta, forceLabels: header.force_labels || [], geoms: geoms, buffers: buffers };
+  return { meta: header.meta, geoms: geoms, buffers: buffers };
 }

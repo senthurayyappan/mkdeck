@@ -10,6 +10,9 @@
  *   the dense pass           a crowded slide is marked so the figure shrinks
  *   the chrome               the date on the left, "n / total" on the right
  *   the r key                reload this slide's embeds
+ *   the print pass           in a PDF export every slide is on a page at once, so
+ *                            every embed and diagram loads and a rollout is drawn
+ *                            as one still picture
  *
  * and a documented global:
  *
@@ -20,7 +23,9 @@
 (function () {
   "use strict";
 
-  var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@12/dist/mermaid.min.js";
+  // An exact release, with the hash of its file, so the CDN cannot change what a deck runs.
+  var MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.min.js";
+  var MERMAID_INTEGRITY = "sha384-xzghz1GQ5u9HCpVskeDPqMsdogD1yvuMQbEK53+wi+G70+6J1AG0L2cfi9PHjDWI";
 
   var deck = null; // the Reveal instance, once it exists
   var slides = []; // every .mkd-slide, in presentation order
@@ -99,9 +104,54 @@
     );
   }
 
+  // reveal adds this class when the page is opened with ?print-pdf (mkdeck export).
+  function printing() {
+    return document.documentElement.classList.contains("print-pdf");
+  }
+
+  // reveal centres each printed slide by the height it had when the pages were
+  // laid out, before any figure was in it. Centre again now that they are.
+  function recentre() {
+    if (deck && deck.getConfig().center) {
+      each(document.querySelectorAll(".pdf-page"), function (page) {
+        var section = page.querySelector("section");
+        if (section) {
+          section.style.top = Math.max((page.clientHeight - section.offsetHeight) / 2, 0) + "px";
+        }
+      });
+    }
+    document.documentElement.setAttribute("data-mkd-print", "ready");
+  }
+
+  // A PDF is every slide at once, so nothing is held back. The rollouts are
+  // drawn one after another, each as a picture that gives its WebGL context
+  // back, because a browser keeps only a handful of contexts alive.
+  var printStarted = false;
+  function printRollouts() {
+    if (printStarted) {
+      return;
+    }
+    printStarted = true;
+    var hosts = [];
+    slides.forEach(function (slide) {
+      each(slide.querySelectorAll("deck-rollout"), function (host) {
+        hosts.push(host);
+      });
+    });
+    hosts
+      .reduce(function (chain, host) {
+        return chain.then(function () {
+          return typeof host.snapshot === "function" ? host.snapshot() : null;
+        });
+      }, Promise.resolve())
+      .catch(function () {}) // a rollout that failed says so on its own page
+      .then(recentre);
+  }
+
   function syncEmbeds() {
+    var print = printing();
     slides.forEach(function (slide, i) {
-      var distance = Math.abs(i - index);
+      var distance = print ? 0 : Math.abs(i - index);
       each(slide.querySelectorAll("deck-embed"), function (host) {
         if (distance <= 1) {
           loadEmbed(host, distance === 0);
@@ -111,6 +161,9 @@
       });
       // A rollout holds a WebGL context of its own, so it keeps the same
       // window. The element only answers when mkdeck-rollout.js is on the deck.
+      if (print) {
+        return;
+      }
       each(slide.querySelectorAll("deck-rollout"), function (host) {
         if (typeof host.load !== "function") {
           return;
@@ -122,6 +175,9 @@
         }
       });
     });
+    if (print) {
+      printRollouts();
+    }
   }
 
   function reloadEmbeds() {
@@ -141,8 +197,8 @@
    * <deck-mermaid>
    *
    * Mermaid is a large library, so it is fetched the first time a slide
-   * that holds a diagram comes into range and never otherwise. Point
-   * data-src at a vendored copy to keep the deck offline.
+   * that holds a diagram comes into range and never otherwise. It needs a
+   * network unless data-src points at a copy of mermaid.min.js in the deck.
    * ------------------------------------------------------------------ */
 
   function loadMermaid(src) {
@@ -156,6 +212,10 @@
       }
       var script = document.createElement("script");
       script.src = src || MERMAID_SRC;
+      if (!src) {
+        script.integrity = MERMAID_INTEGRITY;
+        script.crossOrigin = "anonymous";
+      }
       script.onload = function () {
         if (window.mermaid) {
           window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
@@ -209,8 +269,9 @@
   }
 
   function syncMermaid() {
+    var print = printing();
     slides.forEach(function (slide, i) {
-      if (Math.abs(i - index) > 1) {
+      if (!print && Math.abs(i - index) > 1) {
         return;
       }
       each(slide.querySelectorAll("deck-mermaid"), renderMermaid);
@@ -236,7 +297,10 @@
         return;
       }
       try {
-        window.katex.render(tex, node, { displayMode: false, throwOnError: false });
+        window.katex.render(tex, node, {
+          displayMode: node.classList.contains("mkd-math-block"),
+          throwOnError: false,
+        });
       } catch (error) {
         node.textContent = tex;
       }
@@ -246,15 +310,19 @@
   /* ------------------------------------------------------------------ *
    * The dense pass
    *
-   * Bullets, or a stack of display formulas, leave less room for a figure
-   * or a table. The class drives the shorter figure heights in mkdeck.css.
+   * A heading, bullets, or a stack of display formulas leave less room for a
+   * figure or a table. The class drives the shorter figure heights in mkdeck.css.
    * ------------------------------------------------------------------ */
 
   function markDense() {
     slides.forEach(function (slide) {
       var crowded =
-        slide.querySelectorAll(".mkd-bullets").length > 0 || slide.querySelectorAll(".mkd-math-block").length >= 2;
-      slide.classList.toggle("dense", crowded);
+        slide.querySelectorAll(".mkd-bullets").length > 0 ||
+        slide.querySelectorAll(".mkd-title").length > 0 ||
+        slide.querySelectorAll(".mkd-math-block").length >= 2;
+      if (crowded) {
+        slide.classList.add("dense"); // never take away a "dense" the author set with classes:
+      }
     });
   }
 
@@ -394,6 +462,11 @@
     // Registered before Reveal.initialize runs; reveal queues these for us.
     deck.on("ready", onReady);
     deck.on("slidechanged", onSlideChanged);
+    deck.on("pdf-ready", function () {
+      if (started) {
+        onSlideChanged(); // the print layout can arrive after "ready"
+      }
+    });
   } else if (document.readyState === "loading") {
     // No reveal: still draw the deck, so a check or an export sees real slides.
     document.addEventListener("DOMContentLoaded", onReady);

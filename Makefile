@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install check lint format typecheck test docs docs-test docs-deploy build
+.PHONY: help install check lint format typecheck test docs docs-test docs-deploy build smoke vendor
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -22,8 +22,8 @@ format: ## Apply safe lint fixes and format
 typecheck: ## Check types with ty
 	uv run ty check
 
-test: ## Run the test suite
-	uv run pytest --cov --cov-report=term-missing --cov-report=xml
+test: ## Run the test suite (browser tests skip without the check extra and Chromium)
+	uv run pytest --cov --cov-report=term-missing
 
 docs: ## Serve documentation locally
 	uv run --group docs mkdocs serve
@@ -36,3 +36,11 @@ docs-deploy: ## Publish documentation to the gh-pages branch
 
 build: ## Build a wheel and source distribution
 	uv build --no-sources
+
+smoke: ## Build the wheel, check its metadata, and run it from a clean virtualenv
+	uv build --no-sources --clear
+	uvx twine==7.0.0 check --strict dist/*
+	uv run --no-project python scripts/smoke_wheel.py dist
+
+vendor: ## Re-download the vendored front-end libraries (reveal.js, KaTeX, Roboto, three.js)
+	uv run scripts/vendor_assets.py

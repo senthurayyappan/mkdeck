@@ -7,161 +7,164 @@ it.
 
 import contextlib
 import json
-import os
-import shutil
 import tempfile
+from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, TypedDict
+from urllib.parse import urlparse
 
-from mkdeck.build import build_source, find_markdown
-from mkdeck.errors import DeckError
+from mkdeck.browser import (
+    DEFAULT_SIZE,
+    EMBED_SETTLE_MS,
+    NETWORK_IDLE_MS,
+    SETTLE_JS,
+    browser_page,
+    file_path,
+    require_playwright,
+)
+from mkdeck.source import load_source
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page, Route
+
+__all__ = ["Probe", "check_deck", "report_text", "slide_flags"]
 
 EMBED_BLOCK_BYTES = 2_000_000
 """Embeds larger than this are replaced with a stub so the check stays fast."""
-
-DEFAULT_SIZE = (1920, 1080)
-
-INSTALL_HINT = (
-    "This command needs Playwright, which mkdeck does not install by default.\n"
-    "  uv pip install 'mkdeck[check]'\n"
-    "  playwright install chromium"
-)
 
 BLOCKED_BODY = (
     '<html><body style="margin:0;background:#f4f4f4;font:14px Roboto,sans-serif;color:#999">'
     '<div style="padding:12px">embed (blocked in the checker)</div></body></html>'
 )
 
-PROBE = r"""
+ROLLOUT_WAIT_MS = 20_000
+"""How long a slide's rollouts and diagrams get to load before the check reports them as failed."""
+
+FIGURES_DONE_JS = """
 () => {
-  const slide = document.querySelector('.reveal .slides section.present')
-             || document.querySelector('.reveal .slides section');
-  if (!slide) { return {error: 'no visible slide'}; }
-  const vh = window.innerHeight, vw = window.innerWidth;
-  const style = getComputedStyle(slide);
-  const padTop = parseFloat(style.paddingTop) || 0;
-  const padBottom = parseFloat(style.paddingBottom) || 0;
-  const body = slide.querySelector('.mkd-body') || slide;
-  const kids = Array.from(body.children).filter(k => k.getClientRects().length);
-  let top = Infinity, bottom = -Infinity, left = Infinity, right = -Infinity;
-  for (const k of kids) {
-    const r = k.getBoundingClientRect();
-    if (r.height === 0 && r.width === 0) { continue; }
-    top = Math.min(top, r.top); bottom = Math.max(bottom, r.bottom);
-    left = Math.min(left, r.left); right = Math.max(right, r.right);
-  }
-  if (!isFinite(top)) { top = 0; bottom = 0; left = 0; right = 0; }
-  const scrollers = [];
-  for (const e of slide.querySelectorAll('*')) {
-    const cs = getComputedStyle(e);
-    const canScroll = /(auto|scroll)/.test(cs.overflowX + cs.overflowY);
-    if (canScroll && (e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1)) {
-      scrollers.push({tag: e.tagName.toLowerCase(), cls: e.className.toString().slice(0, 40),
-                      sw: e.scrollWidth, cw: e.clientWidth, sh: e.scrollHeight, ch: e.clientHeight});
-    }
-  }
-  const overlaps = [];
-  const boxes = kids.map(k => k.getBoundingClientRect()).filter(r => r.height > 0);
-  for (let i = 0; i < boxes.length; i++) {
-    for (let j = i + 1; j < boxes.length; j++) {
-      const a = boxes[i], b = boxes[j];
-      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      if (ox > 2 && oy > 2) { overlaps.push({i: i, j: j, ox: Math.round(ox), oy: Math.round(oy)}); }
-    }
-  }
-  const chrome = document.querySelector('.mkd-chrome-left') || document.querySelector('.mkd-chrome');
-  const chromeTop = chrome ? chrome.getBoundingClientRect().top : vh - 34;
-  const sentence = Array.from(slide.querySelectorAll('.mkd-sentence')).map(p => p.innerText).join(' ');
-  const bullets = Array.from(slide.querySelectorAll('.mkd-bullets li')).map(li => li.innerText);
-  const table = slide.querySelector('.mkd-table');
-  const left_text = chrome ? chrome.textContent : '';
-  const rightChrome = document.querySelector('.mkd-chrome-right');
-  const maths = Array.from(slide.querySelectorAll('.mkd-math'));
-  return {
-    vw: vw, vh: vh,
-    top: Math.round(top), bottom: Math.round(bottom), left: Math.round(left), right: Math.round(right),
-    overflow_top: Math.round(Math.max(0, padTop - top)),
-    overflow_bottom: Math.round(Math.max(0, bottom - (vh - padBottom))),
-    into_chrome: bottom > chromeTop,
-    scrollers: scrollers,
-    overlaps: overlaps,
-    sentence_chars: sentence.length,
-    bullets: bullets.length,
-    bullet_chars: bullets.map(b => b.length),
-    table: table ? {rows: table.querySelectorAll('tbody tr').length,
-                    cols: table.querySelectorAll('thead th').length,
-                    width: Math.round(table.getBoundingClientRect().width)} : null,
-    figures: slide.querySelectorAll('.mkd-figure').length,
-    formula_blocks: slide.querySelectorAll('.mkd-math-block').length,
-    katex_errors: slide.querySelectorAll('.katex-error').length,
-    math_unrendered: maths.filter(m => !m.querySelector('.katex')).length,
-    layout: slide.dataset.layout || '',
-    id: slide.dataset.id || '',
-    dense: slide.classList.contains('dense'),
-    chrome_left: left_text, chrome_right: rightChrome ? rightChrome.textContent : ''
-  };
+  const slide = document.querySelector('.reveal .slides section.present');
+  const settled = (host, states) => states.includes(host.dataset.mkdState);
+  return !slide
+    || (Array.from(slide.querySelectorAll('deck-rollout[src]')).every((host) => settled(host, ['ready', 'error']))
+      && Array.from(slide.querySelectorAll('deck-mermaid')).every((host) => settled(host, ['done', 'error'])));
 }
 """
+"""True once every rollout and diagram on the slide on screen has loaded or failed."""
 
 
-def require_playwright() -> Any:
-    """Import Playwright's synchronous API, or explain how to install it.
+class Scroller(TypedDict):
+    """An element inside a slide that would show a scrollbar."""
 
-    Returns:
-        The ``sync_playwright`` context manager factory.
-
-    Raises:
-        DeckError: If Playwright is not installed.
-    """
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:  # pragma: no cover - depends on the install
-        raise DeckError(INSTALL_HINT) from exc
-    return sync_playwright
+    tag: str
+    cls: str
+    sw: int
+    cw: int
+    sh: int
+    ch: int
 
 
-def browser_env() -> dict[str, str]:
-    """Build the environment Chromium is launched with.
+class Overlap(TypedDict):
+    """Two blocks of a slide that cover each other by ``ox`` by ``oy`` pixels."""
 
-    ``MKDECK_BROWSER_LIBS`` is prepended to ``LD_LIBRARY_PATH``, which is how a
-    machine without system NSS or ALSA can still run the checker.
-
-    Returns:
-        The environment mapping.
-    """
-    env = dict(os.environ)
-    extra = env.get("MKDECK_BROWSER_LIBS", "").strip()
-    if extra:
-        existing = env.get("LD_LIBRARY_PATH", "")
-        env["LD_LIBRARY_PATH"] = f"{extra}:{existing}" if existing else extra
-    return env
+    i: int
+    j: int
+    ox: int
+    oy: int
 
 
-def launch_browser(playwright: Any) -> Any:
-    """Start headless Chromium, turning a missing browser into a clear error.
+class TableProbe(TypedDict):
+    """The size of the slide's table."""
+
+    rows: int
+    cols: int
+    width: int
+
+
+class RolloutProbe(TypedDict):
+    """A rollout on the slide that is not drawing."""
+
+    src: str
+    state: str
+    message: str
+
+
+class Probe(TypedDict, total=False):
+    """What ``probe.js`` measured on one slide, plus its number and flags."""
+
+    n: int
+    error: str
+    vw: int
+    vh: int
+    top: int
+    bottom: int
+    left: int
+    right: int
+    overflow_top: int
+    overflow_bottom: int
+    into_chrome: bool
+    scrollers: list[Scroller]
+    overlaps: list[Overlap]
+    sentence_chars: int
+    bullets: int
+    bullet_chars: list[int]
+    table: TableProbe | None
+    figures: int
+    formula_blocks: int
+    katex_errors: int
+    mermaid_errors: int
+    math_unrendered: int
+    layout: str
+    id: str
+    dense: bool
+    rollout_errors: list[RolloutProbe]
+    chrome_left: str
+    chrome_right: str
+    flags: list[str]
+
+
+@cache
+def probe_script() -> str:
+    """Read the JavaScript that measures the slide on screen; it lives beside this module."""
+    return Path(__file__).with_name("probe.js").read_text(encoding="utf-8")
+
+
+def blocks_embed(url: str, *, subframe: bool) -> bool:
+    """Say whether a request is a nested page too heavy to load in a check.
+
+    The deck itself is never blocked, however large it is: a single-file deck
+    that carries a rollout is several megabytes.
 
     Args:
-        playwright: The started Playwright instance.
+        url: The URL the browser is about to fetch.
+        subframe: True when the request navigates an iframe rather than the page.
 
     Returns:
-        The launched browser.
-
-    Raises:
-        DeckError: If Chromium cannot be started.
+        True when the request should get a stub in place of the page.
     """
+    parts = urlparse(url)
+    if not subframe or parts.scheme != "file" or not parts.path.lower().endswith((".html", ".htm")):
+        return False
     try:
-        return playwright.chromium.launch(env=browser_env())
-    except Exception as exc:  # pragma: no cover - depends on the machine
-        raise DeckError(
-            f"Could not start headless Chromium: {exc}\n"
-            "Install it with: playwright install chromium\n"
-            "On a machine without system NSS or ALSA, point MKDECK_BROWSER_LIBS at a folder holding them."
-        ) from exc
+        return file_path(url).stat().st_size > EMBED_BLOCK_BYTES
+    except OSError:
+        return False
+
+
+def _route(route: "Route") -> None:
+    """Stub a heavy iframe, and let every other request through."""
+    request = route.request
+    subframe = request.is_navigation_request() and request.frame.parent_frame is not None
+    if blocks_embed(request.url, subframe=subframe):
+        route.fulfill(status=200, content_type="text/html", body=BLOCKED_BODY)
+    else:
+        route.fallback()  # on to the rule that keeps the page to the files of its deck
 
 
 def _prepare(path: Path, workdir: Path) -> Path:
     """Get an HTML document to check, building the deck when needed.
+
+    A deck is built as one file, so a slide that draws a rollout can read it
+    from the document instead of fetching it, which a ``file://`` page may not.
 
     Args:
         path: A built ``.html`` file, a Markdown file, or a deck folder.
@@ -176,11 +179,10 @@ def _prepare(path: Path, workdir: Path) -> Path:
     path = Path(path)
     if path.is_file() and path.suffix.lower() in {".html", ".htm"}:
         return path
-    find_markdown(path)
-    return build_source(path, workdir)
+    return load_source(path).build(workdir / "deck.html", single_file=True)
 
 
-def slide_flags(record: dict[str, Any]) -> list[str]:
+def slide_flags(record: Probe) -> list[str]:
     """List everything wrong with one slide.
 
     The same list is written into ``report.json`` and printed in ``report.txt``, so a
@@ -194,7 +196,7 @@ def slide_flags(record: dict[str, Any]) -> list[str]:
     """
     flags: list[str] = []
     if record.get("overflow_top", 0) > 0 or record.get("overflow_bottom", 0) > 0:
-        flags.append(f"OVERFLOW top {record['overflow_top']}px bottom {record['overflow_bottom']}px")
+        flags.append(f"OVERFLOW top {record.get('overflow_top', 0)}px bottom {record.get('overflow_bottom', 0)}px")
     if record.get("into_chrome"):
         flags.append("INTO-CHROME")
     if record.get("scrollers"):
@@ -206,12 +208,16 @@ def slide_flags(record: dict[str, Any]) -> list[str]:
         flags.append("OVERLAP " + json.dumps(record["overlaps"]))
     if record.get("katex_errors"):
         flags.append(f"KATEX-ERROR x{record['katex_errors']}")
+    if record.get("mermaid_errors"):
+        flags.append(f"MERMAID-ERROR x{record['mermaid_errors']}")
     if record.get("math_unrendered"):
         flags.append(f"MATH-UNRENDERED x{record['math_unrendered']}")
+    for rollout in record.get("rollout_errors", []):
+        flags.append(f"ROLLOUT-ERROR {rollout['src']}: {rollout['message'] or 'still ' + rollout['state']}")
     return flags
 
 
-def _format_row(record: dict[str, Any]) -> str:
+def _format_row(record: Probe) -> str:
     """Format one slide's findings as a report line.
 
     Args:
@@ -240,88 +246,97 @@ def _format_row(record: dict[str, Any]) -> str:
     )
 
 
+def report_text(records: list[Probe], *, size: tuple[int, int], path: Path | str) -> str:
+    """Lay the findings out as ``report.txt`` does.
+
+    Args:
+        records: One probe result per checked slide.
+        size: The viewport the deck was checked at.
+        path: The deck that was checked.
+
+    Returns:
+        A header line and one line per slide, ending in a newline.
+    """
+    header = f"viewport {size[0]}x{size[1]}, deck {path}"
+    return header + "\n" + "\n".join(_format_row(record) for record in records) + "\n"
+
+
+def _probe_slide(page: "Page", number: int, *, shots: bool) -> Probe:
+    """Go to a slide, wait for it to settle, and measure it.
+
+    Args:
+        page: The page the deck is open in.
+        number: The slide to go to, counting from 1.
+        shots: True when a screenshot follows, which waits for the network too.
+
+    Returns:
+        The probe result, numbered.
+    """
+    timed_out = require_playwright().TimeoutError
+    page.evaluate("(i) => window.Reveal && Reveal.slide(i, 0)", number - 1)
+    # A rollout that never answers, or a page that never goes quiet, is not
+    # fatal: the probe reports the first, and a screenshot of the second is
+    # still worth having.
+    with contextlib.suppress(timed_out):
+        page.wait_for_function(FIGURES_DONE_JS, timeout=ROLLOUT_WAIT_MS)
+    if shots:
+        with contextlib.suppress(timed_out):
+            page.wait_for_load_state("networkidle", timeout=NETWORK_IDLE_MS)
+        if page.evaluate("!!document.querySelector('.reveal .slides section.present deck-embed')"):
+            page.wait_for_timeout(EMBED_SETTLE_MS)
+    page.evaluate(SETTLE_JS)
+    record: Probe = page.evaluate(probe_script())
+    record["n"] = number
+    return record
+
+
 def check_deck(
     path: Path | str,
     *,
     out: Path | str = Path("report"),
     size: tuple[int, int] = DEFAULT_SIZE,
     shots: bool = True,
-    first: int = 1,
-    last: int = 0,
-) -> list[dict[str, Any]]:
+) -> list[Probe]:
     """Open a deck in headless Chromium and report what each slide does.
 
     Every slide is measured for content overflow past the viewport, elements
-    that would show a scrollbar, elements overlapping the chrome and KaTeX
-    failures. A screenshot is written for each slide unless ``shots`` is off.
+    that would show a scrollbar, elements overlapping the chrome, KaTeX
+    failures, diagrams that did not draw and rollouts that did not load. A screenshot is written for each
+    slide unless ``shots`` is off, and the findings go to ``report.json`` and
+    ``report.txt`` in ``out``.
 
     Args:
         path: A built ``.html`` file, a Markdown file, or a deck folder.
         out: The folder the report and screenshots are written to.
         size: The viewport, as ``(width, height)`` in pixels.
         shots: True to write one PNG per slide.
-        first: The first slide number to check, counting from 1.
-        last: The last slide number to check; 0 means every slide.
 
     Returns:
-        One record per checked slide, the same data as ``report.json``.
+        One record per slide, the same data as ``report.json``.
 
     Raises:
-        DeckError: If Playwright is missing, Chromium cannot start, or the path
-            holds no deck.
+        DeckError: If Playwright is missing, Chromium cannot start or fails,
+            or the path holds no deck.
     """
-    sync_playwright = require_playwright()
-    width, height = size
+    require_playwright()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    workdir = Path(tempfile.mkdtemp(prefix="mkdeck-check-"))
-    records: list[dict[str, Any]] = []
-    try:
-        document = _prepare(Path(path), workdir)
-        with sync_playwright() as playwright:
-            browser = launch_browser(playwright)
-            page = browser.new_page(viewport={"width": width, "height": height})
-
-            def route(handler: Any) -> None:
-                url = handler.request.url
-                heavy = False
-                if url.startswith("file://") and url.endswith((".html", ".htm")):
-                    try:
-                        heavy = os.path.getsize(url[7:].split("?", 1)[0]) > EMBED_BLOCK_BYTES
-                    except OSError:
-                        heavy = False
-                if heavy:
-                    handler.fulfill(status=200, content_type="text/html", body=BLOCKED_BODY)
-                else:
-                    handler.continue_()
-
-            page.route("**/*", route)
+    for stale in out.glob("slide_*.png"):  # from an earlier run, maybe of a longer deck
+        stale.unlink()
+    records: list[Probe] = []
+    with tempfile.TemporaryDirectory(prefix="mkdeck-check-", ignore_cleanup_errors=True) as workdir:
+        document = _prepare(Path(path), Path(workdir))
+        with browser_page(size, folder=document.parent) as page:
+            page.route("**/*", _route)
             page.goto(document.resolve().as_uri())
-            page.wait_for_function("document.querySelectorAll('.reveal .slides section').length > 0")
-            page.wait_for_timeout(600)
+            page.wait_for_function("window.Reveal && Reveal.isReady()")
             total = page.evaluate("document.querySelectorAll('.reveal .slides section').length")
-            stop = total if last <= 0 else min(total, last)
-            for number in range(max(1, first), stop + 1):
-                page.evaluate("(i) => window.Reveal && Reveal.slide(i, 0)", number - 1)
-                page.wait_for_timeout(150)
-                if shots:
-                    with contextlib.suppress(Exception):
-                        page.wait_for_load_state("networkidle", timeout=4000)
-                    page.wait_for_timeout(400)
-                record = page.evaluate(PROBE)
-                record["n"] = number
-                records.append(record)
+            for number in range(1, total + 1):
+                records.append(_probe_slide(page, number, shots=shots))
                 if shots:
                     page.screenshot(path=str(out / f"slide_{number:02d}.png"))
-            browser.close()
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
-
     for record in records:
         record["flags"] = slide_flags(record)
     (out / "report.json").write_text(json.dumps(records, indent=1), encoding="utf-8")
-    header = f"viewport {width}x{height}, deck {Path(path)}"
-    text = header + "\n" + "\n".join(_format_row(record) for record in records) + "\n"
-    (out / "report.txt").write_text(text, encoding="utf-8")
-    print(text, end="")
+    (out / "report.txt").write_text(report_text(records, size=size, path=path), encoding="utf-8")
     return records

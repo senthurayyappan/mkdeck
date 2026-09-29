@@ -1,52 +1,88 @@
 """The slide model: the one intermediate representation of a deck.
 
-The Markdown parser in :mod:`mkdeck.markdown` produces these dataclasses and the Python
-API builds them directly, so both paths render through the same code. Nothing here
-touches the filesystem or emits HTML; it only holds the deck and states the rules a deck
-has to keep.
+The Markdown parser in `mkdeck.markdown` produces these dataclasses and the Python API
+builds them directly, so both paths render through the same code. This module holds the
+deck and states the rules a deck has to keep. It emits no HTML and reads no file itself:
+`Deck.build` and `Deck.serve` hand the deck to `mkdeck.build` and `mkdeck.server`, which
+they import when called, so that `import mkdeck` does not load the renderer or the file
+watcher.
 """
 
+import json
 import re
-from collections.abc import Callable
+from collections.abc import Iterator
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal, get_args
 
 from mkdeck.errors import DeckError
+from mkdeck.paths import asset_path_error, local_path, theme_error, validate_src
 
-if TYPE_CHECKING:  # mkdeck.config imports this module, so the name is only for annotations.
-    from mkdeck.config import DeckConfig
+__all__ = [
+    "DEFAULT_UNITS",
+    "EMBED_KINDS",
+    "LAYOUTS",
+    "MAX_EMBEDS",
+    "ROLLOUT_SUFFIXES",
+    "Deck",
+    "Embed",
+    "EmbedKind",
+    "Layout",
+    "Slide",
+    "Table",
+    "deck_has_rollouts",
+    "raw_rollout_tags",
+    "resolve_embed_kind",
+    "resolve_layout",
+    "slide_name",
+    "validate_deck",
+    "validate_slide",
+]
 
 Layout = Literal["auto", "title", "statement", "figures", "table"]
-"""How a slide is laid out. ``"auto"`` is resolved by :func:`resolve_layout`."""
+"""How a slide is laid out. `"auto"` is resolved by `resolve_layout`."""
 
 EmbedKind = Literal["auto", "iframe", "image", "rollout"]
-"""How an embed is drawn. ``"auto"`` is resolved by :func:`resolve_embed_kind`."""
+"""How an embed is drawn. `"auto"` is resolved by `resolve_embed_kind`."""
 
-LAYOUTS: tuple[Layout, ...] = ("auto", "title", "statement", "figures", "table")
-"""Every accepted value of :attr:`Slide.layout`."""
+LAYOUTS: tuple[Layout, ...] = get_args(Layout)
+"""Every accepted value of `Slide.layout`."""
 
-EMBED_KINDS: tuple[EmbedKind, ...] = ("auto", "iframe", "image", "rollout")
-"""Every accepted value of :attr:`Embed.kind`."""
+EMBED_KINDS: tuple[EmbedKind, ...] = get_args(EmbedKind)
+"""Every accepted value of `Embed.kind`."""
 
 MAX_EMBEDS = 2
 """The number of embeds a single slide can hold."""
 
-IFRAME_SUFFIXES: tuple[str, ...] = (".html", ".htm")
-"""The file suffixes that an ``"auto"`` embed draws as an iframe."""
-
 ROLLOUT_SUFFIXES: tuple[str, ...] = (".rollout", ".rbundle")
-"""The file suffixes that an ``"auto"`` embed draws in the rollout viewer.
+"""The file suffixes that an `"auto"` embed draws in the rollout viewer.
 
-``.rollout`` is what :mod:`mkdeck.rollout` writes; ``.rbundle`` is the whole
-bundle an artifacts server holds, which the same viewer reads unconverted.
+`.rollout` is what `mkdeck.rollout` writes; a whole `.rbundle`, meshes included, is read
+unconverted by the same viewer.
 """
 
-REMOTE_SCHEMES: tuple[str, ...] = ("http", "https")
-"""The URL schemes an embed source may carry; everything else must be a relative path."""
+DEFAULT_UNITS: tuple[str, ...] = (
+    "N m s/rad",
+    "kg m^2",
+    "rad/s",
+    "body weights",
+    "N m",
+    "mm",
+    "ms",
+    "Hz",
+    "kg",
+    "m",
+    "s",
+    "m/s",
+    "%",
+    "percent",
+    "degrees",
+)
+"""The units a number may carry and still be highlighted, when a deck does not set its own.
 
-_WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
-_URL_SCHEME = re.compile(r"^(?P<scheme>[A-Za-z][A-Za-z0-9+.\-]*):(?://)?")
+The order does not matter: the renderer tries the longest spelling first.
+"""
 
 
 @dataclass(slots=True)
@@ -54,10 +90,12 @@ class Embed:
     """A figure on a slide: an iframe page, an image or an animation.
 
     Attributes:
-        src: The page or image, relative to the deck source folder. An ``http`` or
-            ``https`` URL is also accepted; an absolute path is not.
-        label: The caption drawn above the frame, or ``None`` for no caption.
-        kind: ``"iframe"``, ``"image"``, or ``"auto"`` to pick from the suffix of ``src``.
+        src: The page or image, relative to the deck source folder. An `http` or
+            `https` URL is also accepted; an absolute path is not. A query or fragment,
+            as in `plot.html?seed=2`, is kept in the document and left off the file name.
+        label: The caption drawn above the frame, or `None` for no caption.
+        kind: `"iframe"`, `"image"` or `"rollout"`, or `"auto"` to pick from the suffix
+            of `src`.
     """
 
     src: str
@@ -70,8 +108,8 @@ class Table:
     """A table on a slide.
 
     Attributes:
-        columns: The header cells, at least one.
-        rows: The body rows; every row holds one cell per column.
+        columns: The header cells, at least one. Each is shown with `str()`.
+        rows: The body rows; every row holds one cell per column, each shown with `str()`.
     """
 
     columns: list[str]
@@ -83,18 +121,21 @@ class Slide:
     """One slide of a deck.
 
     Attributes:
-        id: A stable identifier, emitted as ``data-id``, or ``None``.
-        layout: How the slide is laid out; ``"auto"`` picks from the content.
-        title: The heading, rendered only on ``layout="title"``.
-        sentence: The visible headline. Inline ``$...$`` math is allowed.
-        bullets: A compact list drawn under the sentence.
+        id: A stable identifier, emitted as `data-id`, or `None`.
+        layout: How the slide is laid out; `"auto"` picks from the content.
+        title: The heading, drawn above the rest of the slide. A slide that holds
+            nothing else is a title slide.
+        sentence: The visible headline. Inline Markdown and `$...$` math are allowed,
+            and so is an HTML element, which is kept as written.
+        bullets: A compact list drawn under the sentence, with the same inline syntax.
         math: Display formulas, one per line, drawn above the sentence.
-        embeds: The figures on the slide, at most :data:`MAX_EMBEDS` of them.
-        table: The table on the slide, or ``None``.
-        html: Raw body HTML that replaces everything above it. The escape hatch.
+        embeds: The figures on the slide, at most `MAX_EMBEDS` of them. A slide takes
+            figures or a table, not both.
+        table: The table on the slide, or `None`.
+        html: Raw HTML drawn with the rest of the slide. The escape hatch.
         notes: Speaker notes, shown in reveal's presenter view.
-        date: On ``layout="title"``, the date that restamps every later slide.
-        classes: Extra CSS classes put on the ``<section>``.
+        date: On `layout="title"`, the date that restamps every later slide.
+        classes: Extra CSS classes put on the `<section>`.
     """
 
     id: str | None = None
@@ -116,56 +157,70 @@ class Deck:
     """A whole deck.
 
     Attributes:
-        title: The deck title, shown on the generated opening slide.
+        title: The deck title: the title of the page, and the text of the generated
+            opening slide.
         date: The deck date, shown on the opening slide and in the chrome.
         theme: The name of the theme stylesheet to link.
         slides: The slides, in the order they are shown.
+        units: The units the number highlighting recognises, in any order.
         extra_css: Extra stylesheets, linked after the theme.
-        extra_js: Extra scripts, loaded after ``mkdeck.js``.
-        reveal: Options merged into ``Reveal.initialize``.
-        title_slide: Whether to generate the opening title slide.
+        extra_js: Extra scripts, loaded after `mkdeck.js`.
+        reveal: Options merged into `Reveal.initialize`.
+        title_slide: Whether to generate the opening title slide from `title` and `date`.
+            It is left out when the first slide is itself a title slide (`layout="title"`),
+            which is then the opening slide.
     """
 
     title: str
     date: str | None = None
     theme: str = "minimal"
     slides: list[Slide] = field(default_factory=list)
+    units: list[str] = field(default_factory=lambda: list(DEFAULT_UNITS))
     extra_css: list[str] = field(default_factory=list)
     extra_js: list[str] = field(default_factory=list)
     reveal: dict[str, Any] = field(default_factory=dict)
     title_slide: bool = True
 
     # build and serve import inside the method body on purpose: mkdeck.build and
-    # mkdeck.server both import this module, so a module-scope import would be circular.
+    # mkdeck.server both import this module, so a module-scope import would be circular,
+    # and `import mkdeck` should not load the file watcher.
 
     def build(
         self,
         out: Path | str = "site",
         *,
-        config: "DeckConfig | None" = None,
-        source: Path | None = None,
+        source: Path | str | None = None,
         single_file: bool = False,
     ) -> Path:
         """Write this deck to an output folder.
 
+        Building again into the same folder brings it up to date: every file is copied
+        afresh, and a file the previous build wrote that this one no longer needs is
+        removed.
+
         Args:
-            out: The output folder, or the HTML file when ``single_file`` is set.
-            config: The merged deck configuration.
-            source: The folder the deck's assets live in.
+            out: The output folder, or the HTML file when `single_file` is set and the
+                path ends in `.html`.
+            source: The folder the deck's assets live in; the current directory when
+                omitted.
             single_file: True to inline every stylesheet and script.
 
         Returns:
             The path of the written HTML document.
+
+        Raises:
+            DeckError: If the deck or a slide breaks a rule of the model, the source
+                folder does not exist, the output folder is the source folder or its
+                `assets` folder, or a file the deck names is outside the source folder.
         """
         from mkdeck.build import build_deck
 
-        return build_deck(self, out, config=config, source=source, single_file=single_file)
+        return build_deck(self, out, source=source, single_file=single_file)
 
     def serve(
         self,
         *,
-        config: "DeckConfig | None" = None,
-        source: Path | None = None,
+        source: Path | str | None = None,
         host: str = "127.0.0.1",
         port: int = 5020,
         open_browser: bool = False,
@@ -173,44 +228,49 @@ class Deck:
     ) -> None:
         """Serve this deck until interrupted.
 
+        The deck is the one in hand: it is built again, unchanged, whenever a file under
+        `source` changes. The Python code that made the slides is not run again.
+
         Args:
-            config: The merged deck configuration.
-            source: The folder the deck's assets live in; it is watched when given.
+            source: The folder the deck's assets live in; the current directory when
+                omitted. It is watched, and the page reloads when a file in it changes.
             host: The interface to bind.
             port: The port to bind.
             open_browser: True to open the deck in a browser once it is up.
-            reload: True to watch ``source`` and push reloads.
+            reload: True to watch `source` and push reloads.
+
+        Raises:
+            DeckError: If the deck cannot be rendered, the source folder does not exist,
+                or the port is taken.
         """
-        from mkdeck.server import serve_deck
+        from mkdeck.build import build_deck
+        from mkdeck.server import serve
 
-        serve_deck(
-            self,
-            config=config,
-            source=source,
-            host=host,
-            port=port,
-            open_browser=open_browser,
-            reload=reload,
-        )
+        folder = Path(source) if source is not None else Path.cwd()
+
+        def build(root: Path, live: bool) -> None:
+            build_deck(self, root, source=folder, live_reload=live)
+
+        serve(build, watch_paths=[folder], host=host, port=port, open_browser=open_browser, reload=reload)
 
 
-def slide_name(slide: Slide, index: int) -> str:
+def slide_name(slide: Slide, index: int | None = None) -> str:
     """Name a slide for an error message.
 
     Args:
         slide: The slide to name.
-        index: Its zero-based position in the deck.
+        index: Its zero-based position in the deck, or `None` when it is not in one.
 
     Returns:
-        ``slide 4 "g3-paired"`` when the slide carries an id, ``slide 4`` otherwise.
+        `slide 4 "g3-paired"` when the slide carries an id, `slide 4` otherwise, and
+        without the number when the slide has no position.
     """
-    if slide.id:
-        return f'slide {index + 1} "{slide.id}"'
-    return f"slide {index + 1}"
+    number = "" if index is None else f" {index + 1}"
+    return f'slide{number} "{slide.id}"' if slide.id else f"slide{number}"
 
 
 def resolve_layout(slide: Slide) -> Layout:
-    """Resolve ``layout="auto"`` from the content of a slide.
+    """Resolve `layout="auto"` from the content of a slide.
 
     Embeds win over a table, and a slide with neither is a statement. A layout the
     author set is returned unchanged.
@@ -219,7 +279,7 @@ def resolve_layout(slide: Slide) -> Layout:
         slide: The slide to resolve.
 
     Returns:
-        One of ``"title"``, ``"statement"``, ``"figures"`` or ``"table"``.
+        One of `"title"`, `"statement"`, `"figures"` or `"table"`.
     """
     if slide.layout != "auto":
         return slide.layout
@@ -231,63 +291,75 @@ def resolve_layout(slide: Slide) -> Layout:
 
 
 def resolve_embed_kind(embed: Embed) -> Literal["iframe", "image", "rollout"]:
-    """Resolve ``kind="auto"`` from the suffix of the embed source.
+    """Resolve `kind="auto"` from the suffix of the embed source.
 
     Args:
         embed: The embed to resolve.
 
     Returns:
-        ``"rollout"`` for a ``.rollout`` or ``.rbundle`` source, ``"iframe"``
-        for an ``.html`` or ``.htm`` one, ``"image"`` for everything else.
+        `"rollout"` for a `.rollout` or `.rbundle` source, `"iframe"` for an `.html` or
+        `.htm` one, `"image"` for everything else. A query or fragment is ignored.
     """
     if embed.kind != "auto":
         return embed.kind
-    suffix = PurePosixPath(embed.src.split("?", 1)[0].split("#", 1)[0]).suffix.lower()
+    suffix = PurePosixPath(local_path(embed.src)).suffix.lower()
     if suffix in ROLLOUT_SUFFIXES:
         return "rollout"
-    return "iframe" if suffix in IFRAME_SUFFIXES else "image"
+    return "iframe" if suffix in {".html", ".htm"} else "image"
 
 
-def validate_src(src: str) -> str | None:
-    """Check that an embed source stays inside the deck source folder.
+_ROLLOUT_TAG = re.compile(r"<deck-rollout\b[^>]*>?", re.IGNORECASE)
+
+
+def _slide_texts(slide: Slide) -> Iterator[str]:
+    """Walk the text of a slide that takes raw HTML.
 
     Args:
-        src: The source to check.
+        slide: The slide to walk.
+
+    Yields:
+        The title, sentence, raw HTML, bullets, figure labels and table cells that are set.
+    """
+    yield from (text for text in (slide.title, slide.sentence, slide.html, *slide.bullets) if text)
+    yield from (embed.label for embed in slide.embeds if embed.label)
+    if slide.table is not None:
+        for cells in (slide.table.columns, *slide.table.rows):
+            yield from map(str, cells)
+
+
+def raw_rollout_tags(deck: Deck) -> list[str]:
+    """Find the `<deck-rollout>` elements the slides write in raw HTML.
+
+    A figure whose source is a rollout becomes one of these elements without the author
+    writing it. Writing it by hand is how a rollout gets options such as `data-view`.
+
+    Args:
+        deck: The deck to look through.
 
     Returns:
-        The reason the source is rejected, or ``None`` when it is fine.
+        The opening tag of each element, as written.
     """
-    text = src.strip()
-    if not text:
-        return "an embed with an empty src; point it at a page or an image under the deck folder."
-    scheme = _URL_SCHEME.match(text)
-    if _WINDOWS_DRIVE.match(text):
-        return f'an embed with the absolute src "{src}"; make it relative to the deck folder.'
-    if scheme is not None and scheme.group("scheme").lower() not in REMOTE_SCHEMES:
-        return (
-            f'an embed with the src "{src}", whose "{scheme.group("scheme")}:" scheme is not supported; '
-            "use a path relative to the deck folder, or an http(s) URL."
-        )
-    if scheme is not None:
-        return None
-    if text.startswith(("/", "\\")):
-        return f'an embed with the absolute src "{src}"; make it relative to the deck folder.'
-    depth = 0
-    for part in text.replace("\\", "/").split("/"):
-        if part in {"", "."}:
-            continue
-        if part == "..":
-            depth -= 1
-            if depth < 0:
-                return (
-                    f'an embed with the src "{src}", which leaves the deck folder; copy the file under the deck folder.'
-                )
-        else:
-            depth += 1
-    return None
+    return [tag for slide in deck.slides for text in _slide_texts(slide) for tag in _ROLLOUT_TAG.findall(text)]
 
 
-def validate_slide(slide: Slide, *, index: int, source: Path | str | None = None) -> None:
+def deck_has_rollouts(deck: Deck) -> bool:
+    """Say whether any slide draws a rollout.
+
+    The viewer and its renderer are a megabyte, so a deck that shows no robot neither
+    loads nor carries them.
+
+    Args:
+        deck: The deck to look through.
+
+    Returns:
+        True when an embed resolves to a rollout, or a slide writes a `<deck-rollout>`
+        element in raw HTML.
+    """
+    figures = any(resolve_embed_kind(embed) == "rollout" for slide in deck.slides for embed in slide.embeds)
+    return figures or bool(raw_rollout_tags(deck))
+
+
+def validate_slide(slide: Slide, *, index: int | None = None, source: Path | str | None = None) -> None:
     """Check one slide against the rules of the model.
 
     Args:
@@ -296,45 +368,77 @@ def validate_slide(slide: Slide, *, index: int, source: Path | str | None = None
         source: The deck file or folder, used in the error message.
 
     Raises:
-        DeckError: If the layout, the embeds or the table of the slide break a rule.
+        DeckError: If a field holds the wrong type, or the layout, the embeds or the
+            table of the slide break a rule.
     """
-    name = slide_name(slide, index)
-
-    def fail(message: str) -> DeckError:
-        return DeckError(message, slide=name, source=source)
-
+    fail = partial(DeckError, slide=slide_name(slide, index), source=source)
+    for name in ("id", "title", "sentence", "html", "notes", "date"):
+        _expect_text(getattr(slide, name), name, fail=fail, optional=True)
+    for name in ("bullets", "math", "classes"):
+        _expect_list(getattr(slide, name), name, fail=fail, item=_expect_text)
+    _expect_list(slide.embeds, "embeds", fail=fail, item=_expect_embed)
+    if slide.table is not None:
+        _validate_table(slide.table, fail=fail)
     if slide.layout not in LAYOUTS:
         raise fail(
-            f'has the layout "{slide.layout}", which is not one of {", ".join(LAYOUTS)}; use one of those names.'
+            f'This slide has the layout "{slide.layout}", which is not one of {", ".join(LAYOUTS)}; '
+            "use one of those names."
         )
     if len(slide.embeds) > MAX_EMBEDS:
         raise fail(
-            f"has {len(slide.embeds)} embeds, but a slide takes at most {MAX_EMBEDS}; "
+            f"This slide has {len(slide.embeds)} embeds, but a slide takes at most {MAX_EMBEDS}; "
             "move the extra figures onto a new slide."
         )
-    for embed in slide.embeds:
-        if embed.kind not in EMBED_KINDS:
-            raise fail(
-                f'has an embed of kind "{embed.kind}", which is not one of {", ".join(EMBED_KINDS)}; '
-                "use one of those names."
-            )
-        reason = validate_src(embed.src)
-        if reason is not None:
-            raise fail(f"has {reason}")
-    if slide.table is not None:
-        _validate_table(slide.table, fail=fail)
+    if slide.embeds and slide.table is not None:
+        raise fail(
+            "This slide holds both figures and a table, but a slide takes one of the two; move one onto a new slide."
+        )
 
 
 def validate_deck(deck: Deck, *, source: Path | str | None = None) -> None:
-    """Check every slide of a deck, and check that the slide ids are unique.
+    """Check a whole deck: its settings, every slide, and that the slide ids are unique.
 
     Args:
         deck: The deck to check.
         source: The deck file or folder, used in the error messages.
 
     Raises:
-        DeckError: If a slide breaks a rule, or two slides share an id.
+        DeckError: If a setting or a slide breaks a rule, the deck would show nothing, or
+            two slides share an id.
     """
+    fail = partial(DeckError, source=source)
+    _expect_text(deck.title, "title", fail=fail)
+    _expect_text(deck.date, "date", fail=fail, optional=True)
+    _expect_text(deck.theme, "theme", fail=fail)
+    reason = theme_error(deck.theme)
+    if reason is not None:
+        raise fail(reason)
+    _expect_list(deck.units, "units", fail=fail, item=_expect_text)
+    for key, paths in (("extra_css", deck.extra_css), ("extra_js", deck.extra_js)):
+        _expect_list(paths, key, fail=fail, item=_expect_text)
+        for path in paths:
+            message = asset_path_error(path, key=key)
+            if message is not None:
+                raise fail(message)
+    if not isinstance(deck.reveal, dict):
+        raise fail(
+            f'The deck setting "reveal" has to be a mapping, but it holds a value of type {type(deck.reveal).__name__}.'
+        )
+    try:
+        json.dumps(deck.reveal)
+    except (TypeError, ValueError) as error:
+        raise fail(f'The deck setting "reveal" has to hold only values that JSON can write: {error}.') from error
+    if not isinstance(deck.title_slide, bool):
+        raise fail(
+            f'The deck setting "title_slide" has to be true or false, not a value of type {type(deck.title_slide).__name__}.'
+        )
+    if not isinstance(deck.slides, list) or not all(isinstance(slide, Slide) for slide in deck.slides):
+        raise fail("The deck's slides have to be a list of Slide objects.")
+    if not deck.slides and not deck.title_slide:
+        raise fail(
+            "The deck has no slides and no title slide, so there is nothing to show; "
+            "write a slide, or give the deck a title so that it opens with a title slide."
+        )
     seen: dict[str, int] = {}
     for index, slide in enumerate(deck.slides):
         validate_slide(slide, index=index, source=source)
@@ -342,29 +446,94 @@ def validate_deck(deck: Deck, *, source: Path | str | None = None) -> None:
             first = seen.get(slide.id)
             if first is not None:
                 raise DeckError(
-                    f"repeats the id of slide {first + 1}; give every slide its own id, or drop one of the two.",
+                    f"This slide repeats the id of slide {first + 1}; give every slide its own id, or drop one of the two.",
                     slide=slide_name(slide, index),
                     source=source,
                 )
             seen[slide.id] = index
 
 
-def _validate_table(table: Table, *, fail: Callable[[str], DeckError]) -> None:
+def _expect_text(value: object, name: str, *, fail: partial[DeckError], optional: bool = False) -> None:
+    """Check that a field holds text.
+
+    Args:
+        value: The value to check.
+        name: The field it came from, used in the message.
+        fail: Builds the `DeckError` to raise from a message.
+        optional: True when `None` is allowed too.
+
+    Raises:
+        DeckError: If the value is not text.
+    """
+    if isinstance(value, str) or (optional and value is None):
+        return
+    raise fail(f'The field "{name}" has to be text, but it holds a value of type {type(value).__name__}.')
+
+
+def _expect_list(value: object, name: str, *, fail: partial[DeckError], item: Any) -> None:
+    """Check that a field holds a list whose items pass a check.
+
+    Args:
+        value: The value to check.
+        name: The field it came from, used in the message.
+        fail: Builds the `DeckError` to raise from a message.
+        item: The check for one item, called as `item(value, name, fail=fail)`.
+
+    Raises:
+        DeckError: If the value is not a list, or an item fails its check.
+    """
+    if not isinstance(value, list):
+        raise fail(f'The field "{name}" has to be a list, but it holds a value of type {type(value).__name__}.')
+    for entry in value:
+        item(entry, name, fail=fail)
+
+
+def _expect_embed(value: object, name: str, *, fail: partial[DeckError]) -> None:
+    """Check one embed of a slide.
+
+    Args:
+        value: The embed to check.
+        name: The field it came from, used in the message.
+        fail: Builds the `DeckError` to raise from a message.
+
+    Raises:
+        DeckError: If the embed is not an `Embed`, or its src, label or kind is wrong.
+    """
+    if not isinstance(value, Embed):
+        raise fail(
+            f'The field "{name}" has to hold Embed objects, but it holds a value of type {type(value).__name__}.'
+        )
+    _expect_text(value.src, "src", fail=fail)
+    _expect_text(value.label, "label", fail=fail, optional=True)
+    if value.kind not in EMBED_KINDS:
+        raise fail(
+            f'This slide has an embed of kind "{value.kind}", which is not one of {", ".join(EMBED_KINDS)}; '
+            "use one of those names."
+        )
+    reason = validate_src(value.src)
+    if reason is not None:
+        raise fail(reason)
+
+
+def _validate_table(table: object, *, fail: partial[DeckError]) -> None:
     """Check the columns and rows of a table.
 
     Args:
         table: The table to check.
-        fail: A callable that turns a message into a :class:`DeckError`.
+        fail: Builds the `DeckError` to raise from a message.
 
     Raises:
         DeckError: If the table has no columns, or a row does not match them.
     """
+    if not isinstance(table, Table) or not isinstance(table.columns, list) or not isinstance(table.rows, list):
+        raise fail("This slide has a table that is not a Table of a list of columns and a list of rows.")
     if not table.columns:
-        raise fail("has a table with no columns; give the table a header row.")
+        raise fail("This slide has a table with no columns; give the table a header row.")
     width = len(table.columns)
     for number, row in enumerate(table.rows, start=1):
-        if len(row) != width:
+        if not isinstance(row, list) or len(row) != width:
+            held = f"{len(row)} cells" if isinstance(row, list) else "no list of cells"
             raise fail(
-                f"has a table whose row {number} holds {len(row)} cells but the header holds {width}; "
+                f"This slide has a table whose row {number} holds {held} but the header holds {width}; "
                 "give every row one cell per column."
             )

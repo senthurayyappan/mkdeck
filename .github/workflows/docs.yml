@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+env:
+  # The uv release every job installs, so a new uv cannot change a build unannounced.
+  # Dependabot does not bump this; raise it by hand now and then.
+  UV_VERSION: "0.12.20"
 permissions:
   contents: read
 concurrency:
@@ -12,6 +16,7 @@ jobs:
   deploy:
     if: vars.DEPLOY_DOCS == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -20,6 +25,7 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
       - run: uv sync --locked --group docs
       - name: Deploy documentation

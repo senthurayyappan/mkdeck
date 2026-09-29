@@ -7,17 +7,34 @@ The downloaded files are committed, which is what lets ``mkdeck build`` work
 with no network at all.
 
 Every library comes from its npm tarball, so the pinned version is the one npm
-published and the licence travels with it. Re-run to bump a pin; the result
-should be reviewed as a diff like any other change::
+published and the licence travels with it. Each download is checked against the
+``dist.integrity`` hash the registry publishes for that version, and the run
+stops on a mismatch before it touches a file. A run also removes files that a
+library's folder holds but its pin no longer names (bar the few mkdeck keeps
+itself, listed per library), so the folder ends up exactly as the pins describe
+it. Re-run to bump a pin; the result should be reviewed as a diff like any other
+change. It needs network access and nothing but the standard library::
 
-    uv run python scripts/vendor_assets.py            # every library
-    uv run python scripts/vendor_assets.py three      # just one
+    uv run scripts/vendor_assets.py            # every library
+    uv run scripts/vendor_assets.py three      # just one, by folder or package name
 
-Nothing here is imported by mkdeck, and it uses the standard library only.
+three.js is pinned at r150 on purpose. The rollout viewer builds an
+``OrbitControls`` that reads ``camera.up`` once, in its constructor, and never
+refreshes it, which is how r150 behaves; the viewer rebuilds the controls
+whenever the camera's up axis changes (see ``setCameraUp`` in
+``assets/viewer/rollout_viewer.js``). Moving to a newer release means checking
+that workaround still does what it is for, and that the viewer still runs
+against the newer module.
+
+Nothing here is imported by mkdeck. ``scripts/VENDOR_VIEWER.md`` says where the
+viewer under ``assets/viewer/`` came from.
 """
 
+import base64
 import fnmatch
+import hashlib
 import io
+import json
 import re
 import shutil
 import sys
@@ -46,6 +63,8 @@ class Library:
         files: Pairs of source path inside the tarball and destination path
             under ``into``. A source may hold a ``*``, and then the
             destination is the folder its matches land in.
+        keep: Paths under ``into`` that mkdeck maintains itself, which a run
+            leaves alone when it removes files the pins no longer name.
         after: Run over the destination folder once the files are written, for
             a library that needs the released copy adjusted.
     """
@@ -54,6 +73,7 @@ class Library:
     version: str
     into: str
     files: tuple[tuple[str, str], ...]
+    keep: tuple[str, ...] = ()
     after: Callable[[Path], None] | None = field(default=None, compare=False)
 
     @property
@@ -95,9 +115,10 @@ LIBRARIES = (
             ("dist/reveal.js", "dist/reveal.js"),
             ("dist/plugin/notes.js", "dist/plugin/notes.js"),
             ("dist/plugin/zoom.js", "dist/plugin/zoom.js"),
-            ("dist/plugin/highlight.js", "dist/plugin/highlight.js"),
         ),
     ),
+    # The npm tarball's LICENSE covers the code. The fonts are SIL OFL, and
+    # dist/fonts/OFL.txt is kept in the tree because the tarball does not ship it.
     Library(
         package="katex",
         version="0.18.7",
@@ -108,6 +129,7 @@ LIBRARIES = (
             ("dist/katex.min.css", "dist/katex.min.css"),
             ("dist/fonts/*.woff2", "dist/fonts"),
         ),
+        keep=("dist/fonts/OFL.txt",),
         after=_woff2_only,
     ),
     Library(
@@ -115,6 +137,7 @@ LIBRARIES = (
         version="5.3.0",
         into="roboto",
         # roboto.css is mkdeck's own: three weights of the latin subset, no more.
+        keep=("roboto.css",),
         files=(
             ("LICENSE", "LICENSE"),
             ("files/roboto-latin-300-normal.woff2", "fonts/roboto-latin-300-normal.woff2"),
@@ -122,9 +145,9 @@ LIBRARIES = (
             ("files/roboto-latin-500-normal.woff2", "fonts/roboto-latin-500-normal.woff2"),
         ),
     ),
-    # The rollout viewer's renderer. The pin matches the artifacts server's
-    # viewer, which works around a camera.up quirk specific to r150's
-    # OrbitControls; moving off r150 means re-reading that workaround.
+    # The rollout viewer's renderer. The pin is r150 because the viewer works
+    # around how that release's OrbitControls reads camera.up; see the docstring
+    # above before moving it.
     Library(
         package="three",
         version="0.150.1",
@@ -139,8 +162,57 @@ LIBRARIES = (
 """Every library a built deck may carry."""
 
 
+def _get(url: str) -> bytes:
+    """Download one URL.
+
+    Args:
+        url: The address to fetch.
+
+    Returns:
+        The body.
+
+    Raises:
+        SystemExit: If the registry cannot be reached or has no such file.
+    """
+    try:
+        with urllib.request.urlopen(url, timeout=120) as response:
+            return response.read()
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise SystemExit(f"cannot fetch {url}: {exc}") from exc
+
+
+def verify(payload: bytes, dist: dict[str, str], label: str) -> None:
+    """Check a tarball against the checksum npm published for it.
+
+    Args:
+        payload: The downloaded tarball.
+        dist: The ``dist`` object of the version's registry document.
+        label: The package and version, for the message.
+
+    Raises:
+        SystemExit: If the registry published no checksum, or the tarball does
+            not match it.
+    """
+    if dist.get("integrity"):
+        # An SRI string: one or more "<algorithm>-<base64 digest>" entries.
+        expected = {entry.partition("-")[::2] for entry in dist["integrity"].split()}
+        actual = {
+            (algorithm, base64.b64encode(hashlib.new(algorithm, payload).digest()).decode())
+            for algorithm, _ in expected
+            if algorithm in hashlib.algorithms_available
+        }
+    elif dist.get("shasum"):
+        expected, actual = {("sha1", dist["shasum"])}, {("sha1", hashlib.sha1(payload).hexdigest())}
+    else:
+        raise SystemExit(f"{label}: the registry publishes no checksum for it, so it cannot be verified.")
+    if not expected & actual:
+        raise SystemExit(
+            f"{label}: the downloaded tarball does not match the checksum npm published; not vendoring it."
+        )
+
+
 def fetch(library: Library) -> tarfile.TarFile:
-    """Download one library's tarball.
+    """Download one library's tarball and verify it.
 
     Args:
         library: The library to fetch.
@@ -149,30 +221,53 @@ def fetch(library: Library) -> tarfile.TarFile:
         The opened tarball.
 
     Raises:
-        SystemExit: If the registry cannot be reached or has no such version.
+        SystemExit: If the registry cannot be reached, has no such version, or
+            serves a tarball that does not match its published checksum.
     """
-    try:
-        with urllib.request.urlopen(library.url, timeout=120) as response:
-            payload = response.read()
-    except (urllib.error.URLError, TimeoutError) as exc:
-        raise SystemExit(f"cannot fetch {library.package}@{library.version}: {exc}") from exc
+    label = f"{library.package}@{library.version}"
+    document = json.loads(_get(f"{REGISTRY}/{library.package}/{library.version}"))
+    payload = _get(library.url)
+    verify(payload, document.get("dist", {}), label)
     return tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz")
 
 
-def vendor(library: Library) -> int:
+def _remove_stale(target: Path, written: set[Path], keep: tuple[str, ...]) -> list[Path]:
+    """Delete the files under a library's folder that no pin writes.
+
+    Args:
+        target: The library's folder under ``assets/``.
+        written: The files this run wrote.
+        keep: Paths under ``target`` that mkdeck maintains itself.
+
+    Returns:
+        The files removed.
+    """
+    kept = written | {target / name for name in keep}
+    stale = sorted(path for path in target.rglob("*") if path.is_file() and path not in kept)
+    for path in stale:
+        path.unlink()
+    for folder in sorted((p for p in target.rglob("*") if p.is_dir()), reverse=True):
+        if not any(folder.iterdir()):
+            folder.rmdir()
+    return stale
+
+
+def vendor(library: Library, *, root: Path = ASSETS) -> int:
     """Write one library's files into the assets folder.
 
     Args:
         library: The library to vendor.
+        root: The assets folder to write under.
 
     Returns:
         The number of files written.
 
     Raises:
-        SystemExit: If the tarball does not hold a file the pin names.
+        SystemExit: If the tarball fails verification or does not hold a file
+            the pin names.
     """
-    target = ASSETS / library.into
-    written = 0
+    target = root / library.into
+    written: set[Path] = set()
     with fetch(library) as tar:
         # npm puts everything under "package/"; members are matched against the
         # path below it so the pins read like the library's own layout.
@@ -189,10 +284,12 @@ def vendor(library: Library) -> int:
                 out.parent.mkdir(parents=True, exist_ok=True)
                 with extracted, out.open("wb") as handle:
                     shutil.copyfileobj(extracted, handle)
-                written += 1
+                written.add(out)
+    for path in _remove_stale(target, written, library.keep):
+        print(f"removed {path.relative_to(root)}")
     if library.after is not None:
         library.after(target)
-    return written
+    return len(written)
 
 
 def main(names: list[str]) -> None:

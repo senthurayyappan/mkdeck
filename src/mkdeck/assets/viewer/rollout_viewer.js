@@ -1,26 +1,19 @@
 // Rollout viewer: draws an .rbundle with vendored three.js r150.
 //
-// Forked from the artifacts server's static/viewer.js (see VENDOR.md). That one
-// is one viewer per sandboxed iframe, sized to the window and driven by the
-// dashboard's clock over postMessage. A deck cannot use iframes: an ES module
+// Forked from the viewer of a rollout gallery (its origin is written down in
+// scripts/VENDOR_VIEWER.md of the mkdeck source repository). That one is one viewer per sandboxed iframe, sized to the
+// window and driven by the dashboard's clock over postMessage. A deck cannot use iframes: an ES module
 // will not load from a file:// URL, which is how a shipped deck is opened, so
 // the viewer runs in the slide itself. Hence the shape change — a factory
 // bound to a mount element, sized to that element, with its own clock — while
-// the scene building, the force arrows and the prediction lines are ported
-// constant-for-constant.
+// the scene building and the geometry table are ported constant-for-constant.
+// What a deck never shows -- the force arrows, the prediction lines, the collision
+// geoms and the setters that switched them -- was left behind in the fork.
 
 import { parseBundle } from "rollout-bundle";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { cameraPreset, normalizeCamera, orthographicFrustum } from "mkdeck-camera";
-
-// ---- constants, ported verbatim from the artifacts server's viewer ----
-const GRAVITY = 9.81;
-const ARROW_MAX_WEIGHTS = 3; // clamp arrow at 3 robot-heights (= 3x body-weight) so impact spikes don't shoot off
-const ARROW_SHAFT_R = 0.013, ARROW_HEAD_R = 0.034, ARROW_HEAD_L = 0.07;
-const FORCE_COLOR = 0xff3c3c;
-const PRED_TORSO_COLOR = [60, 220, 255], PRED_FOOT_COLOR = [255, 170, 60], PRED_ALL_COLOR = [150, 150, 165];
-const PRED_FADE = 0.7, PRED_TORSO_LINK = 0, PRED_FOOT_LINKS = [3, 6, 9, 12];
 
 const DEFAULT_BACKGROUND = 0xf4f1ea;
 
@@ -60,30 +53,23 @@ function makeGeometry(g) {
  * Mount a viewer in an element and return the handle a slide drives it with.
  *
  * @param {HTMLElement} mount   element the canvas fills; it must be positioned.
- * @param {object} options      background (css color or number), speed, loop.
+ * @param {object} options      background (css color or number), scale, loop, follow, onFrame.
  */
 export function createViewer(mount, options = {}) {
   const background = options.background === undefined ? DEFAULT_BACKGROUND : options.background;
 
   let bundle = null;            // parsed bundle (null until load())
   let bodyGroups = [];          // THREE.Group per body
-  let visualHandles = [], collisionHandles = [];
-  let dt = 1 / 30, nFrames = 1, weight = GRAVITY, robotHeight = 0.3;
-  let curFrame = 0, showForces = true, showCollision = false, showPred = true, predMode = "torso+feet";
+  let dt = 1 / 30, nFrames = 1;
   let cameraState = cameraPreset("iso", options.scale);
-  let applyingCamera = false;
-  let playing = false, clock = 0, last = 0, speed = options.speed || 1;
+  let playing = false, clock = 0, last = 0;
   let follow = options.follow !== false, followBody = 1, followFrom = null;
   let frameHandle = 0, disposed = false;
 
   // preserveDrawingBuffer stays off, three.js's own default. Turning it on to
   // help screenshots does the opposite: a headless Chromium then captures the
   // canvas blank, while the frame it draws is correct either way.
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    preserveDrawingBuffer: options.preserveDrawingBuffer === true,
-  });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.domElement.className = "mkd-rollout-canvas";
   mount.appendChild(renderer.domElement);
@@ -114,7 +100,6 @@ export function createViewer(mount, options = {}) {
     const target = controls ? controls.target.clone() : null;
     if (controls) controls.dispose();
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.enablePan = options.pan !== false;
     if (target) controls.target.copy(target);
   }
   makeControls();
@@ -125,22 +110,11 @@ export function createViewer(mount, options = {}) {
     makeControls();  // the "top" preset is y-up; every other view is z-up
   }
 
-  const forcesGroup = new THREE.Group(); scene.add(forcesGroup);
-  const predGroup = new THREE.Group(); scene.add(predGroup);
-
   function buildScene() {
     bodyGroups.forEach((b) => { clearGroup(b); scene.remove(b); });
-    bodyGroups = []; visualHandles = []; collisionHandles = [];
+    bodyGroups = [];
     const nb = bundle.buffers.body_pos.shape[1];
     for (let b = 0; b < nb; b++) { const grp = new THREE.Group(); scene.add(grp); bodyGroups.push(grp); }
-    const mass = bundle.meta.robot_mass_kg || bundle.meta.total_mass_kg || 1.0;
-    weight = Math.max(mass, 1e-3) * GRAVITY;
-    // Robot height = vertical span of the bodies at frame 0. Force arrows scale to it (1 body-weight
-    // of force -> 1 robot-height of arrow), so they read the same across designs of different heights.
-    const bp0 = bundle.buffers.body_pos.data;
-    let zmin = Infinity, zmax = -Infinity;
-    for (let b = 0; b < nb; b++) { const z = bp0[b * 3 + 2]; if (z < zmin) zmin = z; if (z > zmax) zmax = z; }
-    robotHeight = Math.max(zmax - zmin, 0.05);
     // Body 0 is the world and never moves, so the first real body is what the
     // camera holds on to. body_names lets a bundle name a better one.
     followBody = Math.min(1, nb - 1);
@@ -158,8 +132,9 @@ export function createViewer(mount, options = {}) {
         const grid = new THREE.GridHelper(20, 40, 0x999999, 0xcccccc);
         grid.rotateX(Math.PI / 2);  // GridHelper is xz-plane; rotate into xy (z-up ground)
         grid.position.set(g.local_pos[0], g.local_pos[1], g.local_pos[2]);
-        parent.add(grid); visualHandles.push(grid); return;
+        parent.add(grid); return;
       }
+      if (g.is_collision) return;  // the collision shapes are never drawn
       const geo = makeGeometry(g);
       if (!geo) return;
       const rgb = new THREE.Color(g.rgba[0], g.rgba[1], g.rgba[2]);
@@ -170,15 +145,13 @@ export function createViewer(mount, options = {}) {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(g.local_pos[0], g.local_pos[1], g.local_pos[2]);
       mesh.quaternion.copy(quat(g.local_quat, 0));
-      mesh.visible = !g.is_collision;
       parent.add(mesh);
-      (g.is_collision ? collisionHandles : visualHandles).push(mesh);
     });
   }
 
   function seekFrame(t) {
     if (!bundle) return;
-    curFrame = Math.min(Math.max(Math.round(t / dt), 0), nFrames - 1);
+    const curFrame = Math.min(Math.max(Math.round(t / dt), 0), nFrames - 1);
     const bp = bundle.buffers.body_pos.data, bq = bundle.buffers.body_quat.data;
     const nb = bundle.buffers.body_pos.shape[1];
     for (let b = 0; b < nb; b++) {
@@ -186,8 +159,6 @@ export function createViewer(mount, options = {}) {
       bodyGroups[b].position.set(bp[pj], bp[pj + 1], bp[pj + 2]);
       bodyGroups[b].quaternion.set(bq[qj + 1], bq[qj + 2], bq[qj + 3], bq[qj + 0]);
     }
-    drawForces(curFrame);
-    drawPredictions(curFrame);
     if (follow) {
       // Move the target and the camera together, so the run stays centred
       // while an orbit the viewer dragged is kept.
@@ -199,70 +170,6 @@ export function createViewer(mount, options = {}) {
       followFrom.copy(here);
     }
     if (options.onFrame) options.onFrame(curFrame * dt, duration());
-  }
-
-  function addArrow(anchor, dir, length) {
-    const shaftLen = Math.max(length - ARROW_HEAD_L, 1e-3);
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(ARROW_SHAFT_R, ARROW_SHAFT_R, shaftLen, 12),
-      new THREE.MeshStandardMaterial({ color: FORCE_COLOR }));
-    const head = new THREE.Mesh(
-      new THREE.ConeGeometry(ARROW_HEAD_R, ARROW_HEAD_L, 16),
-      new THREE.MeshStandardMaterial({ color: FORCE_COLOR }));
-    shaft.position.y = shaftLen / 2; head.position.y = shaftLen + ARROW_HEAD_L / 2;
-    const arrow = new THREE.Group(); arrow.add(shaft); arrow.add(head);
-    arrow.position.set(anchor[0], anchor[1], anchor[2]);
-    arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dir[0], dir[1], dir[2]));
-    forcesGroup.add(arrow);
-  }
-
-  function drawForces(frame) {
-    clearGroup(forcesGroup);
-    if (!showForces || !bundle.buffers.forces) return;
-    const f = bundle.buffers.forces, nf = f.shape[1], base = frame * nf * 2 * 3;
-    for (let k = 0; k < nf; k++) {
-      const a = base + k * 2 * 3;
-      const anchor = [f.data[a], f.data[a + 1], f.data[a + 2]];
-      const vec = [f.data[a + 3], f.data[a + 4], f.data[a + 5]];
-      if (!anchor.every(Number.isFinite) || !vec.every(Number.isFinite)) continue;
-      const mag = Math.hypot(vec[0], vec[1], vec[2]);
-      if (mag < 1e-9) continue;
-      const length = Math.min(robotHeight * (mag / weight), ARROW_MAX_WEIGHTS * robotHeight);
-      addArrow(anchor, [vec[0] / mag, vec[1] / mag, vec[2] / mag], length);
-    }
-  }
-
-  function drawPredictions(frame) {
-    clearGroup(predGroup);
-    if (!showPred || !bundle.buffers.predictions) return;
-    const p = bundle.buffers.predictions, [T, H, L] = p.shape;
-    const f = Math.min(frame, T - 1);
-    function lines(linkIdxs, color) {
-      const pos = [], col = [];
-      linkIdxs.forEach(function (li) {
-        if (li >= L) return;
-        for (let sIdx = 0; sIdx < H - 1; sIdx++) {
-          const a = ((f * H + sIdx) * L + li) * 3, b = ((f * H + (sIdx + 1)) * L + li) * 3;
-          pos.push(p.data[a], p.data[a + 1], p.data[a + 2], p.data[b], p.data[b + 1], p.data[b + 2]);
-          const fade = 1.0 - PRED_FADE * (sIdx / Math.max(H - 2, 1));
-          const c = [color[0] / 255 * fade, color[1] / 255 * fade, color[2] / 255 * fade];
-          col.push(c[0], c[1], c[2], c[0], c[1], c[2]);
-        }
-      });
-      if (!pos.length) return;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-      geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
-      predGroup.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true })));
-    }
-    if (predMode === "all") lines(Array.from({ length: L }, (_, i) => i), PRED_ALL_COLOR);
-    if (predMode !== "torso") lines(PRED_FOOT_LINKS, PRED_FOOT_COLOR);
-    lines([PRED_TORSO_LINK], PRED_TORSO_COLOR);
-  }
-
-  function setLayers() {
-    visualHandles.forEach((h) => (h.visible = true));
-    collisionHandles.forEach((h) => (h.visible = showCollision));
   }
 
   // ---- camera (orthographic world scale + fixed named views) ----
@@ -279,14 +186,12 @@ export function createViewer(mount, options = {}) {
     const t = cameraState.target;
     const raw = new THREE.Vector3(cameraState.off[0], cameraState.off[1], cameraState.off[2]);
     if (cameraState.view !== "custom") raw.normalize().multiplyScalar(20);
-    applyingCamera = true;
     setCameraUp(cameraState.up);
     controls.target.set(t[0], t[1], t[2]);
     camera.position.set(t[0] + raw.x, t[1] + raw.y, t[2] + raw.z);
     camera.zoom = 1;
     applyFrustum(cameraState.scale);
     controls.update();
-    applyingCamera = false;
     followFrom = null;
   }
   applyCam(cameraState);
@@ -311,7 +216,7 @@ export function createViewer(mount, options = {}) {
     frameHandle = requestAnimationFrame(tick);
     if (playing && bundle) {
       const elapsed = last ? (now - last) / 1000 : 0;
-      clock += elapsed * speed;
+      clock += elapsed;
       const total = duration();
       if (total > 0 && clock > total) clock = options.loop === false ? total : clock - total;
       if (total > 0 && clock >= total && options.loop === false) playing = false;
@@ -335,15 +240,11 @@ export function createViewer(mount, options = {}) {
       dt = bundle.meta.dt || 1 / (bundle.meta.fps || 30);
       nFrames = bp.shape[0];
       buildScene();
-      setLayers();
       clock = 0;
-      if (options.target !== false) {
-        const nb = bp.shape[1];
-        const at = Math.min(followBody, nb - 1) * 3;
-        applyCam(Object.assign({}, cameraState, {
-          target: [bp.data[at], bp.data[at + 1], bp.data[at + 2]],
-        }));
-      }
+      const at = Math.min(followBody, bp.shape[1] - 1) * 3;
+      applyCam(Object.assign({}, cameraState, {
+        target: [bp.data[at], bp.data[at + 1], bp.data[at + 2]],
+      }));
       seekFrame(0);
       return { duration: duration(), frames: nFrames };
     },
@@ -351,22 +252,11 @@ export function createViewer(mount, options = {}) {
     pause() { playing = false; },
     toggle() { playing = !playing; last = 0; return playing; },
     seek(t) { clock = Math.min(Math.max(t, 0), duration()); seekFrame(clock); },
-    setSpeed(value) { speed = Number(value) || 1; },
     setView(name) { applyCam(cameraPreset(name, cameraState.scale)); },
-    setScale(value) { applyFrustum(Number(value) || cameraState.scale); },
-    setCollision(on) { showCollision = !!on; setLayers(); },
-    setForces(on) { showForces = !!on; if (bundle) drawForces(curFrame); },
-    setPredictions(on, mode) {
-      showPred = on !== false;
-      if (typeof mode === "string") predMode = mode;
-      if (bundle) drawPredictions(curFrame);
-    },
-    resize,
-    /** Draw one frame now. A screenshot cannot wait for the next animation
+    /** Draw one frame now. A PDF export cannot wait for the next animation
      *  frame, which a headless browser may throttle away entirely. */
     render() { controls.update(); renderer.render(scene, camera); },
     get playing() { return playing; },
-    get time() { return curFrame * dt; },
     get duration() { return duration(); },
     /** Give the WebGL context back; a deck keeps only a few slides alive. */
     dispose() {
@@ -375,8 +265,6 @@ export function createViewer(mount, options = {}) {
       if (observer) observer.disconnect();
       controls.dispose();
       bodyGroups.forEach(clearGroup);
-      clearGroup(forcesGroup);
-      clearGroup(predGroup);
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       bundle = null;

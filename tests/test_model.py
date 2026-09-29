@@ -6,13 +6,15 @@ from mkdeck.model import (
     Embed,
     Slide,
     Table,
+    deck_has_rollouts,
+    raw_rollout_tags,
     resolve_embed_kind,
     resolve_layout,
     slide_name,
     validate_deck,
     validate_slide,
-    validate_src,
 )
+from mkdeck.paths import asset_path_error, is_remote, local_path, relative_url, resolve_inside, validate_src
 
 # The two-figure slide "a1-crate" of the barkour deck.
 CRATE = Slide(
@@ -131,9 +133,9 @@ def test_an_unnamed_slide_is_reported_by_its_index() -> None:
 @pytest.mark.parametrize(
     ("src", "reason"),
     [
-        ("/home/holycow/barkour-dmpc/slides/assets/a1.html", "absolute"),
+        ("/srv/decks/vault/assets/a1.html", "absolute"),
         ("C:/decks/a1.html", "absolute"),
-        ("../../barkour-dmpc/slides/assets/a1.html", "leaves the deck folder"),
+        ("../../other-project/assets/a1.html", "leaves the deck folder"),
         ("", "empty src"),
         ("file:///tmp/a1.html", "is not supported"),
     ],
@@ -146,7 +148,16 @@ def test_bad_embed_sources_are_rejected(src: str, reason: str) -> None:
 
 @pytest.mark.parametrize(
     "src",
-    ["assets/a1_go2_crate.html", "./assets/a1.html", "sub/../assets/a1.html", "https://example.org/a1.html"],
+    [
+        "assets/a1_go2_crate.html",
+        "./assets/a1.html",
+        "sub/../assets/a1.html",
+        "https://example.org/a1.html",
+        "HTTPS://example.org/a1.html",
+        "figs/g3_18.html?seed=2#top",
+        "run:3.html",
+        "run:3/plot.html",
+    ],
 )
 def test_good_embed_sources_pass(src: str) -> None:
     assert validate_src(src) is None
@@ -183,7 +194,7 @@ def test_duplicate_ids_are_rejected() -> None:
     deck = Deck(title="Quadruped Vault Runs", slides=[CRATE, MODEL_TABLE, CRATE])
     with pytest.raises(DeckError) as caught:
         validate_deck(deck, source="deck.md")
-    assert str(caught.value).startswith('deck.md: slide 3 "a1-crate": repeats the id of slide 1')
+    assert str(caught.value).startswith('deck.md: slide 3 "a1-crate": This slide repeats the id of slide 1')
 
 
 def test_validate_deck_checks_every_slide() -> None:
@@ -194,3 +205,180 @@ def test_validate_deck_checks_every_slide() -> None:
 
 def test_deck_error_without_a_source_or_slide_is_the_bare_message() -> None:
     assert str(DeckError("nothing to render.")) == "nothing to render."
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "%2e%2e/secret.html",
+        "..%2fsecret.html",
+        "%2Fetc/passwd",
+        "javascript:alert(1)",
+        "data:text/html,x",
+        "ftp://host/a.html",
+    ],
+)
+def test_encoded_and_scripted_sources_are_rejected(src: str) -> None:
+    assert validate_src(src) is not None
+
+
+def test_a_query_or_fragment_is_not_part_of_the_file_name() -> None:
+    assert local_path("figs/g3_18.html?seed=2#top") == "figs/g3_18.html"
+    assert local_path("figs/g3.html#a?b") == "figs/g3.html"
+    assert local_path("assets/big%20plot.html") == "assets/big plot.html"
+    assert resolve_embed_kind(Embed("figs/g3_18.png?seed=2")) == "image"
+    assert resolve_embed_kind(Embed("runs/a.rollout?v=2")) == "rollout"
+
+
+def test_remote_is_decided_once_and_in_any_case() -> None:
+    for src in ("http://x/a.html", "HTTPS://x/a.html", "//cdn.example.org/a.css", "DATA:image/png;base64,AA"):
+        assert is_remote(src)
+    for src in ("assets/a.html", "run:3.html", "./http://x"):
+        assert not is_remote(src)
+
+
+def test_a_file_name_with_a_colon_is_written_as_a_path() -> None:
+    assert relative_url("run:3.html") == "./run:3.html"
+    assert relative_url("assets/run:3.html") == "assets/run:3.html"  # a colon after a slash is already a path
+    assert relative_url("assets/a.html") == "assets/a.html"
+    assert relative_url("https://x/a:b.html") == "https://x/a:b.html"
+
+
+def test_a_stylesheet_path_follows_the_embed_rule() -> None:
+    assert asset_path_error("theme/mine.css", key="extra_css") is None
+    assert asset_path_error("HTTPS://cdn.example.org/a.css", key="extra_css") is None
+    message = asset_path_error("../a.css", key="extra_css")
+    assert message is not None
+    assert message.startswith('The path "../a.css" under "extra_css" has to stay inside the deck folder')
+
+
+def test_embeds_and_a_table_cannot_share_a_slide() -> None:
+    slide = Slide(id="both", embeds=[Embed("a.html")], table=Table(columns=["a"], rows=[["1"]]))
+    with pytest.raises(DeckError, match='slide 1 "both": This slide holds both figures and a table'):
+        validate_slide(slide, index=0)
+
+
+def test_a_slide_without_a_position_is_named_without_a_number() -> None:
+    assert slide_name(Slide()) == "slide"
+    assert slide_name(Slide(id="a1")) == 'slide "a1"'
+    with pytest.raises(DeckError, match=r'^slide "b": '):
+        validate_slide(Slide(id="b", layout="nope"))  # ty: ignore[invalid-argument-type]
+
+
+@pytest.mark.parametrize(
+    ("slide", "field"),
+    [
+        (Slide(sentence=5), "sentence"),  # ty: ignore[invalid-argument-type]
+        (Slide(id=3), "id"),  # ty: ignore[invalid-argument-type]
+        (Slide(bullets="one"), "bullets"),  # ty: ignore[invalid-argument-type]
+        (Slide(bullets=["a", 2]), "bullets"),  # ty: ignore[invalid-argument-type]
+        (Slide(classes="wide"), "classes"),  # ty: ignore[invalid-argument-type]
+        (Slide(embeds=["a.html"]), "embeds"),  # ty: ignore[invalid-argument-type]
+        (Slide(embeds=[Embed(3)]), "src"),  # ty: ignore[invalid-argument-type]
+        (Slide(embeds=[Embed("a.html", label=3)]), "label"),  # ty: ignore[invalid-argument-type]
+    ],
+)
+def test_a_field_of_the_wrong_type_is_a_deck_error_naming_it(slide: Slide, field: str) -> None:
+    with pytest.raises(DeckError, match=f'The field "{field}" has to') as caught:
+        validate_slide(slide, index=1)
+    assert str(caught.value).startswith("slide 2")
+
+
+def test_a_table_that_is_not_a_table_is_a_deck_error() -> None:
+    with pytest.raises(DeckError, match="not a Table"):
+        validate_slide(Slide(table=[["a"]]))  # ty: ignore[invalid-argument-type]
+    with pytest.raises(DeckError, match="holds no list of cells"):
+        validate_slide(Slide(table=Table(columns=["a"], rows=["x"])))  # ty: ignore[invalid-argument-type]
+
+
+def test_a_deck_with_the_wrong_types_is_a_deck_error() -> None:
+    with pytest.raises(DeckError, match='The field "title" has to be text'):
+        validate_deck(Deck(title=None))  # ty: ignore[invalid-argument-type]
+    with pytest.raises(DeckError, match='"reveal" has to be a mapping'):
+        validate_deck(Deck(title="T", reveal=[]))  # ty: ignore[invalid-argument-type]
+    with pytest.raises(DeckError, match='"title_slide" has to be true or false'):
+        validate_deck(Deck(title="T", title_slide="yes"))  # ty: ignore[invalid-argument-type]
+    with pytest.raises(DeckError, match="list of Slide objects"):
+        validate_deck(Deck(title="T", slides=["one"]))  # ty: ignore[invalid-argument-type]
+    with pytest.raises(DeckError, match='The field "extra_css" has to be a list'):
+        validate_deck(Deck(title="T", extra_css="a.css"))  # ty: ignore[invalid-argument-type]
+
+
+def test_a_deck_with_an_unknown_theme_is_a_deck_error() -> None:
+    with pytest.raises(DeckError, match='The theme "nope" does not exist'):
+        validate_deck(Deck(title="T", theme="nope"))
+    with pytest.raises(DeckError, match='Did you mean "dark"'):
+        validate_deck(Deck(title="T", theme="drak"))
+    with pytest.raises(DeckError, match="does not exist"):
+        validate_deck(Deck(title="T", theme="../../x"))
+    validate_deck(Deck(title="T", theme="dark"))
+
+
+def test_a_deck_stylesheet_outside_the_folder_is_a_deck_error() -> None:
+    with pytest.raises(DeckError, match='under "extra_js"'):
+        validate_deck(Deck(title="T", extra_js=["../x.js"]))
+
+
+def test_the_layouts_and_kinds_are_the_literals() -> None:
+    from mkdeck.model import EMBED_KINDS, LAYOUTS
+
+    assert LAYOUTS == ("auto", "title", "statement", "figures", "table")
+    assert EMBED_KINDS == ("auto", "iframe", "image", "rollout")
+
+
+def test_three_embeds_are_refused_by_name() -> None:
+    slide = Slide(id="too-many", embeds=[Embed("a.html"), Embed("b.html"), Embed("c.html")])
+    with pytest.raises(DeckError, match='slide 4 "too-many"'):
+        validate_slide(slide, index=3)
+
+
+def test_figures_and_a_table_are_refused_by_name() -> None:
+    slide = Slide(id="both", embeds=[Embed("a.html")], table=Table(columns=["a"], rows=[["1"]]))
+    with pytest.raises(DeckError, match='slide 5 "both"'):
+        validate_slide(slide, index=4)
+
+
+def test_an_error_without_an_index_does_not_claim_to_be_slide_one() -> None:
+    with pytest.raises(DeckError) as caught:
+        validate_slide(Slide(embeds=[Embed("a.html"), Embed("b.html"), Embed("c.html")]))
+    assert not str(caught.value).startswith("slide 1")
+
+
+@pytest.mark.parametrize("src", ["assets/a%00.html", "a\0.png", "assets/a%00.png?seed=1"])
+def test_a_source_with_a_nul_character_is_a_deck_error_not_a_traceback(src: str) -> None:
+    assert "NUL" in (validate_src(src) or "")
+    with pytest.raises(DeckError, match="NUL"):
+        validate_slide(Slide(embeds=[Embed(src)]))
+
+
+def test_a_path_with_a_nul_character_is_outside_every_folder(tmp_path) -> None:
+    assert resolve_inside(tmp_path, "a\0.png") is None
+
+
+def test_a_windows_drive_is_recognised_after_the_percent_signs_are_decoded() -> None:
+    """markdown-it writes a backslash as %5C, so the text of an image is never `C:\\`."""
+    assert "absolute" in (validate_src("C:%5Cdecks%5Ca1.html") or "")
+
+
+def test_reveal_options_have_to_be_json() -> None:
+    with pytest.raises(DeckError, match="reveal"):
+        validate_deck(Deck(title="T", reveal={"a": object()}, slides=[Slide(sentence="x")]))
+    validate_deck(Deck(title="T", reveal={"a": [1, {"b": None}]}, slides=[Slide(sentence="x")]))
+
+
+def test_a_deck_that_shows_nothing_is_a_deck_error() -> None:
+    with pytest.raises(DeckError, match="no slides"):
+        validate_deck(Deck(title="T", title_slide=False))
+    validate_deck(Deck(title="T"))  # the generated title slide is a slide
+
+
+def test_a_rollout_written_in_raw_html_needs_the_viewer_too() -> None:
+    """Options such as data-view can only be set on a hand-written element."""
+    element = '<deck-rollout data-view="side" src="assets/run.rollout"></deck-rollout>'
+    for slide in (Slide(html=element), Slide(sentence=f"See {element}"), Slide(bullets=[element])):
+        assert deck_has_rollouts(Deck(title="T", slides=[slide]))
+    tag = '<deck-rollout data-view="side" src="assets/run.rollout">'
+    assert raw_rollout_tags(Deck(title="T", slides=[Slide(html=element)])) == [tag]
+    assert deck_has_rollouts(Deck(title="T", slides=[Slide(html=element.upper())]))
+    assert not deck_has_rollouts(Deck(title="T", slides=[Slide(html="<deck-embed src='a.html'></deck-embed>")]))
+    assert deck_has_rollouts(Deck(title="T", slides=[Slide(embeds=[Embed("assets/run.rollout")])]))

@@ -237,7 +237,9 @@ def test_an_unknown_option_names_the_slide_and_suggests_the_key() -> None:
     with pytest.raises(DeckError) as caught:
         parse("<!--\nid: a1-crate\nlayot: figures\n-->\n\nFive seeds cross.\n")
     message = str(caught.value)
-    assert message.startswith('slides/deck.md: slide 1 "a1-crate": has the unknown option "layot".')
+    assert message.startswith(
+        f'{Path("slides/deck.md")}: slide 1 "a1-crate": This slide has the unknown option "layot".'
+    )
     assert 'Did you mean "layout"?' in message
 
 
@@ -268,12 +270,12 @@ def test_three_embeds_are_rejected_with_the_slide_named() -> None:
     )
     with pytest.raises(DeckError) as caught:
         parse(text)
-    assert 'slide 1 "g3-paired": has 3 embeds' in str(caught.value)
+    assert 'slide 1 "g3-paired": This slide has 3 embeds' in str(caught.value)
 
 
 def test_an_escaping_embed_source_is_rejected() -> None:
     with pytest.raises(DeckError, match="leaves the deck folder"):
-        parse("![Go2](../../barkour-dmpc/slides/assets/a1.html)\n")
+        parse("![Go2](../../other-project/assets/a1.html)\n")
 
 
 def test_two_headings_on_one_slide_are_an_error() -> None:
@@ -289,9 +291,193 @@ def test_a_construct_with_no_home_on_a_slide_is_an_error() -> None:
 def test_unreadable_options_name_the_slide() -> None:
     with pytest.raises(DeckError) as caught:
         parse("# One\n\n---\n<!--\nid: [unclosed\n-->\n\nFive seeds cross.\n")
-    assert str(caught.value).startswith("slides/deck.md: slide 2: ")
+    assert str(caught.value).startswith(f"{Path('slides/deck.md')}: slide 2: The options comment is not valid.")
 
 
 def test_duplicate_slide_ids_are_rejected() -> None:
     with pytest.raises(DeckError, match="repeats the id of slide 1"):
         parse("<!-- id: a1-crate -->\n\nOne.\n\n---\n<!-- id: a1-crate -->\n\nTwo.\n")
+
+
+def test_a_deck_with_windows_line_endings_splits_and_reads_like_any_other() -> None:
+    text = DECK.replace("\n", "\r\n")
+    deck = parse_markdown(text, source=SOURCE)
+    assert len(deck.slides) == 7
+    assert deck.title.startswith("Barkour vault")
+    assert all("\r" not in (slide.sentence or "") for slide in deck.slides)
+    assert [slide.id for slide in deck.slides][1:3] == ["a1-crate", "c1-model-table"]
+
+
+def test_a_separator_directly_under_a_paragraph_still_cuts_the_slide() -> None:
+    slides = parse("First sentence.\n---\nSecond sentence.\n")
+    assert [slide.sentence for slide in slides] == ["First sentence.", "Second sentence."]
+
+
+def test_a_separator_inside_a_comment_or_a_display_formula_does_not_cut_the_slide() -> None:
+    text = "Five seeds cross.\n\n<!--\nold notes\n---\nmore\n-->\n\n$$\na = b\n---\nc = d\n$$\n"
+    slides = parse(text)
+    assert len(slides) == 1
+    assert slides[0].sentence == "Five seeds cross."
+    assert slides[0].math == ["a = b\n---\nc = d"]
+
+
+def test_a_rule_nested_in_a_container_is_not_a_separator() -> None:
+    slides = parse("::: notes\nSay this.\n\n---\n\nThen this.\n:::\n")
+    assert len(slides) == 1
+    assert slides[0].notes is not None
+    assert "Then this." in slides[0].notes
+
+
+def test_a_file_that_opens_with_a_separator_gets_a_specific_error() -> None:
+    with pytest.raises(DeckError, match='opens with "---"') as caught:
+        parse("---\n\n# Barkour vault\n\nFive seeds cross.\n\n---\n\nSecond slide.\n")
+    assert "slide separator" in str(caught.value)
+    with pytest.raises(DeckError, match="does not hold deck settings"):
+        parse("---\n# Barkour vault\n---\n\nFive seeds cross.\n")
+
+
+def test_a_frontmatter_block_that_is_empty_is_allowed() -> None:
+    assert len(parse("---\n---\n\nFive seeds cross.\n")) == 1
+
+
+def test_a_todo_comment_is_an_ordinary_comment() -> None:
+    slides = parse("<!-- TODO: fix this slide -->\n\nFive seeds cross.\n")
+    assert slides[0].sentence == "Five seeds cross."
+    assert slides[0].id is None
+    assert parse("<!-- see the paper: section 3 -->\n\nFive seeds cross.\n")[0].sentence == "Five seeds cross."
+
+
+def test_a_slide_that_holds_only_a_plain_comment_is_not_a_slide() -> None:
+    slides = parse("Five seeds cross.\n\n---\n<!-- TODO: write this one -->\n\n---\n\nSix seeds cross.\n")
+    assert [slide.sentence for slide in slides] == ["Five seeds cross.", "Six seeds cross."]
+
+
+def test_a_comment_that_nearly_names_an_option_is_checked_like_options() -> None:
+    with pytest.raises(DeckError, match='unknown option "note"'):
+        parse("<!-- note: say this slowly -->\n\nFive seeds cross.\n")
+
+
+def test_options_mixed_with_an_unknown_key_are_an_error() -> None:
+    with pytest.raises(DeckError, match='unknown option "TODO"'):
+        parse("<!--\nid: a1\nTODO: fix\n-->\n\nFive seeds cross.\n")
+
+
+def test_a_heading_with_a_body_keeps_both() -> None:
+    slide = parse("# Big Title\n\nSome sentence.\n")[0]
+    assert slide.title == "Big Title"
+    assert slide.sentence == "Some sentence."
+    assert slide.layout == "auto"
+
+
+def test_two_tables_on_one_slide_are_an_error() -> None:
+    table = "| a | b |\n| - | - |\n| 1 | 2 |\n"
+    with pytest.raises(DeckError, match="two tables"):
+        parse(f"{table}\n{table}")
+
+
+def test_figures_and_a_table_on_one_slide_are_an_error() -> None:
+    with pytest.raises(DeckError, match="both figures and a table"):
+        parse("![a](a.html)\n\n| a | b |\n| - | - |\n| 1 | 2 |\n")
+
+
+def test_a_nested_list_is_an_error_not_a_flattened_bullet() -> None:
+    with pytest.raises(DeckError, match="nested list") as caught:
+        parse("<!-- id: deep -->\n\n- a\n  - b\n  - c\n")
+    assert 'slide 1 "deep"' in str(caught.value)
+
+
+def test_a_bullet_that_holds_a_code_block_is_an_error() -> None:
+    with pytest.raises(DeckError, match="a code block inside a bullet"):
+        parse("- a\n\n  ```\n  code\n  ```\n")
+    with pytest.raises(DeckError, match="raw HTML inside a bullet"):
+        parse("- a\n\n  <div>x</div>\n")
+
+
+def test_a_paragraph_around_an_image_keeps_its_formatting_and_math() -> None:
+    slide = parse(r"Speed is **fast** at $v^2$, cost \$5.  ![18 N m](a.html)" + "\n")[0]
+    assert slide.sentence == r"Speed is **fast** at $v^2$, cost \$5."
+    assert [embed.src for embed in slide.embeds] == ["a.html"]
+
+
+def test_text_before_and_after_images_stays_one_sentence_in_order() -> None:
+    slide = parse("Before *it*.\n![a](a.html)\nAfter it.\n![b](b.html)\n")[0]
+    assert slide.sentence == "Before *it*.\nAfter it."
+    assert [embed.src for embed in slide.embeds] == ["a.html", "b.html"]
+
+
+def test_an_image_label_keeps_its_math() -> None:
+    assert parse("![run $k=2$](a.html)\n")[0].embeds[0].label == "run $k=2$"
+
+
+def test_a_code_block_keeps_the_indentation_of_its_first_line() -> None:
+    slide = parse("```python\n    indented()\nx = 1\n```\n")[0]
+    assert slide.html == '<pre><code class="language-python">    indented()\nx = 1</code></pre>'
+
+
+def test_an_embed_source_with_a_query_is_kept_whole() -> None:
+    embed = parse("![run](figs/g3_18.html?seed=2)\n")[0].embeds[0]
+    assert embed.src == "figs/g3_18.html?seed=2"
+    assert embed.kind == "iframe"
+
+
+def test_a_dollar_amount_is_not_math_to_the_parser() -> None:
+    slide = parse("It costs $5 and $10 to run.\n\n$$\nx\n$$\n")[0]
+    assert slide.sentence == "It costs $5 and $10 to run."
+    assert slide.math == ["x"]
+
+
+@pytest.mark.parametrize(
+    "note",
+    ["Remember: pause", "fix # later", "yes", "- a", "no, really: 1.10 stays as written"],
+)
+def test_a_comment_that_starts_with_notes_is_raw_text_wherever_it_sits(note: str) -> None:
+    """A notes comment first on a slide used to be read as YAML, so a colon or `yes` broke it."""
+    first = parse(f"<!-- notes: {note} -->\n\nFive seeds cross.\n")[0]
+    after = parse(f"Five seeds cross.\n\n<!-- notes: {note} -->\n")[0]
+    assert first.notes == after.notes == note
+    assert first.sentence == "Five seeds cross."
+
+
+def test_a_multiline_notes_comment_first_on_a_slide_is_all_notes() -> None:
+    slide = parse("<!--\nnotes: Open with the wall.\nThen: the cap.\n-->\n\nFive seeds cross.\n")[0]
+    assert slide.notes == "Open with the wall.\nThen: the cap."
+
+
+def test_notes_can_still_be_an_option_when_other_options_come_first() -> None:
+    slide = parse('<!--\nid: a1\nnotes: "Say: pause"\n-->\n\nFive seeds cross.\n')[0]
+    assert (slide.id, slide.notes) == ("a1", "Say: pause")
+
+
+def test_an_image_takes_its_link_or_emphasis_with_it() -> None:
+    """`[![Run](a.png)](url)` and `*![Run](a.png)*` used to leave an empty link or a stray `**`."""
+    for text in ("[![Run](assets/a.png)](https://example.org)", "*![Run](assets/a.png)*", "**![Run](assets/a.png)**"):
+        slide = parse(text)[0]
+        assert slide.sentence is None, text
+        assert [embed.src for embed in slide.embeds] == ["assets/a.png"]
+
+
+def test_the_words_around_an_image_and_a_link_that_holds_more_than_it_stay() -> None:
+    slide = parse("*Run 3* ![Run](assets/a.png) and [see ![Run](assets/b.png) here](https://example.org)\n")[0]
+    assert slide.sentence == "*Run 3*  and [see  here](https://example.org)"
+    assert [embed.src for embed in slide.embeds] == ["assets/a.png", "assets/b.png"]
+
+
+def test_a_deck_with_no_title_gets_no_generated_title_slide() -> None:
+    deck = parse_markdown("# My Talk\n\n---\n\nHello.\n", source=SOURCE)
+    assert deck.title_slide is False
+    assert deck.title == "My Talk"  # the browser tab is named after the first heading
+    assert [slide.title for slide in deck.slides] == ["My Talk", None]
+    assert parse_markdown("Hello.\n", source=SOURCE).title == "Slide Deck"
+
+
+def test_a_deck_with_a_title_keeps_its_generated_title_slide() -> None:
+    deck = parse_markdown("---\ntitle: Talk\n---\n\n# My Talk\n\n---\n\nHello.\n", source=SOURCE)
+    assert deck.title == "Talk"
+    assert deck.title_slide is True
+
+
+def test_a_deck_with_nothing_in_it_is_an_error() -> None:
+    for text in ("", "---\n---\n", "<!-- just a comment -->\n"):
+        with pytest.raises(DeckError, match="no slides"):
+            parse_markdown(text, source=SOURCE)
+    assert parse_markdown("---\ntitle: Talk\n---\n", source=SOURCE).slides == []  # the title slide is the deck

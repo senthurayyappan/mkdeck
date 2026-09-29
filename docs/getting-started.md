@@ -2,6 +2,23 @@
 
 ## Install
 
+To try mkdeck once, with nothing installed, run it through `uvx`:
+
+```bash
+uvx mkdeck new talk
+uvx mkdeck serve talk
+```
+
+To use it regularly, install the command:
+
+```bash
+uv tool install mkdeck    # or: pip install mkdeck
+```
+
+Inside a project that has a `pyproject.toml`, add it as a dependency. This
+fails in an empty folder, because `uv add` edits a `pyproject.toml` that has to
+exist already:
+
 ```bash
 uv add mkdeck
 ```
@@ -13,10 +30,13 @@ program:
 uv add --group slides mkdeck
 ```
 
+The examples below write `mkdeck ...`. If you did not install the command, put
+`uvx` or `uv run` in front of it.
+
 ## Create a deck
 
 ```bash
-uv run mkdeck new talk
+mkdeck new talk
 ```
 
 The command writes three things:
@@ -30,20 +50,27 @@ talk/assets/      figures, HTML pages and images
 ## Serve it
 
 ```bash
-uv run mkdeck serve talk
+mkdeck serve talk
 ```
 
-The deck opens on <http://127.0.0.1:5020>. mkdeck watches the folder and
-reloads the page when you save a change. Use `--port` to pick another port, and
-`--open` to open a browser.
+The deck is served on <http://127.0.0.1:5020>; open that address in a browser.
+mkdeck watches the folder and reloads the page when you save a change. Add
+`--open` to open a browser tab for you, and `--port` to pick another port.
+
+The server hands out the whole built deck, including a copy of your `assets/`
+folder. It listens on `127.0.0.1`, so only your own machine can reach it, and it
+answers only requests addressed to `localhost` or a loopback address, so a web
+page from another site cannot read the deck through your browser.
+`--host 0.0.0.0` makes it reachable from the network, and then anyone on that
+network can read everything in the build. It then answers to any name.
 
 ## Write a slide
 
 Each block between `---` separators is one slide. Write the message as one
-sentence, then add a figure:
+sentence, then add a figure. This is a whole deck file of one slide; a later
+slide follows a `---` line:
 
 ```markdown
----
 <!--
 id: departure
 -->
@@ -53,27 +80,39 @@ Five of five seeds cross the wall at 22 N m.
 ![Run 3](assets/run3.html)
 ```
 
-mkdeck marks the numbers `22 N m` and `3` in a darker ink, because a reader
-looks for the numbers first. [Writing slides](writing-slides.md) describes the
-full format.
+mkdeck marks the number `22 N m` in the sentence in a darker ink, because a
+reader looks for the numbers first. The caption of the figure is left as it is.
+[Writing slides](writing-slides.md) describes the full format.
 
 ## Build it
 
 ```bash
-uv run mkdeck build talk --out site
+mkdeck build talk --out site
 ```
 
 `site/index.html` holds the deck. The folder also holds the front-end files and
 a copy of your `assets/` folder, so you can publish the folder as it is.
 
+Build again into the same folder and mkdeck brings it up to date. It copies
+every file afresh and removes the files the previous build wrote that this one
+no longer needs, which it knows from a `.mkdeck-build.json` file it keeps in the
+folder. Files you put there yourself are never touched. A build into a single
+HTML file (below) keeps no such list, because that file may sit in a folder
+mkdeck does not own.
+
+mkdeck reports a problem that leaves the deck usable, such as an embed that is
+not on disk, as a warning on the command line. A rule the deck breaks is an
+error, which stops the build with a message that names the slide.
+
 To hand someone a single file, inline the stylesheets and the scripts:
 
 ```bash
-uv run mkdeck build talk --single-file --out talk.html
+mkdeck build talk --single-file --out talk.html
 ```
 
 The file opens from a `file://` URL. Keep it beside its `assets/` folder if the
-slides embed pages or images.
+slides embed pages or images. With `--single-file`, an `--out` that ends in
+`.html` is the file itself; any other name is a folder that holds `index.html`.
 
 ## Check it before you present
 
@@ -84,14 +123,42 @@ uv run mkdeck check talk --size 1920x1080
 uv run mkdeck export talk --out talk.pdf
 ```
 
-`check` opens every slide in headless Chromium. It reports the slides whose
-content runs off the screen, and writes `report/report.json` and one screenshot
-per slide. `export` prints the deck to a PDF, one page per slide.
+With pip, install `"mkdeck[check]"` and run `python -m playwright install
+chromium` instead. If you installed the command with `uv tool install mkdeck`,
+install it again with the extra, and download the browser with `uvx`:
 
-Both commands need the `check` extra and the Chromium download. If Chromium
-fails to start because the machine has no system NSS or ALSA libraries, set
-`MKDECK_BROWSER_LIBS` to a folder that holds them. mkdeck prepends that folder
-to `LD_LIBRARY_PATH` when it starts the browser.
+```bash
+uv tool install "mkdeck[check]"
+uvx playwright install chromium
+```
+
+To try it once without installing, run `uvx --from "mkdeck[check]" mkdeck check talk`.
+
+`check` opens every slide in headless Chromium. It reports the slides whose
+content runs off the screen, a formula or a diagram that did not draw, and a
+rollout that did not load, and writes `report/report.json` and one screenshot
+per slide. A run replaces the screenshots of the one before. `export` prints the deck to a PDF, one page per slide.
+
+`check` exits with status 0 once it has written the report, even when it
+flagged a slide. In a CI job, add `--strict` to exit with status 1 when any
+slide is flagged.
+
+Check and export only decks you trust. Raw HTML in a slide is passed through and
+runs in the browser they start. They stop that page from reading a local file
+outside the deck folder, but it can still reach the network.
+
+A PDF is a still picture of the deck. An embedded page prints as it looks once
+it has loaded, without its interaction. A rollout prints as its first frame, a
+picture of the robot at the start of the run. A diagram is drawn from the same
+CDN as on screen, so `export` needs a network for it.
+
+Both commands need the `check` extra and the Chromium download. The extra is
+called `check` because that command asked for it first; `export` uses the same
+Playwright install. If Chromium fails to start because the machine lacks system
+libraries such as NSS or ALSA, install them (on Debian or Ubuntu,
+`playwright install-deps chromium` does that), or point `LD_LIBRARY_PATH` at a
+folder that holds them before you run the command. Playwright inherits your
+environment.
 
 ## Next
 

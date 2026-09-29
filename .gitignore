@@ -5,17 +5,14 @@ __pycache__/
 .ruff_cache/
 .ty_cache/
 .coverage*
-coverage.xml
-htmlcov/
 build/
 dist/
 *.egg-info/
 site/
-.env
-.env.*
-!.env.example
-.ipynb_checkpoints/
 .DS_Store
+
+# Local tool state (Claude Code settings and worktrees).
+.claude/
 
 # The vendored front-end ships inside the wheel, and reveal.js and KaTeX both keep
 # their files under dist/, which the build-artifact rule above would swallow.

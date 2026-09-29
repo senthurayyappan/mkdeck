@@ -1,93 +1,67 @@
-"""Turn a :class:`mkdeck.model.Deck` into HTML.
+"""Turn a `mkdeck.model.Deck` into HTML.
 
-This module owns the HTML contract: every element, class and ``data-`` attribute
-a slide emits is decided here, and ``assets/mkdeck.js`` reads them back. Neither
+This module owns the HTML contract: every element, class and `data-` attribute
+a slide emits is decided here, and `assets/mkdeck.js` reads them back. Neither
 side may change the contract on its own.
 
 The number highlighting is done here rather than with a client-side regex, so a
-deck saved from the browser keeps it. The pattern is the one the deck this
-package replaces used, negative lookbehind included, which is what keeps the
-``2`` in ``Go2`` grey.
+deck saved from the browser keeps it. The pattern's negative lookbehind is what
+keeps the `2` in `Go2` grey. Inline math is only marked up here, as an empty
+`.mkd-math` span carrying its source; KaTeX draws it in the browser.
+
+The text of a sentence, a bullet, a label or a table cell is inline Markdown. An
+HTML element written in it, with its closing tag, is copied to the page as written.
 """
 
-import base64
+import posixpath
 import re
-import sys
 from collections.abc import Sequence
 from functools import lru_cache
-from pathlib import Path, PurePosixPath
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateNotFound
+from markdown_it import MarkdownIt
+from markdown_it.renderer import RendererHTML
+from markdown_it.token import Token
+from markdown_it.utils import EnvType, OptionsDict
 from markupsafe import Markup, escape
+from mdit_py_plugins.dollarmath import dollarmath_plugin
 
-from mkdeck.config import DEFAULT_UNITS, DeckConfig
+from mkdeck._messages import warn_deck
 from mkdeck.errors import DeckError
+from mkdeck.markdown import MATH_RULES
 from mkdeck.model import (
+    DEFAULT_UNITS,
     Deck,
     Embed,
     Slide,
     Table,
+    deck_has_rollouts,
     resolve_embed_kind,
     resolve_layout,
     validate_deck,
-    validate_slide,
 )
-from mkdeck.rollout import meshes_of
+from mkdeck.paths import ASSET_BASE, ASSET_ROOT, ASSETS_DIRNAME, is_remote, local_path, relative_url
 
 __all__ = [
-    "ASSET_ROOT",
-    "DEFAULT_ASSET_BASE",
-    "DEFAULT_UNITS",
-    "TEMPLATE_NAME",
+    "RELOAD_PATH",
     "highlight_numbers",
-    "inline_assets",
-    "math_span",
     "render_deck",
     "render_slide",
     "render_text",
 ]
 
-ASSET_ROOT = Path(__file__).resolve().parent / "assets"
-"""Folder holding the front-end assets shipped inside the wheel."""
-
 TEMPLATE_DIR = ASSET_ROOT / "templates"
-TEMPLATE_NAME = "deck.html.jinja"
+_TEMPLATE_NAME = "deck.html.jinja"
 
-DEFAULT_ASSET_BASE = "mkdeck-assets"
-"""Folder the vendored assets are copied into, next to ``index.html``."""
-
-REMOTE_PREFIXES: tuple[str, ...] = ("http://", "https://", "//", "data:")
-"""Sources that are fetched rather than read from the deck folder."""
+RELOAD_PATH = "/__mkdeck__/events"
+"""Endpoint a live-reload page listens on for rebuild events; the dev server serves it."""
 
 _PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n")
-_CSS_URL = re.compile(r"""url\(\s*(?P<quote>['"]?)(?P<target>[^'")]+)(?P=quote)\s*\)""")
-_LINK_TAG = re.compile(r"""<link\b[^>]*\brel=["']stylesheet["'][^>]*>""", re.IGNORECASE)
-_SCRIPT_TAG = re.compile(r"""<script\b[^>]*\bsrc=["'](?P<src>[^"']+)["'][^>]*>\s*</script>""", re.IGNORECASE)
-_HREF = re.compile(r"""\bhref=["'](?P<href>[^"']+)["']""", re.IGNORECASE)
-
-_MEDIA_TYPES = {
-    ".woff2": "font/woff2",
-    ".woff": "font/woff",
-    ".ttf": "font/ttf",
-    ".otf": "font/otf",
-    ".eot": "application/vnd.ms-fontobject",
-    ".svg": "image/svg+xml",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".webp": "image/webp",
-}
-
-
-def _warn(message: str) -> None:
-    """Print a non-fatal warning to standard error.
-
-    Args:
-        message: The text to show, without a trailing newline.
-    """
-    print(f"mkdeck: warning: {message}", file=sys.stderr)
+_TAG_NAME = re.compile(r"</?(?P<name>[A-Za-z][\w-]*)")
+_VOID_TAGS = frozenset(
+    {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+)
 
 
 @lru_cache(maxsize=32)
@@ -95,22 +69,22 @@ def _number_pattern(units: tuple[str, ...]) -> re.Pattern[str]:
     """Build the number-highlighting pattern for one unit list.
 
     Args:
-        units: Unit spellings a number may carry, longest first.
+        units: Unit spellings a number may carry, in any order; the longest is tried first.
 
     Returns:
         A compiled pattern matching one standalone number and its unit.
     """
     pattern = r"(?<![A-Za-z0-9])-?\d+(?:\.\d+)?"
     if units:
-        alternatives = "|".join(re.escape(unit) for unit in units)
+        alternatives = "|".join(re.escape(unit) for unit in sorted(units, key=len, reverse=True))
         pattern += rf"(?: ?(?:{alternatives}))?"
     return re.compile(pattern + r"(?![A-Za-z0-9])")
 
 
 def highlight_numbers(text: str, *, units: Sequence[str] = DEFAULT_UNITS) -> Markup:
-    """Wrap every standalone number in ``<span class="mkd-num">``.
+    """Wrap every standalone number in `<span class="mkd-num">`.
 
-    A number glued to letters is left alone, so the ``2`` in ``Go2`` stays grey.
+    A number glued to letters is left alone, so the `2` in `Go2` stays grey.
 
     Args:
         text: Plain text; it is HTML-escaped on the way out.
@@ -131,10 +105,10 @@ def highlight_numbers(text: str, *, units: Sequence[str] = DEFAULT_UNITS) -> Mar
     return Markup("").join(pieces)
 
 
-def math_span(tex: str, *, block: bool = False) -> Markup:
-    """Emit the placeholder KaTeX fills in on the client.
+def _math_span(tex: str, *, block: bool = False) -> Markup:
+    """Emit the placeholder KaTeX fills in in the browser.
 
-    The formula source is escaped into ``data-tex``, so a KaTeX failure leaves an
+    The formula source is escaped into `data-tex`, so a KaTeX failure leaves an
     empty span rather than a broken slide; the front-end then writes the source
     in as text.
 
@@ -143,44 +117,129 @@ def math_span(tex: str, *, block: bool = False) -> Markup:
         block: True for a display formula on a line of its own.
 
     Returns:
-        A ``<span class="mkd-math">`` element with no text content.
+        A `<span class="mkd-math">` element with no text content.
     """
     classes = "mkd-math mkd-math-block" if block else "mkd-math"
     return Markup('<span class="{}" data-tex="{}"></span>').format(classes, str(tex))
 
 
-def render_text(text: str, *, units: Sequence[str] = DEFAULT_UNITS, numbers: bool = True) -> Markup:
-    """Render one line of slide text: inline math, then number highlighting.
+def _text_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
+    """Draw a run of text, with its numbers highlighted unless the text sits in author HTML."""
+    token = tokens[idx]
+    if token.meta.get("raw") or not env["numbers"]:
+        return str(escape(token.content))
+    return str(highlight_numbers(token.content, units=env["units"]))
 
-    Text between dollar signs becomes an inline ``.mkd-math`` span, and the text
-    around it keeps its number highlighting. A line with an odd number of dollar
-    signs is plain text, as in the deck this package replaces.
+
+def _html_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
+    """Draw an HTML tag as written, or as text when `_pair_html` found it has no partner."""
+    token = tokens[idx]
+    return str(escape(token.content)) if token.meta.get("escape") else token.content
+
+
+def _math_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
+    """Draw an inline formula as the empty span KaTeX fills in."""
+    return str(_math_span(tokens[idx].content))
+
+
+def _image_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
+    """Draw an image inside text, and say so when it is a file the build will not copy.
+
+    A build copies the `assets` folder and the files of figures, and a figure is a paragraph
+    made of images. An image in a bullet or a table cell that sits outside `assets` is
+    copied by nothing, so it would break.
+    """
+    src = str(tokens[idx].attrGet("src") or "")
+    if src and not is_remote(src) and not posixpath.normpath(local_path(src)).startswith(f"{ASSETS_DIRNAME}/"):
+        warn_deck(
+            f'The text holds the image "{src}", which is not copied into the build; '
+            f"move the file under {ASSETS_DIRNAME}/, or write the image on a line of its own so that it becomes a figure."
+        )
+    return renderer.image(tokens, idx, options, env)
+
+
+def _build_inline_parser() -> MarkdownIt:
+    """Build the parser that renders the text of a sentence, a bullet or a cell.
+
+    Returns:
+        A CommonMark inline parser whose text, HTML and math draw the mkdeck way. The
+        dollar rule is the one the Markdown parser uses: an opening `$` is not followed by
+        a space, and a closing one is not preceded by a space or followed by a digit, so
+        "costs $5 and $10" is text. A backslash before a dollar sign makes it a literal one.
+    """
+    md = MarkdownIt("commonmark")
+    md.use(dollarmath_plugin, **MATH_RULES)
+    md.add_render_rule("text", _text_rule)
+    md.add_render_rule("html_inline", _html_rule)
+    md.add_render_rule("math_inline", _math_rule)
+    md.add_render_rule("image", _image_rule)
+    return md
+
+
+_INLINE = _build_inline_parser()
+
+
+def _pair_html(children: list[Token]) -> None:
+    """Find the HTML elements the author wrote in a run of inline tokens.
+
+    A tag the author closed is an element: it is drawn as written, and the text inside
+    it is copied through without number highlighting. A tag left open, or a closing tag
+    with no opening one, is not an element, so it is drawn as text. Elements of the same
+    name nest.
 
     Args:
-        text: The line to render.
+        children: The inline tokens; their `meta` is marked in place.
+    """
+    open_tags: list[tuple[str, int]] = []
+    for index, token in enumerate(children):
+        if token.type != "html_inline":
+            continue
+        found = _TAG_NAME.match(token.content)
+        if found is None or token.content.endswith("/>"):  # a comment or a self-closing tag
+            continue
+        name = found.group("name").lower()
+        if name in _VOID_TAGS:
+            continue
+        if not token.content.startswith("</"):
+            open_tags.append((name, index))
+            continue
+        partner = next((at for at in range(len(open_tags) - 1, -1, -1) if open_tags[at][0] == name), None)
+        if partner is None:
+            token.meta["escape"] = True
+            continue
+        for _, unmatched in open_tags[partner + 1 :]:
+            children[unmatched].meta["escape"] = True
+        for inner in children[open_tags[partner][1] : index]:
+            inner.meta["raw"] = True
+        del open_tags[partner:]
+    for _, unmatched in open_tags:
+        children[unmatched].meta["escape"] = True
+
+
+def render_text(text: str, *, units: Sequence[str] = DEFAULT_UNITS, numbers: bool = True) -> Markup:
+    """Render one piece of slide text: inline Markdown, inline math and number highlighting.
+
+    The text is inline Markdown, so `**bold**`, `*emphasis*`, `` `code` `` and
+    `[links](https://example.org)` work. Text between dollar signs becomes an inline
+    `.mkd-math` span, and the text around it keeps its number highlighting. An HTML
+    element with its closing tag is copied through as the author wrote it, including
+    the text inside it; that is raw HTML, so it is not escaped. Anything else that
+    looks like a tag is shown as text.
+
+    Args:
+        text: The text to render.
         units: Unit spellings a number may carry.
-        numbers: False to leave the numbers alone, which is what a figure label
-            and a table header do so that they keep one weight.
+        numbers: False to leave the numbers alone, which is what a figure
+            label and a table header do so that they keep one weight.
 
     Returns:
         The rendered markup.
     """
-
-    def plain(piece: str) -> Markup:
-        return highlight_numbers(piece, units=units) if numbers else escape(piece)
-
-    source = str(text)
-    parts = source.split("$")
-    if len(parts) % 2 == 0:
-        return plain(source)
-    pieces: list[Markup] = []
-    for index, part in enumerate(parts):
-        if index % 2 == 0:
-            if part:
-                pieces.append(plain(part))
-        else:
-            pieces.append(math_span(part))
-    return Markup("").join(pieces)
+    env: dict[str, Any] = {"units": tuple(units), "numbers": numbers}
+    tokens = _INLINE.parseInline(str(text), env)
+    for token in tokens:
+        _pair_html(token.children or [])
+    return Markup(_INLINE.renderer.render(tokens, _INLINE.options, env))
 
 
 def _paragraphs(text: str) -> list[str]:
@@ -199,13 +258,13 @@ def _render_figure(embed: Embed) -> Markup:
     """Render one figure: an optional caption above an iframe or an image.
 
     A label carries inline math but never number highlighting, so a run label
-    such as ``18 N m`` keeps one weight.
+    such as `18 N m` keeps one weight.
 
     Args:
         embed: The embed to render.
 
     Returns:
-        A ``<figure class="mkd-figure">`` element.
+        A `<figure class="mkd-figure">` element.
     """
     parts: list[Markup] = []
     if embed.label:
@@ -213,12 +272,13 @@ def _render_figure(embed: Embed) -> Markup:
             Markup('<figcaption class="mkd-label">{}</figcaption>').format(render_text(embed.label, numbers=False))
         )
     kind = resolve_embed_kind(embed)
+    src = relative_url(embed.src)
     if kind == "rollout":
-        parts.append(Markup('<deck-rollout src="{}"></deck-rollout>').format(embed.src))
+        parts.append(Markup('<deck-rollout src="{}"></deck-rollout>').format(src))
     elif kind == "iframe":
-        parts.append(Markup('<deck-embed src="{}"></deck-embed>').format(embed.src))
+        parts.append(Markup('<deck-embed src="{}"></deck-embed>').format(src))
     else:
-        parts.append(Markup('<img class="mkd-image" src="{}" alt="{}">').format(embed.src, embed.label or ""))
+        parts.append(Markup('<img class="mkd-image" src="{}" alt="{}">').format(src, embed.label or ""))
     return Markup('<figure class="mkd-figure">{}</figure>').format(Markup("").join(parts))
 
 
@@ -226,14 +286,14 @@ def _render_table(table: Table, *, units: Sequence[str]) -> Markup:
     """Render a table slide's body.
 
     Header cells take inline math but no number highlighting, so a column named
-    ``18 N m`` keeps the header weight; body cells take both.
+    `18 N m` keeps the header weight; body cells take both.
 
     Args:
         table: The table to render.
         units: Unit spellings a number may carry.
 
     Returns:
-        A ``<div class="mkd-table-wrap">`` wrapping the table.
+        A `<div class="mkd-table-wrap">` wrapping the table.
     """
     head = Markup("").join(
         Markup("<th>{}</th>").format(render_text(str(column), numbers=False)) for column in table.columns
@@ -249,47 +309,36 @@ def _render_table(table: Table, *, units: Sequence[str]) -> Markup:
     ).format(head, body)
 
 
-def render_slide(
-    slide: Slide,
-    *,
-    date: str | None = None,
-    units: Sequence[str] = DEFAULT_UNITS,
-    index: int = 0,
-) -> Markup:
-    """Render one slide as a reveal ``<section>``.
+def render_slide(slide: Slide, *, date: str | None = None, units: Sequence[str] = DEFAULT_UNITS) -> Markup:
+    """Render one slide as a reveal `<section>`. The slide is not validated; `render_deck` does that.
 
     Args:
         slide: The slide to render.
         date: The effective date for this slide, shown by the title layout.
         units: Unit spellings a number may carry.
-        index: The slide's zero-based position, used to name it in an error.
 
     Returns:
         The slide's markup.
-
-    Raises:
-        DeckError: If the slide breaks a rule of the model.
     """
-    validate_slide(slide, index=index)
     layout = resolve_layout(slide)
     effective_date = slide.date or date
 
     attributes: list[tuple[str, str]] = [
-        ("class", " ".join(["mkd-slide", *(str(name) for name in slide.classes)])),
+        ("class", " ".join(["mkd-slide", *slide.classes])),
         ("data-layout", layout),
     ]
     if slide.id:
-        attributes.append(("data-id", str(slide.id)))
+        attributes.append(("data-id", slide.id))
     if slide.date:
-        attributes.append(("data-date", str(slide.date)))
+        attributes.append(("data-date", slide.date))
     elif layout == "title" and effective_date:
-        attributes.append(("data-date", str(effective_date)))
+        attributes.append(("data-date", effective_date))
     opening = Markup("").join(Markup(' {}="{}"').format(name, value) for name, value in attributes)
 
     body: list[Markup] = []
-    if layout == "title" and slide.title:
-        body.append(Markup('<h1 class="mkd-title">{}</h1>').format(slide.title))
-    body.extend(math_span(formula, block=True) for formula in slide.math)
+    if slide.title:
+        body.append(Markup('<h1 class="mkd-title">{}</h1>').format(render_text(slide.title, numbers=False)))
+    body.extend(_math_span(formula, block=True) for formula in slide.math)
     if slide.sentence:
         body.extend(
             Markup('<p class="mkd-sentence">{}</p>').format(render_text(piece, units=units))
@@ -303,7 +352,7 @@ def render_slide(
     if slide.embeds:
         figures = Markup("").join(_render_figure(embed) for embed in slide.embeds)
         body.append(Markup('<div class="mkd-figures" data-count="{}">{}</div>').format(len(slide.embeds), figures))
-    elif slide.table is not None:
+    if slide.table is not None:
         body.append(_render_table(slide.table, units=units))
     if slide.html:
         body.append(Markup(slide.html))
@@ -317,50 +366,43 @@ def render_slide(
     return Markup("<section{}>{}</section>").format(opening, Markup("").join(section))
 
 
-def _writes_its_own_title(deck: Deck) -> bool:
-    """Say whether the deck already opens with its own title slide.
+def _opens_with_title_slide(deck: Deck) -> bool:
+    """Say whether the deck already opens with a title slide of its own.
 
-    A deck file that writes ``# Deck title`` as its first slide would otherwise
-    show that slide twice, once generated and once written, so the generated one
-    is dropped.
+    A deck file that writes `# Deck title` alone as its first slide would otherwise
+    show two title slides, once generated and once written, so the generated one is
+    dropped. Whatever the written one says, it is the author's opening slide.
 
     Args:
         deck: The deck to inspect.
 
     Returns:
-        True when the first slide is a title slide holding the deck title.
+        True when the first slide is a title slide.
     """
-    if not deck.slides:
-        return False
-    first = deck.slides[0]
-    return resolve_layout(first) == "title" and (first.title or "").strip() == (deck.title or "").strip()
+    return bool(deck.slides) and resolve_layout(deck.slides[0]) == "title"
 
 
-def render_slides(deck: Deck, *, units: Sequence[str] = DEFAULT_UNITS) -> Markup:
-    """Render every slide of a deck, including the generated title slide.
+def _render_slides(deck: Deck) -> Markup:
+    """Render every slide of a validated deck, including the generated title slide.
 
     A title slide carrying a date of its own restamps every slide after it,
     which is what the chrome in the bottom left reads.
 
     Args:
         deck: The deck to render.
-        units: Unit spellings a number may carry.
 
     Returns:
-        The slide markup, one ``<section>`` per line.
-
-    Raises:
-        DeckError: If a slide breaks a rule of the model.
+        The slide markup, one `<section>` per line.
     """
     rendered: list[Markup] = []
-    if deck.title_slide and not _writes_its_own_title(deck):
+    if deck.title_slide and not _opens_with_title_slide(deck):
         opening = Slide(layout="title", title=deck.title, date=deck.date)
-        rendered.append(render_slide(opening, date=deck.date, units=units))
+        rendered.append(render_slide(opening, date=deck.date, units=deck.units))
     effective_date = deck.date
-    for index, slide in enumerate(deck.slides):
+    for slide in deck.slides:
         if resolve_layout(slide) == "title" and slide.date:
             effective_date = slide.date
-        rendered.append(render_slide(slide, date=effective_date, units=units, index=index))
+        rendered.append(render_slide(slide, date=effective_date, units=deck.units))
     return Markup("\n").join(rendered)
 
 
@@ -369,7 +411,7 @@ def _environment() -> Environment:
     """Build the Jinja environment the deck template is loaded from.
 
     Autoescaping stays on: everything the renderer builds is
-    :class:`markupsafe.Markup`, so only text that has not been through this
+    `markupsafe.Markup`, so only text that has not been through this
     module can reach the page unescaped.
 
     Returns:
@@ -383,270 +425,42 @@ def _environment() -> Environment:
     )
 
 
-def deck_has_rollouts(deck: Deck) -> bool:
-    """Say whether any slide draws a rollout.
-
-    The viewer and its renderer are a megabyte, so a deck that shows no robot
-    neither loads nor carries them.
-
-    Args:
-        deck: The deck to look through.
-
-    Returns:
-        True when at least one embed resolves to a rollout.
-    """
-    return any(resolve_embed_kind(embed) == "rollout" for slide in deck.slides for embed in slide.embeds)
-
-
-def render_deck(
-    deck: Deck,
-    *,
-    config: DeckConfig | None = None,
-    asset_base: str = DEFAULT_ASSET_BASE,
-) -> str:
+def render_deck(deck: Deck, *, live_reload: bool = False) -> str:
     """Render a deck to a complete HTML document.
 
     Every path the document holds is relative, so a built deck works from a
-    ``file://`` URL and from any subdirectory of a site.
+    `file://` URL and from any subdirectory of a site.
 
     Args:
-        deck: The deck to render. Its own fields carry the merged configuration,
-            which :func:`mkdeck.config.apply_config` puts there.
-        config: The merged deck configuration; only ``units`` is read from it,
-            because every other key already sits on the deck.
-        asset_base: Folder the vendored assets sit in, relative to the document.
+        deck: The deck to render.
+        live_reload: True to add the client that reloads the page when the dev
+            server rebuilds the deck. Only the dev server sets it.
 
     Returns:
         The rendered HTML document.
 
     Raises:
-        DeckError: If a slide breaks a rule of the model, or the template is
-            missing from the installation.
+        DeckError: If the deck or one of its slides breaks a rule of the model, or the
+            template is missing from the installation.
     """
-    # Both the Markdown parser and a deck built in Python arrive here, so the whole-deck
-    # rules are checked in this one place. The parser checks them again, which costs nothing.
     validate_deck(deck)
-    units = tuple(config.units) if config is not None and config.units else DEFAULT_UNITS
-    base = asset_base.strip("/")
-    slides = render_slides(deck, units=units)
-    generated = deck.title_slide and not _writes_its_own_title(deck)
     context: dict[str, Any] = {
-        "lang": "en",
-        "title": deck.title or "Slide Deck",
+        "title": deck.title,
         "date": deck.date,
-        "theme": deck.theme or "minimal",
-        "slides": slides,
-        "slides_html": slides,
-        "slide_count": len(deck.slides) + (1 if generated else 0),
-        "assets": f"{base}/" if base else "",
-        "asset_base": base,
+        "theme": deck.theme,
+        "slides": _render_slides(deck),
+        "assets": f"{ASSET_BASE}/",
         "extra_css": list(deck.extra_css),
         "extra_js": list(deck.extra_js),
         "reveal": dict(deck.reveal),
         "rollouts": deck_has_rollouts(deck),
-        "units": list(units),
+        "reload_path": RELOAD_PATH if live_reload else None,
     }
     try:
-        template = _environment().get_template(TEMPLATE_NAME)
+        template = _environment().get_template(_TEMPLATE_NAME)
     except TemplateNotFound as exc:
         raise DeckError(
-            "is missing from this installation of mkdeck; reinstall the package to restore it.",
-            source=TEMPLATE_DIR / TEMPLATE_NAME,
+            "The deck template is missing from this installation of mkdeck; reinstall the package to restore it.",
+            source=TEMPLATE_DIR / _TEMPLATE_NAME,
         ) from exc
     return template.render(**context)
-
-
-def _media_type(path: Path) -> str:
-    """Guess the media type of a file inlined as a ``data:`` URI.
-
-    Args:
-        path: The file being inlined.
-
-    Returns:
-        A media type string.
-    """
-    return _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
-
-
-def _inline_css_urls(text: str, *, base: Path) -> str:
-    """Rewrite the relative ``url(...)`` references of a stylesheet to data URIs.
-
-    Args:
-        text: The stylesheet source.
-        base: The folder the stylesheet was read from.
-
-    Returns:
-        The stylesheet with every resolvable local reference inlined.
-    """
-
-    def replace(match: re.Match[str]) -> str:
-        target = match.group("target").strip()
-        if not target or target.startswith(REMOTE_PREFIXES):
-            return match.group(0)
-        path = base / target.split("?", 1)[0].split("#", 1)[0]
-        if not path.is_file():
-            return match.group(0)
-        payload = base64.b64encode(path.read_bytes()).decode("ascii")
-        return f"url(data:{_media_type(path)};base64,{payload})"
-
-    return _CSS_URL.sub(replace, text)
-
-
-def _resolve_asset(href: str, *, asset_base: str, source: Path | None) -> Path | None:
-    """Find the file a stylesheet or script reference points at.
-
-    Args:
-        href: The reference as the document holds it.
-        asset_base: Folder the vendored assets sit in.
-        source: The deck source folder, for the deck's own extras.
-
-    Returns:
-        The file, or ``None`` when it is remote or cannot be found.
-    """
-    if not href or href.startswith(REMOTE_PREFIXES):
-        return None
-    base = asset_base.strip("/")
-    if base and href.startswith(f"{base}/"):
-        candidate = ASSET_ROOT / href[len(base) + 1 :]
-        return candidate if candidate.is_file() else None
-    if source is not None:
-        candidate = Path(source) / href
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def inline_assets(html: str, *, asset_base: str = DEFAULT_ASSET_BASE, source: Path | None = None) -> str:
-    """Fold every stylesheet and script of a rendered deck into the document.
-
-    Fonts and images a stylesheet refers to become ``data:`` URIs, so the result
-    opens from a ``file://`` URL with only the deck's own figures left outside.
-    A reference that cannot be resolved, such as one to a CDN, is left alone.
-
-    Args:
-        html: The rendered document.
-        asset_base: Folder the vendored assets sit in.
-        source: The deck source folder, for the deck's own extras.
-
-    Returns:
-        The document with its stylesheets and scripts inlined.
-    """
-
-    def fold_link(match: re.Match[str]) -> str:
-        found = _HREF.search(match.group(0))
-        if found is None:
-            return match.group(0)
-        path = _resolve_asset(found.group("href"), asset_base=asset_base, source=source)
-        if path is None:
-            _warn(f"stylesheet left linked, it was not found: {found.group('href')}")
-            return match.group(0)
-        text = _inline_css_urls(path.read_text(encoding="utf-8"), base=path.parent)
-        return f"<style>{text.replace('</style', '<\\/style')}</style>"
-
-    def fold_script(match: re.Match[str]) -> str:
-        path = _resolve_asset(match.group("src"), asset_base=asset_base, source=source)
-        if path is None:
-            _warn(f"script left linked, it was not found: {match.group('src')}")
-            return match.group(0)
-        text = path.read_text(encoding="utf-8")
-        return f"<script>{text.replace('</script', '<\\/script')}</script>"
-
-    return _SCRIPT_TAG.sub(fold_script, _LINK_TAG.sub(fold_link, html))
-
-
-PAYLOAD_MARKER = "<!--mkdeck-payloads-->"
-"""Where in the head a single-file build puts the viewer and the rollouts."""
-
-VIEWER_MODULES: tuple[tuple[str, str], ...] = (
-    ("three", "three/three.module.js"),
-    ("three/addons/controls/OrbitControls.js", "three/addons/controls/OrbitControls.js"),
-    ("rollout-bundle", "viewer/bundle_parser.js"),
-    ("mkdeck-camera", "viewer/camera.js"),
-    ("mkdeck-viewer", "viewer/rollout_viewer.js"),
-)
-"""The viewer's modules, by import specifier. The twin of MODULES in mkdeck-rollout.js."""
-
-
-def _inline_payload(attribute: str, key: str, text: str) -> str:
-    """Wrap one inlined source or payload in the tag the loader looks for.
-
-    A ``<script>`` element holds raw text, so only a closing tag has to be
-    hidden; the loader reads the content back with ``textContent``.
-
-    Args:
-        attribute: The data attribute the loader queries on.
-        key: The value of that attribute.
-        text: The content to carry.
-
-    Returns:
-        The element, as HTML.
-    """
-    safe = text.replace("</script", "<\\/script")
-    return f'<script type="text/plain" {attribute}="{escape(key)}">{safe}</script>'
-
-
-def inline_rollouts(html: str, deck: Deck, *, source: Path | None = None) -> str:
-    """Fold the rollout viewer and every rollout into a rendered deck.
-
-    A rollout is binary and its viewer is a set of ES modules, neither of which
-    a ``file://`` page may fetch. Both are carried as text instead — the
-    modules verbatim, the binaries base64 — and ``mkdeck-rollout.js`` reads
-    them from the document rather than from the network.
-
-    Args:
-        html: The rendered document, with its scripts already inlined.
-        deck: The deck being built, for the rollouts its slides name.
-        source: The deck source folder the rollouts sit in.
-
-    Returns:
-        The document with the viewer and the rollouts inside it.
-    """
-    parts: list[str] = []
-    for specifier, path in VIEWER_MODULES:
-        module = ASSET_ROOT / path
-        if not module.is_file():  # pragma: no cover - a broken installation
-            _warn(f"the rollout viewer is missing from this installation: {module}")
-            return html
-        parts.append(_inline_payload("data-mkd-module", specifier, module.read_text(encoding="utf-8")))
-
-    carried: set[str] = set()
-    for slide in deck.slides:
-        for embed in slide.embeds:
-            if resolve_embed_kind(embed) != "rollout" or embed.src.startswith(REMOTE_PREFIXES):
-                continue
-            for name in (embed.src, _shared_meshes(embed.src, source=source)):
-                if name is None or name in carried:
-                    continue
-                carried.add(name)
-                origin = Path(source) / name if source is not None else Path(name)
-                if not origin.is_file():
-                    _warn(f"rollout left outside the document, it was not found: {name}")
-                    continue
-                payload = base64.b64encode(origin.read_bytes()).decode("ascii")
-                parts.append(_inline_payload("data-mkd-rollout", name, payload))
-
-    # The payloads go in the head: the loader looks for them the moment a slide
-    # asks for a rollout, which can be while the document is still parsing, so
-    # they have to be behind the parser before any script runs. They go at a
-    # marker rather than at "</head>", because by now the document carries
-    # three.js, whose own source holds that text and would be found first.
-    block = "\n".join(parts)
-    if PAYLOAD_MARKER in html:
-        return html.replace(PAYLOAD_MARKER, block, 1)
-    _warn("the deck template has no payload marker, so the rollouts went at the end of the document.")
-    return html + block
-
-
-def _shared_meshes(src: str, *, source: Path | None) -> str | None:
-    """Name the mesh file a rollout points at, as the document would.
-
-    Args:
-        src: The embed source, relative to the deck.
-        source: The deck source folder.
-
-    Returns:
-        The path relative to the deck, or ``None`` when there is no such file.
-    """
-    origin = Path(source) / src if source is not None else Path(src)
-    shared = meshes_of(origin) if origin.is_file() else None
-    return str(PurePosixPath(src).parent / shared) if shared else None

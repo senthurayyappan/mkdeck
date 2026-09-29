@@ -1,24 +1,29 @@
 """Command-line interface for mkdeck."""
 
+import json
+import string
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date as date_type
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 
-from mkdeck.build import build_source
-from mkdeck.check import check_deck
+from mkdeck._messages import install_warning_formatter
+from mkdeck.check import check_deck, report_text
 from mkdeck.errors import DeckError
 from mkdeck.export import export_deck
-from mkdeck.rollout import convert_brax_html
-from mkdeck.server import serve_source
+from mkdeck.rollout import ROLLOUT_SUFFIX, NotBraxPage, convert_brax_html
+from mkdeck.source import load_source
+
+__all__ = ["app"]
 
 app = typer.Typer(no_args_is_help=True)
 
 DECK_TEMPLATE = """---
-title: {title}
+title: {title_yaml}
 date: {date}
 ---
 
@@ -36,7 +41,7 @@ Say the one thing this slide is for, in a single sentence.
 id: numbers
 -->
 
-Numbers such as 134 N s and 0.65 m are highlighted where they stand alone.
+Numbers such as 134 N m and 0.65 m are highlighted where they stand alone.
 
 | Run | Cap | Crossings |
 | --- | --- | --- |
@@ -56,7 +61,7 @@ Drop an HTML page or an image in assets/ and reference it to get a figure.
 CONFIG_TEMPLATE = """# Configuration for this deck. The Markdown frontmatter wins over these keys.
 theme: minimal
 
-# Units a highlighted number may carry. Longest spelling first.
+# Units a highlighted number may carry, in any order. Setting this replaces the defaults.
 # units:
 #   - N m
 #   - mm
@@ -66,19 +71,36 @@ theme: minimal
 
 @contextmanager
 def _reporting() -> Iterator[None]:
-    """Turn a :class:`~mkdeck.errors.DeckError` into a clean message.
+    """Turn a deck error, or a file that cannot be read or written, into a clean message.
 
     Yields:
         Nothing; the body runs inside the handler.
 
     Raises:
-        Exit: With status 1 when the body raises a deck error.
+        Exit: With status 1 when the body raises a deck error, an
+            :class:`OSError` or a :class:`UnicodeDecodeError`.
     """
     try:
         yield
     except DeckError as exc:
-        typer.secho(f"mkdeck: {exc}", err=True, fg=typer.colors.RED)
-        raise typer.Exit(1) from None
+        _fail(str(exc))
+    except OSError as exc:
+        _fail(f"{exc.strerror}: {exc.filename}" if exc.strerror and exc.filename else str(exc))
+    except UnicodeDecodeError as exc:
+        _fail(f"{exc}; a deck and its config are UTF-8 text.")
+
+
+def _fail(message: str) -> NoReturn:
+    """Print an error the way every command does, and exit.
+
+    Args:
+        message: What went wrong.
+
+    Raises:
+        Exit: Always, with status 1.
+    """
+    typer.secho(f"mkdeck: {message}", err=True, fg=typer.colors.RED)
+    raise typer.Exit(1) from None
 
 
 def _parse_size(text: str) -> tuple[int, int]:
@@ -105,9 +127,30 @@ def _parse_size(text: str) -> tuple[int, int]:
     return width, height
 
 
+def _installed_version() -> str:
+    """Name the installed release, or ``unknown`` when mkdeck runs from a bare source tree."""
+    try:
+        return version("mkdeck")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _show_version(show: bool) -> None:
+    """Print the version and exit, for ``--version``."""
+    if show:
+        typer.echo(f"mkdeck {_installed_version()}")
+        raise typer.Exit()
+
+
 @app.callback()
-def main() -> None:
+def main(
+    show_version: Annotated[
+        bool,
+        typer.Option("--version", callback=_show_version, is_eager=True, help="Show the version and exit."),
+    ] = False,
+) -> None:
     """Build, serve and check minimal HTML slide decks."""
+    install_warning_formatter()
 
 
 @app.command()
@@ -117,14 +160,19 @@ def new(
     """Scaffold a deck folder with deck.md, deck.yml and assets/."""
     with _reporting():
         folder = Path(name)
+        if folder.exists() and not folder.is_dir():
+            raise DeckError(f"{folder} already exists and is not a folder.")
         if folder.exists() and any(folder.iterdir()):
             raise DeckError(f"{folder} already exists and is not empty.")
         (folder / "assets").mkdir(parents=True, exist_ok=True)
         (folder / "assets" / ".gitkeep").touch()
-        title = folder.resolve().name.replace("-", " ").replace("_", " ").strip().title() or "Slide Deck"
+        title = string.capwords(folder.resolve().name.replace("-", " ").replace("_", " ")) or "Slide Deck"
         deck = folder / "deck.md"
+        # A JSON string is a YAML string, so a title such as "a: b" or "yes" survives the frontmatter.
         deck.write_text(
-            DECK_TEMPLATE.format(title=title, date=date_type.today().isoformat()),
+            DECK_TEMPLATE.format(
+                title=title, title_yaml=json.dumps(title, ensure_ascii=False), date=date_type.today().isoformat()
+            ),
             encoding="utf-8",
         )
         (folder / "deck.yml").write_text(CONFIG_TEMPLATE, encoding="utf-8")
@@ -135,27 +183,36 @@ def new(
 @app.command()
 def serve(
     path: Annotated[Path, typer.Argument(help="A .md file, or a folder holding deck.md.")],
-    port: Annotated[int, typer.Option("--port", help="Port to listen on.")] = 5020,
+    port: Annotated[int, typer.Option("--port", min=0, max=65535, help="Port to listen on.")] = 5020,
     host: Annotated[str, typer.Option("--host", help="Interface to bind.")] = "127.0.0.1",
     open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Open the deck in a browser.")] = False,
-    no_reload: Annotated[bool, typer.Option("--no-reload", help="Do not watch the source for changes.")] = False,
+    reload: Annotated[
+        bool, typer.Option("--reload/--no-reload", help="Watch the source and rebuild when it changes.")
+    ] = True,
 ) -> None:
     """Serve the deck and rebuild it whenever its source changes."""
     with _reporting():
-        serve_source(path, host=host, port=port, open_browser=open_browser, reload=not no_reload)
+        load_source(path).serve(host=host, port=port, open_browser=open_browser, reload=reload)
 
 
 @app.command()
 def build(
     path: Annotated[Path, typer.Argument(help="A .md file, or a folder holding deck.md.")],
-    out: Annotated[Path, typer.Option("--out", "-o", help="Folder to write the deck into.")] = Path("site"),
+    out: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            "-o",
+            help="Folder to write the deck into. With --single-file, a path ending in .html is the file itself.",
+        ),
+    ] = Path("site"),
     single_file: Annotated[
         bool, typer.Option("--single-file", help="Inline the CSS and JS so the deck opens from file://.")
     ] = False,
 ) -> None:
     """Write the deck to an output folder."""
     with _reporting():
-        index = build_source(path, out, single_file=single_file)
+        index = load_source(path).build(out, single_file=single_file)
         typer.echo(f"Wrote {index}")
 
 
@@ -165,10 +222,22 @@ def check(
     size: Annotated[str, typer.Option("--size", help="Viewport, as WIDTHxHEIGHT.")] = "1920x1080",
     out: Annotated[Path, typer.Option("--out", help="Folder for the report and screenshots.")] = Path("report"),
     shots: Annotated[bool, typer.Option("--shots/--no-shots", help="Write one PNG per slide.")] = True,
+    strict: Annotated[
+        bool, typer.Option("--strict", help="Exit with an error when any slide is flagged, as a CI job wants.")
+    ] = False,
 ) -> None:
-    """Open every slide in headless Chromium and report what overflows."""
+    """Open every slide in headless Chromium and report what overflows.
+
+    The command exits with status 0 once the report is written, whatever it found;
+    add --strict to exit with status 1 when any slide is flagged.
+    """
     with _reporting():
-        check_deck(path, out=out, size=_parse_size(size), shots=shots)
+        viewport = _parse_size(size)
+        records = check_deck(path, out=out, size=viewport, shots=shots)
+        typer.echo(report_text(records, size=viewport, path=path), nl=False)
+        flagged = sum(1 for record in records if record.get("error") or record["flags"])
+        if strict and flagged:
+            _fail(f"{flagged} of {len(records)} slides are flagged.")
 
 
 @app.command()
@@ -177,9 +246,13 @@ def export(
     out: Annotated[Path, typer.Option("--out", "-o", help="PDF to write.")] = Path("deck.pdf"),
     size: Annotated[str, typer.Option("--size", help="Page size, as WIDTHxHEIGHT.")] = "1920x1080",
 ) -> None:
-    """Print the deck to a PDF, one page per slide."""
+    """Print the deck to a PDF, one page per slide.
+
+    The PDF is still: an embedded page prints as it looks once loaded, a rollout
+    prints as its first frame, and a Mermaid diagram needs a network to draw.
+    """
     with _reporting():
-        export_deck(path, out, size=_parse_size(size))
+        typer.echo(f"Wrote {export_deck(path, out, size=_parse_size(size))}")
 
 
 @app.command()
@@ -193,20 +266,33 @@ def rollout(
     model, so a deck that shows a robot on thirty slides carries it once.
 
     A page that holds no Brax scene is skipped rather than fatal, because an
-    assets folder normally mixes playback pages with plots.
+    assets folder normally mixes playback pages with plots. A page that holds a
+    scene that cannot be converted is reported and the rest are still
+    converted, but the command then exits with an error.
     """
     with _reporting():
-        before = 0
-        after = 0
-        skipped = 0
+        pages = list(dict.fromkeys(pages))
+        by_stem: dict[str, list[Path]] = {}
+        for page in pages:
+            by_stem.setdefault(page.stem, []).append(page)
+        clashes = [
+            f"{' and '.join(str(page) for page in group)} would both become {stem}{ROLLOUT_SUFFIX}"
+            for stem, group in by_stem.items()
+            if len(group) > 1
+        ]
+        if clashes:
+            raise DeckError("; ".join(clashes) + ". Rename one of each pair.")
+        before = after = skipped = failed = 0
         for page in pages:
             try:
                 converted = convert_brax_html(page, out)
-            except DeckError as exc:
-                if "holds no Brax scene" not in str(exc):
-                    raise
+            except NotBraxPage:
                 skipped += 1
                 typer.secho(f"{page.name} skipped; it is not a Brax playback page.", err=True, fg=typer.colors.YELLOW)
+                continue
+            except DeckError as exc:
+                failed += 1
+                typer.secho(f"mkdeck: {exc}", err=True, fg=typer.colors.RED)
                 continue
             before += page.stat().st_size
             after += converted.rollout.stat().st_size
@@ -216,4 +302,7 @@ def rollout(
             typer.echo(f"{page.name} -> {converted.rollout.name} ({shared})")
         if skipped == len(pages):
             raise DeckError("none of those pages hold a Brax scene, so there was nothing to convert.")
-        typer.echo(f"{before / 1_000_000:.1f} MB of pages became {after / 1_000_000:.1f} MB of rollouts.")
+        if before:
+            typer.echo(f"{before / 1_000_000:.1f} MB of pages became {after / 1_000_000:.1f} MB of rollouts.")
+        if failed:
+            raise DeckError(f"{failed} of {len(pages)} pages could not be converted.")

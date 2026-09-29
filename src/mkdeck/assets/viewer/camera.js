@@ -1,6 +1,6 @@
-// Camera presets for the rollout viewer, vendored from the artifacts server's
-// app_utils.js (see VENDOR.md). Kept function-for-function so a deck frames a
-// run exactly the way the gallery does.
+// Camera presets for the rollout viewer, lifted from the rollout gallery's app_utils.js
+// (its origin is written down in scripts/VENDOR_VIEWER.md of the mkdeck source repository). Kept function-for-function
+// so a deck frames a run exactly the way the gallery does.
 //
 // The camera is orthographic: `scale` is the world height the viewport spans,
 // so the same scale reads the same across runs whose robots start in different
