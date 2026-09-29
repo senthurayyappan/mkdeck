@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 from markupsafe import escape
 
 from mkdeck._messages import warn_deck
-from mkdeck.model import Deck, resolve_embed_kind
+from mkdeck.model import Deck, raw_rollout_tags, resolve_embed_kind
 from mkdeck.paths import (
     ASSET_BASE,
     ASSET_ROOT,
@@ -56,6 +56,7 @@ _ASSET_TAG = re.compile(
     re.IGNORECASE,
 )
 _HREF = re.compile(r"""\bhref=["'](?P<href>[^"']+)["']""", re.IGNORECASE)
+_SRC = re.compile(r"""\bsrc=["'](?P<src>[^"']+)["']""", re.IGNORECASE)
 
 _MEDIA_TYPES = {
     ".woff2": "font/woff2",
@@ -240,7 +241,8 @@ def inline_rollouts(html: str, deck: Deck, *, source: Path | str | None = None) 
 
     Args:
         html: The rendered document, with its scripts already inlined.
-        deck: The deck being built, for the rollouts its slides name.
+        deck: The deck being built, for the rollouts its slides name, whether as figures or
+            as `<deck-rollout src="...">` elements written in raw HTML.
         source: The deck source folder the rollouts sit in; the current directory when
             omitted.
 
@@ -255,29 +257,27 @@ def inline_rollouts(html: str, deck: Deck, *, source: Path | str | None = None) 
     for specifier, path in VIEWER_MODULES:
         parts.append(_inline_payload("data-mkd-module", specifier, read_text(ASSET_ROOT / path)))
 
+    figures = [relative_url(e.src) for slide in deck.slides for e in slide.embeds if resolve_embed_kind(e) == "rollout"]
+    written = [unescape(found.group("src")) for tag in raw_rollout_tags(deck) if (found := _SRC.search(tag))]
     carried: set[str] = set()
-    for slide in deck.slides:
-        for embed in slide.embeds:
-            if resolve_embed_kind(embed) != "rollout" or is_remote(embed.src):
-                continue
-            emitted = relative_url(embed.src)
-            run = find_in_deck(root, local_path(embed.src), what="rollout")
-            if run is None:
-                continue
-            files = [(emitted, run)]
-            if (meshes := meshes_of(run)) is not None:
-                # The viewer asks for the meshes by the folder of the rollout's own src, plus their name.
-                key = emitted[: emitted.rfind("/") + 1] + meshes
-                shared = find_in_deck(
-                    root, str(PurePosixPath(local_path(embed.src)).parent / meshes), what="shared meshes"
-                )
-                if shared is not None:
-                    files.append((key, shared))
-            for key, origin in files:
-                if key not in carried:
-                    carried.add(key)
-                    payload = base64.b64encode(origin.read_bytes()).decode("ascii")
-                    parts.append(_inline_payload("data-mkd-rollout", key, payload))
+    for emitted in dict.fromkeys([*figures, *written]):  # as the document names them, which is what the viewer asks for
+        if is_remote(emitted):
+            continue
+        run = find_in_deck(root, local_path(emitted), what="rollout")
+        if run is None:
+            continue
+        files = [(emitted, run)]
+        if (meshes := meshes_of(run)) is not None:
+            # The viewer asks for the meshes by the folder of the rollout's own src, plus their name.
+            key = emitted[: emitted.rfind("/") + 1] + meshes
+            shared = find_in_deck(root, str(PurePosixPath(local_path(emitted)).parent / meshes), what="shared meshes")
+            if shared is not None:
+                files.append((key, shared))
+        for key, origin in files:
+            if key not in carried:
+                carried.add(key)
+                payload = base64.b64encode(origin.read_bytes()).decode("ascii")
+                parts.append(_inline_payload("data-mkd-rollout", key, payload))
 
     # The payloads go in the head: the loader looks for them the moment a slide
     # asks for a rollout, which can be while the document is still parsing, so

@@ -41,7 +41,7 @@ Say the one thing this slide is for, in a single sentence.
 id: numbers
 -->
 
-Numbers such as 134 N s and 0.65 m are highlighted where they stand alone.
+Numbers such as 134 N m and 0.65 m are highlighted where they stand alone.
 
 | Run | Cap | Crossings |
 | --- | --- | --- |
@@ -183,7 +183,7 @@ def new(
 @app.command()
 def serve(
     path: Annotated[Path, typer.Argument(help="A .md file, or a folder holding deck.md.")],
-    port: Annotated[int, typer.Option("--port", help="Port to listen on.")] = 5020,
+    port: Annotated[int, typer.Option("--port", min=0, max=65535, help="Port to listen on.")] = 5020,
     host: Annotated[str, typer.Option("--host", help="Interface to bind.")] = "127.0.0.1",
     open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Open the deck in a browser.")] = False,
     reload: Annotated[
@@ -198,7 +198,14 @@ def serve(
 @app.command()
 def build(
     path: Annotated[Path, typer.Argument(help="A .md file, or a folder holding deck.md.")],
-    out: Annotated[Path, typer.Option("--out", "-o", help="Folder to write the deck into.")] = Path("site"),
+    out: Annotated[
+        Path,
+        typer.Option(
+            "--out",
+            "-o",
+            help="Folder to write the deck into. With --single-file, a path ending in .html is the file itself.",
+        ),
+    ] = Path("site"),
     single_file: Annotated[
         bool, typer.Option("--single-file", help="Inline the CSS and JS so the deck opens from file://.")
     ] = False,
@@ -215,12 +222,22 @@ def check(
     size: Annotated[str, typer.Option("--size", help="Viewport, as WIDTHxHEIGHT.")] = "1920x1080",
     out: Annotated[Path, typer.Option("--out", help="Folder for the report and screenshots.")] = Path("report"),
     shots: Annotated[bool, typer.Option("--shots/--no-shots", help="Write one PNG per slide.")] = True,
+    strict: Annotated[
+        bool, typer.Option("--strict", help="Exit with an error when any slide is flagged, as a CI job wants.")
+    ] = False,
 ) -> None:
-    """Open every slide in headless Chromium and report what overflows."""
+    """Open every slide in headless Chromium and report what overflows.
+
+    The command exits with status 0 once the report is written, whatever it found;
+    add --strict to exit with status 1 when any slide is flagged.
+    """
     with _reporting():
         viewport = _parse_size(size)
         records = check_deck(path, out=out, size=viewport, shots=shots)
         typer.echo(report_text(records, size=viewport, path=path), nl=False)
+        flagged = sum(1 for record in records if record.get("error") or record["flags"])
+        if strict and flagged:
+            _fail(f"{flagged} of {len(records)} slides are flagged.")
 
 
 @app.command()

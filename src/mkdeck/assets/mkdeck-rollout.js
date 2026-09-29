@@ -44,7 +44,14 @@
    * ---------------------------------------------------------------- */
 
   function inlineNode(attribute, value) {
-    return document.querySelector('script[' + attribute + '="' + value + '"]');
+    // Compared here rather than written into a selector, so a file name may hold any character.
+    var nodes = document.querySelectorAll("script[" + attribute + "]");
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute(attribute) === value) {
+        return nodes[i];
+      }
+    }
+    return null;
   }
 
   // A browser will not read a neighbouring file from a file:// page, so a

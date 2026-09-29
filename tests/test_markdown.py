@@ -424,3 +424,60 @@ def test_a_dollar_amount_is_not_math_to_the_parser() -> None:
     slide = parse("It costs $5 and $10 to run.\n\n$$\nx\n$$\n")[0]
     assert slide.sentence == "It costs $5 and $10 to run."
     assert slide.math == ["x"]
+
+
+@pytest.mark.parametrize(
+    "note",
+    ["Remember: pause", "fix # later", "yes", "- a", "no, really: 1.10 stays as written"],
+)
+def test_a_comment_that_starts_with_notes_is_raw_text_wherever_it_sits(note: str) -> None:
+    """A notes comment first on a slide used to be read as YAML, so a colon or `yes` broke it."""
+    first = parse(f"<!-- notes: {note} -->\n\nFive seeds cross.\n")[0]
+    after = parse(f"Five seeds cross.\n\n<!-- notes: {note} -->\n")[0]
+    assert first.notes == after.notes == note
+    assert first.sentence == "Five seeds cross."
+
+
+def test_a_multiline_notes_comment_first_on_a_slide_is_all_notes() -> None:
+    slide = parse("<!--\nnotes: Open with the wall.\nThen: the cap.\n-->\n\nFive seeds cross.\n")[0]
+    assert slide.notes == "Open with the wall.\nThen: the cap."
+
+
+def test_notes_can_still_be_an_option_when_other_options_come_first() -> None:
+    slide = parse('<!--\nid: a1\nnotes: "Say: pause"\n-->\n\nFive seeds cross.\n')[0]
+    assert (slide.id, slide.notes) == ("a1", "Say: pause")
+
+
+def test_an_image_takes_its_link_or_emphasis_with_it() -> None:
+    """`[![Run](a.png)](url)` and `*![Run](a.png)*` used to leave an empty link or a stray `**`."""
+    for text in ("[![Run](assets/a.png)](https://example.org)", "*![Run](assets/a.png)*", "**![Run](assets/a.png)**"):
+        slide = parse(text)[0]
+        assert slide.sentence is None, text
+        assert [embed.src for embed in slide.embeds] == ["assets/a.png"]
+
+
+def test_the_words_around_an_image_and_a_link_that_holds_more_than_it_stay() -> None:
+    slide = parse("*Run 3* ![Run](assets/a.png) and [see ![Run](assets/b.png) here](https://example.org)\n")[0]
+    assert slide.sentence == "*Run 3*  and [see  here](https://example.org)"
+    assert [embed.src for embed in slide.embeds] == ["assets/a.png", "assets/b.png"]
+
+
+def test_a_deck_with_no_title_gets_no_generated_title_slide() -> None:
+    deck = parse_markdown("# My Talk\n\n---\n\nHello.\n", source=SOURCE)
+    assert deck.title_slide is False
+    assert deck.title == "My Talk"  # the browser tab is named after the first heading
+    assert [slide.title for slide in deck.slides] == ["My Talk", None]
+    assert parse_markdown("Hello.\n", source=SOURCE).title == "Slide Deck"
+
+
+def test_a_deck_with_a_title_keeps_its_generated_title_slide() -> None:
+    deck = parse_markdown("---\ntitle: Talk\n---\n\n# My Talk\n\n---\n\nHello.\n", source=SOURCE)
+    assert deck.title == "Talk"
+    assert deck.title_slide is True
+
+
+def test_a_deck_with_nothing_in_it_is_an_error() -> None:
+    for text in ("", "---\n---\n", "<!-- just a comment -->\n"):
+        with pytest.raises(DeckError, match="no slides"):
+            parse_markdown(text, source=SOURCE)
+    assert parse_markdown("---\ntitle: Talk\n---\n", source=SOURCE).slides == []  # the title slide is the deck

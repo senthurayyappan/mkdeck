@@ -2,14 +2,17 @@
 
 import gzip
 import json
+import os
 import re
 import struct
+import sys
 import warnings
 from pathlib import Path
 
 import pytest
 
 from mkdeck import Deck, DeckError, DeckWarning, Embed, Slide, load_source
+from mkdeck import build as build_module
 from mkdeck._messages import install_warning_formatter
 from mkdeck.build import MANIFEST_NAME, ROLLOUT_ASSETS, build_deck
 from mkdeck.inline import VIEWER_MODULES
@@ -470,3 +473,62 @@ def test_mermaid_is_fetched_as_an_exact_release_and_checked_against_its_hash():
     assert re.search(r"cdn\.jsdelivr\.net/npm/mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js", script)
     assert re.search(r'MERMAID_INTEGRITY = "sha384-[A-Za-z0-9+/]{64}"', script)
     assert "script.integrity = MERMAID_INTEGRITY" in script
+
+
+# --------------------------------------------------------------------------- #
+# What the copies look like
+# --------------------------------------------------------------------------- #
+
+
+def test_a_read_only_source_file_can_be_built_again(deck_folder, tmp_path):
+    """The copy kept the mode of the original, so the second build could not write over the first."""
+    (deck_folder / "assets" / "g3_18.html").chmod(0o444)
+    site = tmp_path / "site"
+    load_source(deck_folder).build(site)
+    load_source(deck_folder).build(site)
+    copy = site / "assets" / "g3_18.html"
+    assert copy.read_text(encoding="utf-8") == "<!doctype html><title>g3</title>"
+    assert os.access(copy, os.W_OK)
+
+
+def test_a_read_only_asset_root_can_be_built_from_again(deck_folder, tmp_path, monkeypatch):
+    """The shipped front end may sit in a read-only place, such as a Nix store."""
+    root = tmp_path / "store"
+    (root / "themes").mkdir(parents=True)
+    (root / "mkdeck.js").write_text("// deck")
+    (root / "themes" / "minimal.css").write_text(":root {}")
+    for path in (root / "mkdeck.js", root / "themes" / "minimal.css"):
+        path.chmod(0o444)
+    monkeypatch.setattr(build_module, "ASSET_ROOT", root)
+    site = tmp_path / "site"
+    load_source(deck_folder).build(site)
+    load_source(deck_folder).build(site)
+    assert (site / "mkdeck-assets" / "mkdeck.js").read_text(encoding="utf-8") == "// deck"
+    assert os.access(site / "mkdeck-assets" / "themes" / "minimal.css", os.W_OK)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no permission bits to copy")
+def test_a_copy_takes_the_umask_not_the_mode_of_the_original(deck_folder, tmp_path):
+    """A file only its owner could read must not make a site that another user cannot serve."""
+    (deck_folder / "assets" / "g3_18.html").chmod(0o600)
+    before = os.umask(0o022)
+    try:
+        load_source(deck_folder).build(tmp_path / "site")
+    finally:
+        os.umask(before)
+    assert (tmp_path / "site" / "assets" / "g3_18.html").stat().st_mode & 0o777 == 0o644
+
+
+def test_a_source_folder_that_is_not_there_is_a_deck_error(tmp_path):
+    with pytest.raises(DeckError, match="source folder does not exist"):
+        Deck(title="T").build(tmp_path / "site", source=tmp_path / "nope")
+    assert not (tmp_path / "site").exists()
+
+
+def test_building_into_the_assets_folder_is_refused(deck_folder):
+    """It used to copy `assets` into itself, again and again."""
+    with pytest.raises(DeckError, match="assets folder"):
+        load_source(deck_folder).build(deck_folder / "assets")
+    with pytest.raises(DeckError, match="assets folder"):
+        load_source(deck_folder).build(deck_folder / "assets" / "deck.html", single_file=True)
+    assert sorted(path.name for path in (deck_folder / "assets").iterdir()) == ["g3_18.html"]

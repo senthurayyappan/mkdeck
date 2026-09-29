@@ -58,17 +58,19 @@ mkdeck watches the folder and reloads the page when you save a change. Add
 `--open` to open a browser tab for you, and `--port` to pick another port.
 
 The server hands out the whole built deck, including a copy of your `assets/`
-folder. It listens on `127.0.0.1`, so only your own machine can reach it.
+folder. It listens on `127.0.0.1`, so only your own machine can reach it, and it
+answers only requests addressed to `localhost` or a loopback address, so a web
+page from another site cannot read the deck through your browser.
 `--host 0.0.0.0` makes it reachable from the network, and then anyone on that
-network can read everything in the build.
+network can read everything in the build. It then answers to any name.
 
 ## Write a slide
 
 Each block between `---` separators is one slide. Write the message as one
-sentence, then add a figure:
+sentence, then add a figure. This is a whole deck file of one slide; a later
+slide follows a `---` line:
 
 ```markdown
----
 <!--
 id: departure
 -->
@@ -78,9 +80,9 @@ Five of five seeds cross the wall at 22 N m.
 ![Run 3](assets/run3.html)
 ```
 
-mkdeck marks the numbers `22 N m` and `3` in a darker ink, because a reader
-looks for the numbers first. [Writing slides](writing-slides.md) describes the
-full format.
+mkdeck marks the number `22 N m` in the sentence in a darker ink, because a
+reader looks for the numbers first. The caption of the figure is left as it is.
+[Writing slides](writing-slides.md) describes the full format.
 
 ## Build it
 
@@ -109,7 +111,8 @@ mkdeck build talk --single-file --out talk.html
 ```
 
 The file opens from a `file://` URL. Keep it beside its `assets/` folder if the
-slides embed pages or images.
+slides embed pages or images. With `--single-file`, an `--out` that ends in
+`.html` is the file itself; any other name is a folder that holds `index.html`.
 
 ## Check it before you present
 
@@ -121,12 +124,28 @@ uv run mkdeck export talk --out talk.pdf
 ```
 
 With pip, install `"mkdeck[check]"` and run `python -m playwright install
-chromium` instead.
+chromium` instead. If you installed the command with `uv tool install mkdeck`,
+install it again with the extra, and download the browser with `uvx`:
+
+```bash
+uv tool install "mkdeck[check]"
+uvx playwright install chromium
+```
+
+To try it once without installing, run `uvx --from "mkdeck[check]" mkdeck check talk`.
 
 `check` opens every slide in headless Chromium. It reports the slides whose
 content runs off the screen, a formula or a diagram that did not draw, and a
 rollout that did not load, and writes `report/report.json` and one screenshot
-per slide. `export` prints the deck to a PDF, one page per slide.
+per slide. A run replaces the screenshots of the one before. `export` prints the deck to a PDF, one page per slide.
+
+`check` exits with status 0 once it has written the report, even when it
+flagged a slide. In a CI job, add `--strict` to exit with status 1 when any
+slide is flagged.
+
+Check and export only decks you trust. Raw HTML in a slide is passed through and
+runs in the browser they start. They stop that page from reading a local file
+outside the deck folder, but it can still reach the network.
 
 A PDF is a still picture of the deck. An embedded page prints as it looks once
 it has loaded, without its interaction. A rollout prints as its first frame, a

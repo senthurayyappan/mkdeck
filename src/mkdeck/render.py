@@ -5,15 +5,15 @@ a slide emits is decided here, and `assets/mkdeck.js` reads them back. Neither
 side may change the contract on its own.
 
 The number highlighting is done here rather than with a client-side regex, so a
-deck saved from the browser keeps it. The pattern is the one the deck this
-package replaces used, negative lookbehind included, which is what keeps the
-`2` in `Go2` grey. Inline math is only marked up here, as an empty
+deck saved from the browser keeps it. The pattern's negative lookbehind is what
+keeps the `2` in `Go2` grey. Inline math is only marked up here, as an empty
 `.mkd-math` span carrying its source; KaTeX draws it in the browser.
 
 The text of a sentence, a bullet, a label or a table cell is inline Markdown. An
 HTML element written in it, with its closing tag, is copied to the page as written.
 """
 
+import posixpath
 import re
 from collections.abc import Sequence
 from functools import lru_cache
@@ -29,6 +29,7 @@ from mdit_py_plugins.dollarmath import dollarmath_plugin
 
 from mkdeck._messages import warn_deck
 from mkdeck.errors import DeckError
+from mkdeck.markdown import MATH_RULES
 from mkdeck.model import (
     DEFAULT_UNITS,
     Deck,
@@ -40,20 +41,18 @@ from mkdeck.model import (
     resolve_layout,
     validate_deck,
 )
-from mkdeck.paths import ASSET_BASE, ASSET_ROOT, is_remote, relative_url
+from mkdeck.paths import ASSET_BASE, ASSET_ROOT, ASSETS_DIRNAME, is_remote, local_path, relative_url
 
 __all__ = [
     "RELOAD_PATH",
-    "TEMPLATE_NAME",
     "highlight_numbers",
-    "math_span",
     "render_deck",
     "render_slide",
     "render_text",
 ]
 
 TEMPLATE_DIR = ASSET_ROOT / "templates"
-TEMPLATE_NAME = "deck.html.jinja"
+_TEMPLATE_NAME = "deck.html.jinja"
 
 RELOAD_PATH = "/__mkdeck__/events"
 """Endpoint a live-reload page listens on for rebuild events; the dev server serves it."""
@@ -106,7 +105,7 @@ def highlight_numbers(text: str, *, units: Sequence[str] = DEFAULT_UNITS) -> Mar
     return Markup("").join(pieces)
 
 
-def math_span(tex: str, *, block: bool = False) -> Markup:
+def _math_span(tex: str, *, block: bool = False) -> Markup:
     """Emit the placeholder KaTeX fills in in the browser.
 
     The formula source is escaped into `data-tex`, so a KaTeX failure leaves an
@@ -140,20 +139,21 @@ def _html_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, option
 
 def _math_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
     """Draw an inline formula as the empty span KaTeX fills in."""
-    return str(math_span(tokens[idx].content))
+    return str(_math_span(tokens[idx].content))
 
 
 def _image_rule(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
     """Draw an image inside text, and say so when it is a file the build will not copy.
 
-    Only a paragraph made of images becomes figures, and only figures are copied into the
-    build. An image in a bullet or a table cell that names a local file would break.
+    A build copies the `assets` folder and the files of figures, and a figure is a paragraph
+    made of images. An image in a bullet or a table cell that sits outside `assets` is
+    copied by nothing, so it would break.
     """
     src = str(tokens[idx].attrGet("src") or "")
-    if src and not is_remote(src):
+    if src and not is_remote(src) and not posixpath.normpath(local_path(src)).startswith(f"{ASSETS_DIRNAME}/"):
         warn_deck(
             f'The text holds the image "{src}", which is not copied into the build; '
-            "write the image on a line of its own so that it becomes a figure."
+            f"move the file under {ASSETS_DIRNAME}/, or write the image on a line of its own so that it becomes a figure."
         )
     return renderer.image(tokens, idx, options, env)
 
@@ -168,7 +168,7 @@ def _build_inline_parser() -> MarkdownIt:
         "costs $5 and $10" is text. A backslash before a dollar sign makes it a literal one.
     """
     md = MarkdownIt("commonmark")
-    md.use(dollarmath_plugin, allow_space=False, allow_digits=False)
+    md.use(dollarmath_plugin, **MATH_RULES)
     md.add_render_rule("text", _text_rule)
     md.add_render_rule("html_inline", _html_rule)
     md.add_render_rule("math_inline", _math_rule)
@@ -338,7 +338,7 @@ def render_slide(slide: Slide, *, date: str | None = None, units: Sequence[str] 
     body: list[Markup] = []
     if slide.title:
         body.append(Markup('<h1 class="mkd-title">{}</h1>').format(render_text(slide.title, numbers=False)))
-    body.extend(math_span(formula, block=True) for formula in slide.math)
+    body.extend(_math_span(formula, block=True) for formula in slide.math)
     if slide.sentence:
         body.extend(
             Markup('<p class="mkd-sentence">{}</p>').format(render_text(piece, units=units))
@@ -366,23 +366,20 @@ def render_slide(slide: Slide, *, date: str | None = None, units: Sequence[str] 
     return Markup("<section{}>{}</section>").format(opening, Markup("").join(section))
 
 
-def _writes_its_own_title(deck: Deck) -> bool:
-    """Say whether the deck already opens with its own title slide.
+def _opens_with_title_slide(deck: Deck) -> bool:
+    """Say whether the deck already opens with a title slide of its own.
 
-    A deck file that writes `# Deck title` as its first slide would otherwise
-    show that slide twice, once generated and once written, so the generated one
-    is dropped.
+    A deck file that writes `# Deck title` alone as its first slide would otherwise
+    show two title slides, once generated and once written, so the generated one is
+    dropped. Whatever the written one says, it is the author's opening slide.
 
     Args:
         deck: The deck to inspect.
 
     Returns:
-        True when the first slide is a title slide holding the deck title.
+        True when the first slide is a title slide.
     """
-    if not deck.slides:
-        return False
-    first = deck.slides[0]
-    return resolve_layout(first) == "title" and (first.title or "").strip() == deck.title.strip()
+    return bool(deck.slides) and resolve_layout(deck.slides[0]) == "title"
 
 
 def _render_slides(deck: Deck) -> Markup:
@@ -398,7 +395,7 @@ def _render_slides(deck: Deck) -> Markup:
         The slide markup, one `<section>` per line.
     """
     rendered: list[Markup] = []
-    if deck.title_slide and not _writes_its_own_title(deck):
+    if deck.title_slide and not _opens_with_title_slide(deck):
         opening = Slide(layout="title", title=deck.title, date=deck.date)
         rendered.append(render_slide(opening, date=deck.date, units=deck.units))
     effective_date = deck.date
@@ -460,10 +457,10 @@ def render_deck(deck: Deck, *, live_reload: bool = False) -> str:
         "reload_path": RELOAD_PATH if live_reload else None,
     }
     try:
-        template = _environment().get_template(TEMPLATE_NAME)
+        template = _environment().get_template(_TEMPLATE_NAME)
     except TemplateNotFound as exc:
         raise DeckError(
             "The deck template is missing from this installation of mkdeck; reinstall the package to restore it.",
-            source=TEMPLATE_DIR / TEMPLATE_NAME,
+            source=TEMPLATE_DIR / _TEMPLATE_NAME,
         ) from exc
     return template.render(**context)

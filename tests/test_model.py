@@ -6,13 +6,15 @@ from mkdeck.model import (
     Embed,
     Slide,
     Table,
+    deck_has_rollouts,
+    raw_rollout_tags,
     resolve_embed_kind,
     resolve_layout,
     slide_name,
     validate_deck,
     validate_slide,
 )
-from mkdeck.paths import asset_path_error, is_remote, local_path, relative_url, validate_src
+from mkdeck.paths import asset_path_error, is_remote, local_path, relative_url, resolve_inside, validate_src
 
 # The two-figure slide "a1-crate" of the barkour deck.
 CRATE = Slide(
@@ -340,3 +342,43 @@ def test_an_error_without_an_index_does_not_claim_to_be_slide_one() -> None:
     with pytest.raises(DeckError) as caught:
         validate_slide(Slide(embeds=[Embed("a.html"), Embed("b.html"), Embed("c.html")]))
     assert not str(caught.value).startswith("slide 1")
+
+
+@pytest.mark.parametrize("src", ["assets/a%00.html", "a\0.png", "assets/a%00.png?seed=1"])
+def test_a_source_with_a_nul_character_is_a_deck_error_not_a_traceback(src: str) -> None:
+    assert "NUL" in (validate_src(src) or "")
+    with pytest.raises(DeckError, match="NUL"):
+        validate_slide(Slide(embeds=[Embed(src)]))
+
+
+def test_a_path_with_a_nul_character_is_outside_every_folder(tmp_path) -> None:
+    assert resolve_inside(tmp_path, "a\0.png") is None
+
+
+def test_a_windows_drive_is_recognised_after_the_percent_signs_are_decoded() -> None:
+    """markdown-it writes a backslash as %5C, so the text of an image is never `C:\\`."""
+    assert "absolute" in (validate_src("C:%5Cdecks%5Ca1.html") or "")
+
+
+def test_reveal_options_have_to_be_json() -> None:
+    with pytest.raises(DeckError, match="reveal"):
+        validate_deck(Deck(title="T", reveal={"a": object()}, slides=[Slide(sentence="x")]))
+    validate_deck(Deck(title="T", reveal={"a": [1, {"b": None}]}, slides=[Slide(sentence="x")]))
+
+
+def test_a_deck_that_shows_nothing_is_a_deck_error() -> None:
+    with pytest.raises(DeckError, match="no slides"):
+        validate_deck(Deck(title="T", title_slide=False))
+    validate_deck(Deck(title="T"))  # the generated title slide is a slide
+
+
+def test_a_rollout_written_in_raw_html_needs_the_viewer_too() -> None:
+    """Options such as data-view can only be set on a hand-written element."""
+    element = '<deck-rollout data-view="side" src="assets/run.rollout"></deck-rollout>'
+    for slide in (Slide(html=element), Slide(sentence=f"See {element}"), Slide(bullets=[element])):
+        assert deck_has_rollouts(Deck(title="T", slides=[slide]))
+    tag = '<deck-rollout data-view="side" src="assets/run.rollout">'
+    assert raw_rollout_tags(Deck(title="T", slides=[Slide(html=element)])) == [tag]
+    assert deck_has_rollouts(Deck(title="T", slides=[Slide(html=element.upper())]))
+    assert not deck_has_rollouts(Deck(title="T", slides=[Slide(html="<deck-embed src='a.html'></deck-embed>")]))
+    assert deck_has_rollouts(Deck(title="T", slides=[Slide(embeds=[Embed("assets/run.rollout")])]))

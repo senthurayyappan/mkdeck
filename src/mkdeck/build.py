@@ -10,12 +10,11 @@ from mkdeck._messages import warn_deck
 from mkdeck.errors import DeckError
 from mkdeck.inline import VIEWER_MODULES, inline_assets, inline_rollouts
 from mkdeck.model import ROLLOUT_SUFFIXES, Deck, deck_has_rollouts, resolve_embed_kind
-from mkdeck.paths import ASSET_BASE, ASSET_ROOT, find_in_deck, is_remote, local_path, stays_inside
+from mkdeck.paths import ASSET_BASE, ASSET_ROOT, ASSETS_DIRNAME, find_in_deck, is_remote, local_path, stays_inside
 from mkdeck.render import render_deck
 from mkdeck.rollout import MESHES_SUFFIX, meshes_of
 
 __all__ = [
-    "ASSETS_DIRNAME",
     "EMBED_WARN_BYTES",
     "MANIFEST_NAME",
     "ROLLOUT_ASSETS",
@@ -31,9 +30,6 @@ three.js is a megabyte, so a deck of plots and images does not pay for it.
 EMBED_WARN_BYTES = 2_000_000
 """An embed larger than this is called out at build time."""
 
-ASSETS_DIRNAME = "assets"
-"""The deck's own asset folder, copied into the output as it stands."""
-
 MANIFEST_NAME = ".mkdeck-build.json"
 """The list of files a build wrote, which the next build into the folder sweeps clean."""
 
@@ -47,6 +43,10 @@ _INLINED_SUFFIXES = (*ROLLOUT_SUFFIXES, MESHES_SUFFIX)
 def _copy(origin: Path, out: Path, rel: str, written: set[str]) -> None:
     """Copy one file to `out/rel`, unless this build already has.
 
+    Only the contents are copied. The copy is a new file that the person running the build
+    can write and that takes their umask, whatever the mode of the original: a read-only
+    file, or one that a tool wrote as readable by its owner alone, is not passed on.
+
     Args:
         origin: The file to copy.
         out: The output folder.
@@ -58,9 +58,10 @@ def _copy(origin: Path, out: Path, rel: str, written: set[str]) -> None:
     written.add(rel)
     destination = out / rel
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.is_symlink():
-        destination.unlink()  # copy the file, not through a link some earlier hand left here
-    shutil.copy2(origin, destination)
+    destination.unlink(
+        missing_ok=True
+    )  # replace a link, or a read-only file an older build left, rather than write through it
+    shutil.copyfile(origin, destination)
 
 
 def _relative(src: str) -> str:
@@ -265,11 +266,14 @@ def build_deck(
         The path of the written HTML document.
 
     Raises:
-        DeckError: If a slide breaks a rule of the model, the output folder is the source
-            folder, or a file the deck names is outside the deck folder.
+        DeckError: If a slide breaks a rule of the model, the source folder does not exist,
+            the output folder is the source folder or its `assets` folder, or a file the deck
+            names is outside the deck folder.
     """
     out = Path(out)
     folder = Path(source) if source is not None else Path.cwd()
+    if not folder.is_dir():
+        raise DeckError("The source folder does not exist or is not a folder.", source=folder)
     root: Path | None = folder
     into_file = single_file and out.suffix.lower() in {".html", ".htm"}
     directory, index = (out.parent, out) if into_file else (out, out / "index.html")
@@ -277,6 +281,11 @@ def build_deck(
         if source is not None:
             raise DeckError("The output folder is the deck source folder; write the build somewhere else with -o.")
         root = None  # a Python deck built into the folder it lives in: its files are already there
+    elif directory.resolve() == (folder / ASSETS_DIRNAME).resolve():
+        raise DeckError(
+            f"The output folder is the deck's {ASSETS_DIRNAME} folder, which the build copies into it; "
+            "write the build somewhere else with -o."
+        )
 
     html = render_deck(deck, live_reload=live_reload)
     rollouts = deck_has_rollouts(deck)

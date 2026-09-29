@@ -38,9 +38,11 @@ afresh, and a file the previous build wrote that this one no longer needs is
 removed (mkdeck keeps a `.mkdeck-build.json` list in the folder for this).
 
 `deck.serve()` rebuilds the deck when a file under `source` changes, and the
-browser reloads. It does not watch the Python code that generates the slides.
-Edit the script and restart it to see the change; the live reload covers your
-figures and stylesheets, not the loop that builds the slides.
+browser reloads. `source` is the current directory when you leave it out, so
+`deck.serve()` watches the folder you run it from. It builds the `Deck` in hand
+again, unchanged, and it does not run the Python code that generates the
+slides. Edit the script and restart it to see the change; the live reload covers
+your figures and stylesheets, not the loop that builds the slides.
 
 ## The slide model
 
@@ -116,7 +118,17 @@ loaded.build("site/")
 ```
 
 `DeckSource.serve()` reads the Markdown again on every change under the
-folder, so an edit to `deck.md` or `deck.yml` reloads the page.
+folder, so an edit to `deck.md` or `deck.yml` reloads the page. That has a
+consequence for the pattern above: the first build of a served `DeckSource` uses
+`loaded.deck` as you changed it, but every rebuild reads the files from disk
+again, so the first edit to the Markdown drops your changes. To serve a deck
+you change in Python, serve the `Deck` itself, and watch the deck's folder:
+
+```python
+loaded = load_source("slides/deck.md")
+loaded.deck.slides.append(Slide(sentence="One more result arrived."))
+loaded.deck.serve(source=loaded.directory)  # figures reload; the Markdown is not read again
+```
 
 ## Errors and warnings
 

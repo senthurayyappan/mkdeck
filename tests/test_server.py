@@ -1,10 +1,12 @@
 """The development server: what it serves, what it tells the page, and how it ends."""
 
 import contextlib
+import http.client
 import os
 import queue
 import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -14,19 +16,22 @@ import webbrowser
 from pathlib import Path
 
 import pytest
+from watchfiles import Change
 
 import mkdeck.server as server_module
+import mkdeck.source as source_module
 from mkdeck import Deck, DeckError, DeckWarning, Slide, load_source
 from mkdeck.render import RELOAD_PATH
 from mkdeck.server import (
     _DeckHandler,
     _DeckServer,
     _frame,
+    _ignoring_outputs,
     _is_loopback,
     _ReloadHub,
+    _shown_host,
     _wait_for_stop,
     dev_server,
-    serve_deck,
 )
 
 MARKER = "<!--live-->"
@@ -152,10 +157,6 @@ def test_a_real_failure_still_shows(tmp_path, capsys) -> None:
     finally:
         server.server_close()
     assert "the deck is on fire" in capsys.readouterr().err
-
-
-def test_the_port_is_reusable_except_on_windows(tmp_path) -> None:
-    assert _DeckServer.allow_reuse_address == (sys.platform != "win32")
 
 
 @pytest.mark.parametrize(
@@ -492,10 +493,10 @@ def test_sigterm_ends_the_wait_and_gives_the_handler_back() -> None:
 
 def test_serving_a_loaded_deck_reads_it_again_only_on_a_rebuild(folder, monkeypatch, tmp_path) -> None:
     loads: list[Path] = []
-    real = server_module.load_source
-    monkeypatch.setattr(server_module, "load_source", lambda path: loads.append(Path(path)) or real(path))
+    real = source_module.load_source
+    monkeypatch.setattr(source_module, "load_source", lambda path: loads.append(Path(path)) or real(path))
     builds: list = []
-    monkeypatch.setattr(server_module, "_serve", lambda build, **kwargs: builds.append(build))
+    monkeypatch.setattr(server_module, "serve", lambda build, **kwargs: builds.append(build))
     load_source(folder).serve(port=0)
     (build,) = builds
     for number in range(2):
@@ -519,7 +520,7 @@ def test_serve_source_serves_the_deck_built_from_disk(folder, monkeypatch, capsy
     assert "EventSource" in bodies[0]  # the live-reload client is rendered in, not patched in afterwards
 
 
-def test_serve_deck_without_a_source_serves_a_fixed_deck(monkeypatch, tmp_path, capsys) -> None:
+def test_serving_a_deck_without_a_source_watches_the_current_directory(monkeypatch, tmp_path, capsys) -> None:
     bodies: list[str] = []
     watched: list[list[Path]] = []
     real = server_module.dev_server
@@ -535,7 +536,158 @@ def test_serve_deck_without_a_source_serves_a_fixed_deck(monkeypatch, tmp_path, 
     monkeypatch.setattr(server_module, "dev_server", spy)
     monkeypatch.setattr(server_module, "_wait_for_stop", wait)
     monkeypatch.chdir(tmp_path)
-    serve_deck(Deck(title="Runs", slides=[Slide(sentence="Hi.")]), port=0)
-    assert watched == [[]]
-    assert "EventSource" not in bodies[0]
+    Deck(title="Runs", slides=[Slide(sentence="Hi.")]).serve(port=0)
+    assert [[path.resolve() for path in paths] for paths in watched] == [[tmp_path.resolve()]]
+    assert "EventSource" in bodies[0]  # a deck served without a source reloads like any other
     assert "Hi." in bodies[0]
+
+
+# --------------------------------------------------------------------------- #
+# What the watch ignores
+# --------------------------------------------------------------------------- #
+
+
+def test_the_watch_ignores_what_a_build_writes_and_nothing_that_only_starts_like_it(tmp_path, monkeypatch) -> None:
+    """A relative watch path never matched the absolute ones watchfiles reports, and `site` swallowed `site-notes.md`."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "talk").mkdir()
+    keep = _ignoring_outputs([Path("talk")])
+
+    def changed(name: str) -> bool:
+        return keep(Change.modified, str((tmp_path / "talk" / name).resolve()))
+
+    for name in ("site/index.html", "site/mkdeck-assets/mkdeck.js", "report/slide_01.png", "report", "deck.pdf"):
+        assert not changed(name), name
+    for name in ("deck.md", "assets/run3.html", "site-notes.md", "reports/a.html", "deck.pdf.bak", "sub/site/a.md"):
+        assert changed(name), name
+
+
+def test_a_build_written_into_a_relative_watch_path_does_not_rebuild_the_deck(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    talk = tmp_path / "talk"
+    talk.mkdir()
+    builds = Builds()
+    with dev_server(builds, watch_paths=[Path("talk")], port=0) as url:
+        stream = Stream(url)
+        stream.until(": mkdeck connected")
+        settle(stream)
+        (talk / "site").mkdir()
+        (talk / "site" / "index.html").write_text("built")
+        (talk / "report").mkdir()
+        (talk / "report" / "report.txt").write_text("checked")
+        (talk / "deck.pdf").write_bytes(b"%PDF")
+        time.sleep(1.0)
+        assert builds.calls == 1
+        (talk / "site-notes.md").write_text("mine")
+        wait_for(lambda: builds.calls == 2)
+        stream.close()
+
+
+# --------------------------------------------------------------------------- #
+# Who may talk to the server
+# --------------------------------------------------------------------------- #
+
+
+def request(url: str, *, host: str | None) -> int:
+    """The status of a GET whose Host header says `host`, however the URL is spelled."""
+    address, port = url.removeprefix("http://").rstrip("/").split(":")
+    connection = http.client.HTTPConnection(address, int(port), timeout=5)
+    try:
+        connection.putrequest("GET", "/", skip_host=True)
+        if host is not None:
+            connection.putheader("Host", host)
+        connection.endheaders()
+        return connection.getresponse().status
+    finally:
+        connection.close()
+
+
+def test_a_loopback_server_answers_only_requests_that_name_this_machine(folder) -> None:
+    """A page on another site can point its own domain at 127.0.0.1 and read the deck (DNS rebinding)."""
+    with dev_server(Builds(), watch_paths=[], port=0) as url:
+        port = url.rsplit(":", 1)[1].rstrip("/")
+        for host in (f"127.0.0.1:{port}", f"localhost:{port}", "LOCALHOST", f"[::1]:{port}", "127.0.0.2", None):
+            assert request(url, host=host) == 200, host
+        for host in (f"evil.example:{port}", "evil.example", f"127.0.0.1.evil.example:{port}", "", "[::1", "0.0.0.0"):
+            assert request(url, host=host) == 403, host
+
+
+def test_a_server_bound_to_the_network_leaves_the_host_alone(folder) -> None:
+    with (
+        pytest.warns(DeckWarning, match="0.0.0.0"),
+        dev_server(Builds(), watch_paths=[], host="0.0.0.0", port=0) as url,
+    ):
+        port = url.rsplit(":", 1)[1].rstrip("/")
+        assert request(url, host=f"my-laptop.local:{port}") == 200
+
+
+# --------------------------------------------------------------------------- #
+# What goes wrong on the way up
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("port", [-1, 65536, 99999])
+def test_a_port_out_of_range_is_a_deck_error(port) -> None:
+    with pytest.raises(DeckError, match="0 to 65535"), dev_server(Builds(), watch_paths=[], port=port):
+        pytest.fail("the block must not run")
+
+
+def test_a_host_that_is_not_an_address_is_not_blamed_on_the_port() -> None:
+    with (
+        pytest.raises(DeckError, match="--host") as caught,
+        dev_server(Builds(), watch_paths=[], host="256.1.1.1", port=0),
+    ):
+        pytest.fail("the block must not run")
+    assert "another port" not in str(caught.value)
+
+
+def test_a_port_that_is_taken_says_so() -> None:
+    with dev_server(Builds(), watch_paths=[], port=0) as url:
+        taken = int(url.rsplit(":", 1)[1].rstrip("/"))
+        with pytest.raises(DeckError, match="another port"), dev_server(Builds(), watch_paths=[], port=taken):
+            pytest.fail("the block must not run")
+
+
+@pytest.mark.parametrize(
+    ("host", "shown"),
+    [
+        ("127.0.0.1", "127.0.0.1"),
+        ("localhost", "localhost"),
+        ("0.0.0.0", "localhost"),
+        ("::", "localhost"),
+        ("::1", "[::1]"),
+    ],
+)
+def test_the_url_names_a_host_a_browser_can_open(host: str, shown: str) -> None:
+    assert _shown_host(host) == shown
+
+
+def test_serving_to_every_interface_hands_out_a_url_that_opens() -> None:
+    with (
+        pytest.warns(DeckWarning, match="0.0.0.0"),
+        dev_server(Builds(), watch_paths=[], host="0.0.0.0", port=0) as url,
+    ):
+        assert url.startswith("http://localhost:")
+        assert get(url)[0] == 200
+
+
+def test_the_address_is_printed_the_moment_the_server_is_up(folder) -> None:
+    """A pipe to a log or an editor terminal buffers stdout, and the URL used to arrive on exit."""
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONUNBUFFERED"}
+    process = subprocess.Popen(
+        [sys.executable, "-m", "mkdeck", "serve", str(folder), "--port", "0"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        env=env,
+    )
+    output = process.stdout
+    assert output is not None
+    lines: queue.Queue[str] = queue.Queue()
+    threading.Thread(target=lambda: lines.put(output.readline()), daemon=True).start()
+    try:
+        assert lines.get(timeout=30).startswith("Slide deck: http://127.0.0.1:")
+    finally:
+        process.kill()
+        process.wait()
+        output.close()

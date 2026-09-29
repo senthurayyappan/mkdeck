@@ -30,6 +30,10 @@ The first comment of a slide is read as options when one of its `key:` lines nam
 option, or is close enough to one to be a typo of it (`layot:`). Any other comment, such as
 `<!-- TODO: fix -->`, is an ordinary Markdown comment: it stays invisible and is never
 checked. A comment that reads as options must be valid YAML and hold only known options.
+The one exception is a comment that starts with `notes:`. It is speaker notes, wherever it
+sits on the slide, and everything after `notes:` is the text of the notes, as written, so a
+colon or a `#` in it is just text. To set `notes` next to other options, list it after them
+and quote it if it needs to be YAML.
 
 The body is parsed with `markdown-it-py` in CommonMark mode, with tables enabled and with
 the container, definition-list and dollar-math plugins. Text is carried into the model as
@@ -68,7 +72,7 @@ from mkdeck.model import (
     validate_deck,
 )
 
-__all__ = ["BODY_ONLY_KEYS", "PARSER", "SLIDE_OPTION_KEYS", "parse_markdown", "split_frontmatter"]
+__all__ = ["BODY_ONLY_KEYS", "MATH_RULES", "SLIDE_OPTION_KEYS", "parse_markdown", "split_frontmatter"]
 
 SLIDE_OPTION_KEYS: tuple[str, ...] = (
     "id",
@@ -86,8 +90,14 @@ SLIDE_OPTION_KEYS: tuple[str, ...] = (
 BODY_ONLY_KEYS: tuple[str, ...] = ("embeds", "table", "html")
 """Slide fields that are written in the Markdown body, never in the options comment."""
 
+MATH_RULES: dict[str, bool] = {"allow_space": False, "allow_digits": False}
+"""How `$...$` opens and closes a formula: not before a space, and not before a digit, so
+"costs $5 and $10" is text. The parser here and the one that renders the text share them."""
+
 _OPTION_KEY = re.compile(r"^[ \t]*(?P<key>[A-Za-z_][\w-]*)[ \t]*:", re.MULTILINE)
 _BLANK_RUN = re.compile(r"[ \t]*\n(?:[ \t]*\n)+")
+_LINK_TAIL = re.compile(r"\]\([^)]*\)")
+_EMPHASIS = ("***", "___", "**", "__", "~~", "*", "_")
 _FRONTMATTER_END = ("---", "...")
 _TOKEN_NAMES = {
     "fence": "a code block",
@@ -129,12 +139,11 @@ def _build_parser() -> MarkdownIt:
     md.use(container_plugin, "figures")
     md.use(container_plugin, "notes")
     md.use(deflist_plugin)
-    md.use(dollarmath_plugin, allow_space=False, allow_digits=False)
+    md.use(dollarmath_plugin, **MATH_RULES)
     return md
 
 
-PARSER = _build_parser()
-"""The shared parser instance. Building one costs more than parsing a small deck."""
+_PARSER = _build_parser()  # building one costs more than parsing a small deck
 
 
 @dataclass(slots=True)
@@ -195,7 +204,9 @@ def split_frontmatter(text: str, *, source: Path | str) -> tuple[dict[str, Any],
 def parse_markdown(text: str, *, source: Path | str, defaults: Mapping[str, Any] | None = None) -> Deck:
     """Parse a Markdown deck file into a `mkdeck.model.Deck`.
 
-    The deck takes its settings from the frontmatter, laid over `defaults`.
+    The deck takes its settings from the frontmatter, laid over `defaults`. A deck that
+    sets no `title` opens with no generated title slide, and takes the first `#` heading
+    of the deck, else `DEFAULT_TITLE`, as the title of the page.
 
     Args:
         text: The whole Markdown file.
@@ -212,11 +223,15 @@ def parse_markdown(text: str, *, source: Path | str, defaults: Mapping[str, Any]
     frontmatter, body = split_frontmatter(text, source=source)
     settings = merge_settings(defaults or {}, normalize_settings(frontmatter, origin=source))
     fields: dict[str, Any] = {"title": DEFAULT_TITLE, **settings}
+    if "title" not in settings:
+        fields["title_slide"] = False  # a deck that names no title has nothing to put on an opening slide
     deck = Deck(**fields)
-    for tokens in _split_slides(PARSER.parse(body)):
+    for tokens in _split_slides(_PARSER.parse(body)):
         slide = _parse_slide(tokens, index=len(deck.slides), source=source)
         if slide is not None:
             deck.slides.append(slide)
+    if "title" not in settings:  # the browser tab still wants a name: the first heading of the deck
+        deck.title = next((slide.title for slide in deck.slides if slide.title), DEFAULT_TITLE)
     validate_deck(deck, source=source)
     return deck
 
@@ -289,6 +304,18 @@ def _option_id(options: Mapping[str, Any]) -> str | None:
     return None if raw is None else str(raw)
 
 
+def _starts_notes(comment: str) -> bool:
+    """Say whether an HTML comment is speaker notes: its first text is `notes:`.
+
+    Args:
+        comment: The text between `<!--` and `-->`.
+
+    Returns:
+        True when the comment opens with `notes:`, in any case.
+    """
+    return comment.lstrip().lower().startswith("notes:")
+
+
 def _looks_like_options(comment: str) -> bool:
     """Say whether an HTML comment is meant as slide options.
 
@@ -296,8 +323,11 @@ def _looks_like_options(comment: str) -> bool:
         comment: The text between `<!--` and `-->`.
 
     Returns:
-        True when a `key:` line names an option, or nearly does.
+        True when a `key:` line names an option, or nearly does. A comment that starts
+        with `notes:` is speaker notes, never options.
     """
+    if _starts_notes(comment):
+        return False
     known = (*SLIDE_OPTION_KEYS, *BODY_ONLY_KEYS)
     keys = (found.group("key").lower() for found in _OPTION_KEY.finditer(comment))
     return any(key in known or difflib.get_close_matches(key, known, n=1, cutoff=0.75) for key in keys)
@@ -537,11 +567,36 @@ def _consume_paragraph(tokens: list[Token], draft: _Draft) -> None:
         draft.embeds.append(embed)
     text = inline.content
     for image in reversed(images):
-        start, end = image.meta["span"]
-        text = text[:start] + text[end:]
+        text = _cut_image(text, *image.meta["span"])
     text = _BLANK_RUN.sub("\n", text).strip()
     if text:
         draft.sentences.append(text)
+
+
+def _cut_image(text: str, start: int, end: int) -> str:
+    """Cut an image out of its paragraph, and the link or emphasis that held nothing else.
+
+    `[![Run](a.png)](https://example.org)` and `*![Run](a.png)*` are still a figure, and
+    what wrapped the image must not be left behind as an empty link or a stray `**`.
+
+    Args:
+        text: The source of the paragraph.
+        start: Where the image begins in it.
+        end: Where the image ends.
+
+    Returns:
+        The text without the image and its now empty wrappers.
+    """
+    before, after = text[:start], text[end:]
+    while True:
+        link = _LINK_TAIL.match(after)
+        if link and before.endswith("["):
+            before, after = before[:-1], after[link.end() :]
+            continue
+        mark = next((mark for mark in _EMPHASIS if before.endswith(mark) and after.startswith(mark)), None)
+        if mark is None:
+            return before + after
+        before, after = before[: -len(mark)], after[len(mark) :]
 
 
 def _item_text(tokens: list[Token], *, fail: Callable[[str], DeckError]) -> str:
@@ -687,7 +742,7 @@ def _consume_html(token: Token, draft: _Draft) -> None:
     raw = token.content.strip()
     if raw.startswith("<!--") and raw.endswith("-->"):
         inner = raw[4:-3].strip()
-        if inner.lower().startswith("notes:") and (note := inner[len("notes:") :].strip()):
+        if _starts_notes(inner) and (note := inner[len("notes:") :].strip()):
             draft.notes.append(note)
         return
     if raw:

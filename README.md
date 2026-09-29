@@ -46,10 +46,10 @@ to pick another port. Without a global install, put `uvx mkdeck` or
 
 ## What a slide looks like
 
-Slides are separated by `---`. Say one thing per slide, then show the evidence:
+Slides are separated by `---`. Say one thing per slide, then show the evidence.
+This is a whole deck file of one slide; a later slide follows a `---` line:
 
 ```markdown
----
 <!--
 id: departure
 -->
@@ -115,13 +115,15 @@ module is an implementation detail.
 | `mkdeck serve PATH` | Serve it, and reload when you save |
 | `mkdeck build PATH` | Write it to a folder, or to one HTML file |
 | `mkdeck rollout PAGES` | Turn Brax playback pages into rollouts that play offline |
-| `mkdeck check PATH` | Tell you which slides overflow the screen |
+| `mkdeck check PATH` | Tell you which slides overflow the screen (`--strict` exits with an error, for CI) |
 | `mkdeck export PATH` | Print it to a PDF (rollouts print as a still frame) |
 
 `check` and `export` drive headless Chromium through Playwright. Install the
 `check` extra (`pip install "mkdeck[check]"`) and run `python -m playwright
-install chromium` first. The extra has that name because `mkdeck check` was the
-first command to need it; `mkdeck export` uses it too.
+install chromium` first. With `uv tool install`, install `"mkdeck[check]"` and
+run `uvx playwright install chromium`. The extra has that name because `mkdeck
+check` was the first command to need it; `mkdeck export` uses it too. Check and
+export only decks you trust: raw HTML in a slide runs in that browser.
 
 ## Documentation
 

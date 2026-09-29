@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from mkdeck.check import browser_page
+from mkdeck.browser import browser_page
 from mkdeck.errors import DeckError
 from mkdeck.export import PRINT_READY_JS, _print_document, export_deck
 

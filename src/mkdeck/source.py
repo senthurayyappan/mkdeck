@@ -57,6 +57,11 @@ class DeckSource:
     ) -> None:
         """Serve the deck until interrupted, and read it again whenever its folder changes.
 
+        The first build uses `deck` as it is, but every rebuild reads the Markdown and
+        `deck.yml` from disk again, so a change made to `deck` in Python shows only until
+        the first edit. To serve a deck that is changed in Python, serve that `Deck`
+        with `Deck.serve` instead.
+
         The folder is watched apart from the ones `mkdeck build`, `check` and `export`
         write into by default (`site`, `report` and `deck.pdf`).
 
@@ -69,9 +74,17 @@ class DeckSource:
         Raises:
             DeckError: If the deck cannot be rendered or the port is taken.
         """
-        from mkdeck.server import serve_source  # the server pulls in the file watcher, so `import mkdeck` skips it
+        from mkdeck.build import build_deck  # imported here, so that `import mkdeck` loads neither
+        from mkdeck.server import serve  # the renderer nor the file watcher
 
-        serve_source(self, host=host, port=port, open_browser=open_browser, reload=reload)
+        pending: DeckSource | None = self
+
+        def build(root: Path, live: bool) -> None:
+            nonlocal pending
+            current, pending = pending or load_source(self.markdown), None  # the first build reuses the deck in hand
+            build_deck(current.deck, root, source=current.directory, live_reload=live)
+
+        serve(build, watch_paths=[self.directory], host=host, port=port, open_browser=open_browser, reload=reload)
 
 
 def find_markdown(path: Path | str) -> Path:

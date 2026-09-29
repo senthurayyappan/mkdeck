@@ -67,6 +67,17 @@ def test_signs_and_decimals_are_part_of_the_number() -> None:
     assert str(highlight_numbers("-0.65 m")) == '<span class="mkd-num">-0.65 m</span>'
 
 
+def test_a_speed_and_a_percentage_keep_their_whole_unit() -> None:
+    """`m/s` was cut after `m`, and `%` was no unit at all."""
+    assert str(highlight_numbers("at 2.10 m/s")) == 'at <span class="mkd-num">2.10 m/s</span>'
+    assert str(highlight_numbers("up 50% or 50 %")) == (
+        'up <span class="mkd-num">50%</span> or <span class="mkd-num">50 %</span>'
+    )
+    assert str(highlight_numbers("2 rad/s and 3 m")) == (
+        '<span class="mkd-num">2 rad/s</span> and <span class="mkd-num">3 m</span>'
+    )
+
+
 def test_the_unit_list_is_configurable() -> None:
     assert str(highlight_numbers("7 apples", units=["apples"])) == '<span class="mkd-num">7 apples</span>'
     assert str(highlight_numbers("7 apples", units=[])) == '<span class="mkd-num">7</span> apples'
@@ -188,6 +199,22 @@ def test_a_deck_opens_with_a_generated_title_slide() -> None:
 def test_a_deck_that_writes_its_own_title_slide_is_not_doubled() -> None:
     deck = Deck(title="Runs", slides=[Slide(layout="title", title="Runs"), Slide(sentence="Hi.")])
     assert render_deck(deck).count("<section") == 2
+
+
+def test_a_title_slide_the_author_wrote_is_the_opening_slide_whatever_it_says() -> None:
+    """A deck titled "Talk" that opens with `# My Talk` used to show both."""
+    deck = Deck(title="Talk", slides=[Slide(layout="title", title="My Talk"), Slide(sentence="Hi.")])
+    html = render_deck(deck)
+    assert html.count("<section") == 2
+    assert '<h1 class="mkd-title">Talk</h1>' not in html
+    assert "<title>Talk</title>" in html
+
+
+def test_a_markdown_deck_without_a_title_opens_with_its_own_first_slide() -> None:
+    html = render_deck(parse_markdown("# My Talk\n\n---\n\nHello.\n", source="deck.md"))
+    assert html.count("<section") == 2
+    assert "Slide Deck" not in html
+    assert "<title>My Talk</title>" in html
 
 
 def test_the_title_slide_can_be_turned_off() -> None:
@@ -445,12 +472,18 @@ def test_the_viewer_modules_are_on_disk_and_match_the_ones_the_browser_loads() -
     assert re.findall(r'\["([^"]+)", "([^"]+)"\]', block) == list(VIEWER_MODULES)
 
 
-def test_an_image_inside_a_bullet_or_a_cell_is_called_out_when_it_is_a_local_file() -> None:
-    with pytest.warns(DeckWarning, match=r'"assets/icon.png".*on a line of its own'):
-        html = str(render_slide(Slide(bullets=["a ![icon](assets/icon.png) bullet"])))
-    assert '<img src="assets/icon.png" alt="icon" />' in html  # the text is still drawn as written
-    with pytest.warns(DeckWarning, match="assets/cell.png"):
-        render_slide(Slide(table=Table(columns=["Run"], rows=[["![](assets/cell.png)"]])))
+def test_an_image_inside_a_bullet_or_a_cell_is_called_out_when_the_build_would_not_copy_it() -> None:
+    with pytest.warns(DeckWarning, match=r'"figs/icon.png".*under assets/'):
+        html = str(render_slide(Slide(bullets=["a ![icon](figs/icon.png) bullet"])))
+    assert '<img src="figs/icon.png" alt="icon" />' in html  # the text is still drawn as written
+    with pytest.warns(DeckWarning, match="assets/../cell.png"):
+        render_slide(Slide(table=Table(columns=["Run"], rows=[["![](assets/../cell.png)"]])))
+
+
+def test_an_image_under_assets_inside_a_bullet_is_copied_by_the_build_so_it_is_not_called_out() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeckWarning)
+        render_slide(Slide(bullets=["a ![icon](assets/icon.png) bullet", "![](./assets/deep/x%20y.png)"]))
 
 
 def test_a_remote_image_inside_a_bullet_needs_no_copy_and_is_not_called_out() -> None:

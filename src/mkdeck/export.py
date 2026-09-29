@@ -9,7 +9,7 @@ import dataclasses
 import tempfile
 from pathlib import Path
 
-from mkdeck.check import (
+from mkdeck.browser import (
     DEFAULT_SIZE,
     EMBED_SETTLE_MS,
     NETWORK_IDLE_MS,
@@ -89,7 +89,7 @@ def export_deck(
     out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="mkdeck-export-", ignore_cleanup_errors=True) as workdir:
         document = _print_document(Path(path), Path(workdir), size=size)
-        with browser_page(size) as page:
+        with browser_page(size, folder=document.parent) as page:
             page.goto(f"{document.resolve().as_uri()}?print-pdf")
             page.wait_for_function(PRINT_READY_JS, timeout=PRINT_WAIT_MS)
             with contextlib.suppress(timed_out):

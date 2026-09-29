@@ -297,7 +297,10 @@
         return;
       }
       try {
-        window.katex.render(tex, node, { displayMode: false, throwOnError: false });
+        window.katex.render(tex, node, {
+          displayMode: node.classList.contains("mkd-math-block"),
+          throwOnError: false,
+        });
       } catch (error) {
         node.textContent = tex;
       }
@@ -317,7 +320,9 @@
         slide.querySelectorAll(".mkd-bullets").length > 0 ||
         slide.querySelectorAll(".mkd-title").length > 0 ||
         slide.querySelectorAll(".mkd-math-block").length >= 2;
-      slide.classList.toggle("dense", crowded);
+      if (crowded) {
+        slide.classList.add("dense"); // never take away a "dense" the author set with classes:
+      }
     });
   }
 

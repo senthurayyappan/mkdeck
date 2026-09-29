@@ -12,6 +12,7 @@ import itertools
 import queue
 import shutil
 import signal
+import socket
 import sys
 import tempfile
 import threading
@@ -21,19 +22,17 @@ from contextlib import contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlsplit
 
-from watchfiles import DefaultFilter, watch
+from watchfiles import Change, DefaultFilter, watch
 
 from mkdeck._messages import warn_deck
-from mkdeck.build import build_deck
 from mkdeck.errors import DeckError
-from mkdeck.model import Deck
 from mkdeck.render import RELOAD_PATH
-from mkdeck.source import DeckSource, load_source
 
-__all__ = ["HEARTBEAT_SECONDS", "RELOAD_PATH", "dev_server", "serve_deck", "serve_source"]
+__all__ = ["RELOAD_PATH", "dev_server", "serve"]
 
-HEARTBEAT_SECONDS = 15.0
+_HEARTBEAT_SECONDS = 15.0
 """How often a quiet stream sends a comment, so proxies keep it open."""
 
 Rebuild = Callable[[Path, bool], None]
@@ -137,6 +136,9 @@ class _DeckServer(ThreadingHTTPServer):
         """
         self.hub = hub
         self.root = root
+        # Bound to this machine alone, only a request that names this machine is answered. A
+        # page on another site can otherwise point its own domain at 127.0.0.1 and read the deck.
+        self.loopback_only = _is_loopback(address[0])
         super().__init__(address, handler)
 
     def handle_error(self, request: Any, client_address: Any) -> None:
@@ -159,6 +161,21 @@ class _DeckHandler(SimpleHTTPRequestHandler):
     """Serve the built deck, plus the reload event stream."""
 
     protocol_version = "HTTP/1.1"
+
+    def parse_request(self) -> bool:
+        """Read the request, and refuse one whose `Host` is not this machine when that matters.
+
+        Returns:
+            True when the request is to be answered; False after an error has been sent.
+        """
+        if not super().parse_request():
+            return False
+        named = self.headers.get("Host")
+        strict = cast(_DeckServer, self.server).loopback_only
+        if strict and named is not None and not _is_loopback(_host_name(named)):
+            self.send_error(403, "This server answers only to localhost")
+            return False
+        return True
 
     def translate_path(self, path: str) -> str:
         """Map a URL to a file of the deck being served right now.
@@ -207,7 +224,7 @@ class _DeckHandler(SimpleHTTPRequestHandler):
             self.wfile.flush()
             while True:
                 try:
-                    message = channel.get(timeout=HEARTBEAT_SECONDS)
+                    message = channel.get(timeout=_HEARTBEAT_SECONDS)
                 except queue.Empty:
                     self.wfile.write(b": ping\n\n")
                 else:
@@ -246,6 +263,60 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
+def _ignoring_outputs(paths: Sequence[Path]) -> Callable[[Change, str], bool]:
+    """Build the filter that keeps a watch off what `build`, `check` and `export` write.
+
+    `watchfiles` reports absolute paths and its own ignore list matches text prefixes, so a
+    relative watch path would never match, and `site` would swallow `site-notes.md`. This
+    compares whole path components under the resolved watch paths instead.
+
+    Args:
+        paths: The folders being watched.
+
+    Returns:
+        A filter that says whether a change is one to rebuild for.
+    """
+    outputs = [path.resolve() / name for path in paths for name in _OUTPUTS]
+    default = DefaultFilter()
+
+    def keep(change: Change, path: str) -> bool:
+        location = Path(path)
+        return default(change, path) and not any(location.is_relative_to(output) for output in outputs)
+
+    return keep
+
+
+def _shown_host(host: str) -> str:
+    """Name the host to put in the URL of the deck.
+
+    Args:
+        host: The interface the server binds.
+
+    Returns:
+        `localhost` for an address that means every interface, which no browser can open;
+        an IPv6 address in the brackets a URL needs; and the host as given otherwise.
+    """
+    if host in {"", "0.0.0.0", "::"}:
+        return "localhost"
+    return f"[{host}]" if ":" in host else host
+
+
+def _host_name(header: str) -> str:
+    """Take the host name out of a `Host` header.
+
+    Args:
+        header: The header value, such as `localhost:5020` or `[::1]:5020`.
+
+    Returns:
+        The name without the port or the brackets, lowercase, or an empty string when the
+        header is not a host at all.
+    """
+    try:
+        return urlsplit(f"//{header}").hostname or ""
+    except ValueError:  # an unclosed bracket, for one
+        return ""
+
+
 def _watch_changes(
     paths: Sequence[Path],
     refresh: Callable[[], None],
@@ -266,12 +337,11 @@ def _watch_changes(
         live: Set as soon as the watch is up, or as soon as it is known that it never will be.
         failures: Where the error goes if the watch fails; read after `live` is set.
     """
-    ignored = DefaultFilter(ignore_paths=[path / name for path in paths for name in _OUTPUTS])
     try:
         for changes in watch(
-            *paths,
+            *(path.resolve() for path in paths),
             stop_event=stop,
-            watch_filter=ignored,
+            watch_filter=_ignoring_outputs(paths),
             debounce=_DEBOUNCE_MS,
             rust_timeout=_WATCH_POLL_MS,
             yield_on_timeout=True,
@@ -309,7 +379,8 @@ def dev_server(
             every rebuild.
         watch_paths: The folders to watch, empty to serve a fixed build.
         host: The interface to bind. Anything but a loopback address serves the deck
-            to the network, and warns.
+            to the network, and warns. Bound to a loopback address, the server answers
+            only requests whose `Host` header names this machine.
         port: The port to bind; 0 picks a free one.
         open_browser: True to open the deck in a browser once it is up.
         reload: True to watch `watch_paths` and push reloads.
@@ -320,6 +391,10 @@ def dev_server(
     Raises:
         DeckError: If the first build fails, the port is taken, or the files cannot be watched.
     """
+    if not 0 <= port <= 65535:
+        raise DeckError(
+            f"The port {port} is not one a server can listen on; choose a port from 0 to 65535 with --port."
+        )
     live = reload and bool(watch_paths)
     scratch = Path(tempfile.mkdtemp(prefix="mkdeck-"))
     hub = _ReloadHub()
@@ -354,7 +429,7 @@ def dev_server(
             server.root = folder  # one assignment: a request sees the old deck or the new one, never a mix
             while len(retired) > 1:  # a request that started before the switch may still be reading the last one
                 shutil.rmtree(retired.pop(0), ignore_errors=True)
-            print("mkdeck: rebuilt")
+            print("mkdeck: rebuilt", flush=True)
             hub.publish("reload")
             return
         print(f"mkdeck: {message}", file=sys.stderr)
@@ -363,16 +438,20 @@ def dev_server(
 
     try:
         first = make()
-        if not _is_loopback(host):
-            warn_deck(
-                f"The server is bound to {host}, so anyone who can reach this machine can read the deck and everything it embeds."
-            )
         try:
             server = _DeckServer((host, port), _DeckHandler, hub=hub, root=first)
+        except (socket.gaierror, UnicodeError) as exc:
+            raise DeckError(
+                f'The host "{host}" is not an address this machine can listen on: {exc}. Choose one with --host.'
+            ) from exc
         except OSError as exc:
             raise DeckError(
                 f"The server could not listen on {host}:{port}: {exc}. Choose another port with --port."
             ) from exc
+        if not _is_loopback(host):
+            warn_deck(
+                f"The server is bound to {host}, so anyone who can reach this machine can read the deck and everything it embeds."
+            )
         threads.append(threading.Thread(target=server.serve_forever, daemon=True))
         if live:
             threads.append(
@@ -392,7 +471,7 @@ def dev_server(
                 )
             elif watch_failures:
                 raise DeckError(f"The file watcher could not start: {watch_failures[0]}") from watch_failures[0]
-        url = f"http://{host}:{server.server_port}/"
+        url = f"http://{_shown_host(host)}:{server.server_port}/"
         if open_browser:
             try:
                 webbrowser.open(url)
@@ -428,92 +507,34 @@ def _wait_for_stop() -> None:
             signal.signal(signal.SIGTERM, previous)
 
 
-def _serve(
-    build: Rebuild, *, watch_paths: Sequence[Path], host: str, port: int, open_browser: bool, reload: bool
+def serve(
+    build: Rebuild,
+    *,
+    watch_paths: Sequence[Path],
+    host: str = "127.0.0.1",
+    port: int = 5020,
+    open_browser: bool = False,
+    reload: bool = True,
 ) -> None:
-    """Serve until interrupted.
+    """Serve a deck until interrupted; `Deck.serve` and `DeckSource.serve` call this.
+
+    The folders in `watch_paths` are watched, apart from the ones `mkdeck build`, `check`
+    and `export` write into by default (`site`, `report` and `deck.pdf`).
 
     Args:
-        build: Writes the deck into an empty folder.
+        build: Writes the deck into an empty folder that exists; see `dev_server`.
         watch_paths: The folders to watch, empty to serve a fixed build.
         host: The interface to bind.
         port: The port to bind.
         open_browser: True to open the deck in a browser once it is up.
-        reload: True to watch the source and push reloads.
+        reload: True to watch `watch_paths` and push reloads.
+
+    Raises:
+        DeckError: If the deck cannot be built, the port is taken, or the files cannot be watched.
     """
     with dev_server(
         build, watch_paths=watch_paths, host=host, port=port, open_browser=open_browser, reload=reload
     ) as url:
-        print(f"Slide deck: {url}")
-        print("Press Ctrl-C to stop.")
+        print(f"Slide deck: {url}", flush=True)
+        print("Press Ctrl-C to stop.", flush=True)
         _wait_for_stop()
-
-
-def serve_deck(
-    deck: Deck,
-    *,
-    source: Path | str | None = None,
-    host: str = "127.0.0.1",
-    port: int = 5020,
-    open_browser: bool = False,
-    reload: bool = True,
-) -> None:
-    """Serve a deck built in Python; `Deck.serve` is the public way to call this.
-
-    Args:
-        deck: The deck to serve.
-        source: The folder holding the deck's assets; it is watched when given.
-        host: The interface to bind.
-        port: The port to bind.
-        open_browser: True to open the deck in a browser once it is up.
-        reload: True to watch `source` and push reloads.
-
-    Raises:
-        DeckError: If the deck cannot be rendered or the port is taken.
-    """
-    folder = Path(source) if source is not None else None
-
-    def build(root: Path, live: bool) -> None:
-        build_deck(deck, root, source=folder, live_reload=live)
-
-    _serve(
-        build,
-        watch_paths=[folder] if folder is not None else [],
-        host=host,
-        port=port,
-        open_browser=open_browser,
-        reload=reload,
-    )
-
-
-def serve_source(
-    loaded: DeckSource,
-    *,
-    host: str = "127.0.0.1",
-    port: int = 5020,
-    open_browser: bool = False,
-    reload: bool = True,
-) -> None:
-    """Serve a deck from disk, reading it again whenever its folder changes; `DeckSource.serve` calls this.
-
-    The deck folder is watched, apart from the folders `mkdeck build`, `check` and
-    `export` write into by default (`site`, `report` and `deck.pdf`).
-
-    Args:
-        loaded: The deck to serve. Its Markdown file is read again on every rebuild.
-        host: The interface to bind.
-        port: The port to bind.
-        open_browser: True to open the deck in a browser once it is up.
-        reload: True to watch the source folder and push reloads.
-
-    Raises:
-        DeckError: If the deck cannot be loaded or the port is taken.
-    """
-    pending: DeckSource | None = loaded
-
-    def build(root: Path, live: bool) -> None:
-        nonlocal pending
-        current, pending = pending or load_source(loaded.markdown), None  # the first build reuses the deck in hand
-        build_deck(current.deck, root, source=current.directory, live_reload=live)
-
-    _serve(build, watch_paths=[loaded.directory], host=host, port=port, open_browser=open_browser, reload=reload)

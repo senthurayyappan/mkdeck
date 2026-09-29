@@ -87,7 +87,10 @@ def test_new_scaffolds_a_deck_that_builds(tmp_path) -> None:
     assert (folder / "assets").is_dir()
     result = runner.invoke(app, ["build", str(folder), "-o", str(tmp_path / "site")])
     assert result.exit_code == 0, result.output
-    assert "Vault Runs" in (tmp_path / "site" / "index.html").read_text(encoding="utf-8")
+    html = (tmp_path / "site" / "index.html").read_text(encoding="utf-8")
+    assert "Vault Runs" in html
+    assert '<span class="mkd-num">134 N m</span>' in html  # the scaffold's own example of a highlighted number
+    assert html.count("<section") == 4  # the scaffold's heading is its title slide, so none is generated
 
 
 def test_new_refuses_a_folder_that_holds_something(tmp_path) -> None:
@@ -123,15 +126,17 @@ def test_a_bad_viewport_is_refused_before_the_browser_starts(deck_file, tmp_path
 
 def test_check_says_how_to_install_playwright(deck_file, tmp_path, monkeypatch) -> None:
     from mkdeck import check as check_module
+    from mkdeck.browser import INSTALL_HINT
     from mkdeck.errors import DeckError
 
     def missing() -> None:
-        raise DeckError(check_module.INSTALL_HINT)
+        raise DeckError(INSTALL_HINT)
 
     monkeypatch.setattr(check_module, "require_playwright", missing)
     result = runner.invoke(app, ["check", str(deck_file), "--out", str(tmp_path / "report")])
     assert result.exit_code == 1
     assert "mkdeck[check]" in result.output
+    assert "uv tool install" in result.output
 
 
 # --------------------------------------------------------------------------- #
@@ -341,3 +346,37 @@ def test_rollout_converts_what_it_can_and_still_fails(tmp_path) -> None:
     assert "1 of 2 pages could not be converted" in result.output
     assert (out / "good.rollout").is_file()
     assert not (out / "bad.rollout").exists()
+
+
+@pytest.mark.parametrize(
+    ("flags", "extra", "code"),
+    [
+        ([], ["--strict"], 0),
+        (["OVERFLOW top 0px bottom 9px"], [], 0),
+        (["OVERFLOW top 0px bottom 9px"], ["--strict"], 1),
+    ],
+)
+def test_check_fails_on_a_flagged_slide_only_when_asked_to(
+    deck_file, tmp_path, monkeypatch, flags, extra, code
+) -> None:
+    monkeypatch.setattr(cli, "check_deck", lambda *args, **kwargs: [{"n": 1, "flags": flags}])
+    result = runner.invoke(app, ["check", str(deck_file), "--out", str(tmp_path / "report"), *extra])
+    assert result.exit_code == code, result.output
+    assert "viewport 1920x1080" in result.output
+    if code:
+        assert "1 of 1 slides are flagged" in result.output
+
+
+def test_a_port_out_of_range_is_a_usage_error_not_a_traceback(deck_file) -> None:
+    result = runner.invoke(app, ["serve", str(deck_file), "--port", "99999"])
+    assert result.exit_code == 2
+    assert "Traceback" not in result.output
+    assert "65535" in result.output
+
+
+def test_a_single_file_build_is_one_file_for_a_html_name_and_a_folder_for_any_other(deck_file, tmp_path) -> None:
+    for name, produced in (("talk.html", "talk.html"), ("talk.txt", "talk.txt/index.html")):
+        result = runner.invoke(app, ["build", str(deck_file), "--single-file", "-o", str(tmp_path / "out" / name)])
+        assert result.exit_code == 0, result.output
+        assert (tmp_path / "out" / produced).is_file()
+        assert f"Wrote {tmp_path / 'out' / produced}" in result.output

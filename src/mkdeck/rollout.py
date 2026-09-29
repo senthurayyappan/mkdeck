@@ -131,8 +131,10 @@ def _pack(typecode: str, rows: Iterable[Iterable[Any]]) -> bytes:
 
 
 def _is_number(value: Any) -> bool:
-    """Say whether a JSON value is a number (a bool is not one)."""
-    return isinstance(value, int | float) and not isinstance(value, bool)
+    """Say whether a JSON value is a finite number (a bool is not one, and neither is NaN)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    return isinstance(value, int) or math.isfinite(value)
 
 
 def _vector(value: Any, length: int, what: str) -> list[float]:
@@ -150,7 +152,7 @@ def _vector(value: Any, length: int, what: str) -> list[float]:
         DeckError: If it is not exactly ``length`` numbers.
     """
     if not isinstance(value, list | tuple) or len(value) != length or not all(_is_number(item) for item in value):
-        raise DeckError(f"the Brax scene's {what} is not a list of {length} numbers.")
+        raise DeckError(f"the Brax scene's {what} is not a list of {length} finite numbers.")
     return list(value)
 
 
@@ -211,6 +213,11 @@ def _write_atomic(path: Path, data: bytes) -> None:
     try:
         with os.fdopen(handle, "wb") as out:
             out.write(data)
+        # mkstemp makes a file only its owner can read, which a web server, another user or a
+        # container would then refuse to serve; a new file takes the umask like any other.
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(name, 0o666 & ~umask)
         os.replace(name, path)
     except BaseException:
         Path(name).unlink(missing_ok=True)
@@ -356,10 +363,9 @@ def to_rollout(scene: dict[str, Any], *, name: str = "") -> Rollout:
     # buffers start where the shared mesh tail ends.
     base = len(mesh_tail)
     half = frames * bodies * 3 * 4
-    timestep = float(scene.get("opt", {}).get("timestep", 0.0))
-    if not math.isfinite(timestep) or timestep < 0:
-        raise DeckError(f"the Brax scene's timestep {timestep} is not a positive number of seconds.")
-    timestep = timestep or 1 / 30
+    timestep = float(scene.get("opt", {}).get("timestep", 0.0)) or 1 / 30
+    if not math.isfinite(timestep) or timestep < 0 or not math.isfinite(1 / timestep):
+        raise DeckError(f"the Brax scene's timestep {timestep} is not a usable number of seconds.")
     header = {
         "version": _FORMAT_VERSION,
         "meta": {
@@ -422,7 +428,10 @@ def meshes_of(path: Path | str) -> str | None:
             head = handle.read(12)
             if head[:4] != _MAGIC:
                 return None
-            raw = handle.read(struct.unpack("<Q", head[4:12])[0]) if len(head) == 12 else b""
+            length = struct.unpack("<Q", head[4:12])[0] if len(head) == 12 else 0
+            raw = handle.read(
+                min(length, os.fstat(handle.fileno()).st_size)
+            )  # a length past the file is damage, not a size to allocate
     except FileNotFoundError:
         return None
     except OSError as exc:

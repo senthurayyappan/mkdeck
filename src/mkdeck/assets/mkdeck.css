@@ -158,6 +158,17 @@ section.mkd-slide {
   margin-top: 2px;
 }
 
+/* KaTeX draws a display formula in a block of its own, centred with room above and below.
+   The slide sets the spacing and the alignment itself. */
+.mkd-math-block .katex-display {
+  margin: 0;
+  text-align: left;
+}
+
+.mkd-math-block .katex-display > .katex {
+  text-align: left;
+}
+
 /* --------------------------------------------------------------------------
  * Figures
  * ------------------------------------------------------------------------ */

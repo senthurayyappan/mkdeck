@@ -8,67 +8,37 @@ it.
 import contextlib
 import json
 import tempfile
-from collections.abc import Iterator
-from contextlib import contextmanager
+from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 from urllib.parse import urlparse
-from urllib.request import url2pathname
 
-from mkdeck.errors import DeckError
+from mkdeck.browser import (
+    DEFAULT_SIZE,
+    EMBED_SETTLE_MS,
+    NETWORK_IDLE_MS,
+    SETTLE_JS,
+    browser_page,
+    file_path,
+    require_playwright,
+)
 from mkdeck.source import load_source
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page, Route
 
-__all__ = [
-    "DEFAULT_SIZE",
-    "EMBED_SETTLE_MS",
-    "NETWORK_IDLE_MS",
-    "SETTLE_JS",
-    "Probe",
-    "browser_page",
-    "check_deck",
-    "report_text",
-    "require_playwright",
-    "slide_flags",
-]
+__all__ = ["Probe", "check_deck", "report_text", "slide_flags"]
 
 EMBED_BLOCK_BYTES = 2_000_000
 """Embeds larger than this are replaced with a stub so the check stays fast."""
-
-DEFAULT_SIZE = (1920, 1080)
-
-INSTALL_HINT = (
-    "This command needs Playwright and a Chromium for it, which mkdeck does not install by default.\n"
-    "  uv add 'mkdeck[check]'   (or: pip install 'mkdeck[check]')\n"
-    "  uv run playwright install chromium   (or: playwright install chromium)\n"
-    "Both `mkdeck check` and `mkdeck export` need them."
-)
 
 BLOCKED_BODY = (
     '<html><body style="margin:0;background:#f4f4f4;font:14px Roboto,sans-serif;color:#999">'
     '<div style="padding:12px">embed (blocked in the checker)</div></body></html>'
 )
 
-PROBE = Path(__file__).with_name("probe.js").read_text(encoding="utf-8")
-"""The JavaScript that measures the slide on screen; it lives beside this module."""
-
 ROLLOUT_WAIT_MS = 20_000
 """How long a slide's rollouts and diagrams get to load before the check reports them as failed."""
-
-NETWORK_IDLE_MS = 4_000
-"""How long a slide gets to stop fetching before its screenshot is taken anyway."""
-
-EMBED_SETTLE_MS = 300
-"""A figure is an iframe of another origin, so its own paint cannot be waited on."""
-
-SETTLE_JS = """
-() => document.fonts.ready.then(
-  () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-)
-"""
-"""Resolves once fonts are in and two frames have been drawn."""
 
 FIGURES_DONE_JS = """
 () => {
@@ -152,71 +122,10 @@ class Probe(TypedDict, total=False):
     flags: list[str]
 
 
-def require_playwright() -> Any:
-    """Import Playwright's synchronous API, or explain how to install it.
-
-    Returns:
-        The ``playwright.sync_api`` module.
-
-    Raises:
-        DeckError: If Playwright is not installed.
-    """
-    try:
-        import playwright.sync_api as api
-    except ImportError as exc:  # pragma: no cover - depends on the install
-        raise DeckError(INSTALL_HINT) from exc
-    return api
-
-
-def _first_line(exc: Exception) -> str:
-    """Take the headline of a Playwright error, which follows it with a call log."""
-    return (str(exc).splitlines() or [type(exc).__name__])[0]
-
-
-@contextmanager
-def browser_page(size: tuple[int, int]) -> Iterator["Page"]:
-    """Open a page in headless Chromium and close the browser afterwards.
-
-    Args:
-        size: The viewport, as ``(width, height)`` in pixels.
-
-    Yields:
-        The page.
-
-    Raises:
-        DeckError: If Playwright is missing, Chromium cannot start, or
-            Chromium fails or times out while the body runs.
-    """
-    api = require_playwright()
-    with api.sync_playwright() as playwright:
-        try:
-            browser = playwright.chromium.launch()
-        except api.Error as exc:  # pragma: no cover - depends on the machine
-            raise DeckError(
-                f"Could not start headless Chromium: {_first_line(exc)}\n"
-                "Install it with: uv run playwright install chromium (or: playwright install chromium)\n"
-                "On a bare Linux machine, `playwright install-deps chromium` adds the system libraries it needs."
-            ) from exc
-        try:
-            yield browser.new_page(viewport={"width": size[0], "height": size[1]})
-        except api.Error as exc:
-            what = "timed out" if isinstance(exc, api.TimeoutError) else "failed"
-            raise DeckError(f"Chromium {what} while opening the deck: {_first_line(exc)}") from exc
-        finally:
-            with contextlib.suppress(api.Error):
-                browser.close()
-
-
-def file_path(url: str) -> Path:
-    """Turn a ``file://`` URL into the path it names.
-
-    Args:
-        url: A ``file://`` URL, percent-encoded as a browser writes it.
-
-    Returns:
-        The path, decoded and in the form of the current platform.
-    """
-    return Path(url2pathname(urlparse(url).path))
+@cache
+def probe_script() -> str:
+    """Read the JavaScript that measures the slide on screen; it lives beside this module."""
+    return Path(__file__).with_name("probe.js").read_text(encoding="utf-8")
 
 
 def blocks_embed(url: str, *, subframe: bool) -> bool:
@@ -248,7 +157,7 @@ def _route(route: "Route") -> None:
     if blocks_embed(request.url, subframe=subframe):
         route.fulfill(status=200, content_type="text/html", body=BLOCKED_BODY)
     else:
-        route.continue_()
+        route.fallback()  # on to the rule that keeps the page to the files of its deck
 
 
 def _prepare(path: Path, workdir: Path) -> Path:
@@ -376,7 +285,7 @@ def _probe_slide(page: "Page", number: int, *, shots: bool) -> Probe:
         if page.evaluate("!!document.querySelector('.reveal .slides section.present deck-embed')"):
             page.wait_for_timeout(EMBED_SETTLE_MS)
     page.evaluate(SETTLE_JS)
-    record: Probe = page.evaluate(PROBE)
+    record: Probe = page.evaluate(probe_script())
     record["n"] = number
     return record
 
@@ -412,10 +321,12 @@ def check_deck(
     require_playwright()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
+    for stale in out.glob("slide_*.png"):  # from an earlier run, maybe of a longer deck
+        stale.unlink()
     records: list[Probe] = []
     with tempfile.TemporaryDirectory(prefix="mkdeck-check-", ignore_cleanup_errors=True) as workdir:
         document = _prepare(Path(path), Path(workdir))
-        with browser_page(size) as page:
+        with browser_page(size, folder=document.parent) as page:
             page.route("**/*", _route)
             page.goto(document.resolve().as_uri())
             page.wait_for_function("window.Reveal && Reveal.isReady()")

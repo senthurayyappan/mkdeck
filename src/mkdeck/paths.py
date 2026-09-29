@@ -14,6 +14,7 @@ from mkdeck._messages import suggest, warn_deck
 from mkdeck.errors import DeckError
 
 __all__ = [
+    "ASSETS_DIRNAME",
     "ASSET_BASE",
     "ASSET_ROOT",
     "asset_path_error",
@@ -34,6 +35,9 @@ ASSET_ROOT = Path(__file__).resolve().parent / "assets"
 
 ASSET_BASE = "mkdeck-assets"
 """Folder the shipped assets are copied into, next to `index.html`."""
+
+ASSETS_DIRNAME = "assets"
+"""The deck's own asset folder, copied into the output as it stands."""
 
 _REMOTE_PREFIXES = ("http://", "https://", "//", "data:")
 _WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
@@ -111,10 +115,13 @@ def resolve_inside(root: Path, rel: str) -> Path | None:
         rel: The path, relative to `root`; use `local_path` on a reference first.
 
     Returns:
-        The resolved path, links followed, or `None` when it leaves `root`. The file
-        need not exist.
+        The resolved path, links followed, or `None` when it leaves `root` or cannot
+        name a file. The file need not exist.
     """
-    target = (root / rel).resolve()
+    try:
+        target = (root / rel).resolve()
+    except ValueError:  # a path holding a NUL character names no file
+        return None
     return target if stays_inside(target, root) else None
 
 
@@ -204,8 +211,9 @@ def validate_src(src: str) -> str | None:
     text = src.strip()
     if not text:
         return "The embed has an empty src; point it at a page or an image under the deck folder."
+    path = local_path(text)
     absolute = f'The embed src "{src}" is an absolute path; make it relative to the deck folder.'
-    if _WINDOWS_DRIVE.match(text):
+    if _WINDOWS_DRIVE.match(path):
         return absolute
     scheme = _URL_SCHEME.match(text)
     if scheme is not None and (scheme.group("slashes") or scheme.group("scheme").lower() in _OPAQUE_SCHEMES):
@@ -215,7 +223,8 @@ def validate_src(src: str) -> str | None:
             f'The embed src "{src}" has a "{scheme.group("scheme")}:" scheme, which is not supported; '
             "use a path relative to the deck folder, or an http(s) URL."
         )
-    path = local_path(text)
+    if "\0" in path:
+        return f"The embed src {src!r} holds a NUL character, which no file name can; remove it."
     if path.startswith(("/", "\\")):
         return absolute
     depth = 0

@@ -74,44 +74,63 @@ Markdown passes HTML through, so you use the element in the slide text:
 Departure speed reaches <deck-mark type="circle">2.10 m/s</deck-mark> at 22 N m.
 ```
 
+### Scripts run as classic scripts
+
+mkdeck loads each `extra_js` file as a classic script, not as a module. A folder
+build links it with `<script src>`, and a `--single-file` build writes it inline
+into a `<script>`. A top-level `import ... from "..."` is then a syntax error
+("Cannot use import statement outside a module"). Browsers refuse to load a
+module from a `file://` page, which is how a deck that someone double-clicks
+opens, so mkdeck keeps to classic scripts.
+
+To use an ES module, load it with a dynamic `import()`, which a classic script
+may call. It works from a served deck and from a file, as long as the module's
+address can be reached: a full `https://` URL always can. A library that
+ships a plain script build, one that defines a global, needs no `import` at all:
+list it in `extra_js` before your file.
+
 ### Example: hand-drawn marks
 
 This component circles a number on the slide. It uses
 [rough-notation](https://roughnotation.com/), a 10 KB library that draws
-sketched marks over any element. The example imports it from a CDN, so the
-slide needs a network connection. To stay offline, save the library under
-`assets/` and import it by a relative path.
+sketched marks over any element. The example imports it from a CDN with a
+dynamic `import()`, so the slide needs a network connection.
 
 ```js
 // theme/marks.js
-import { annotate } from "https://esm.sh/rough-notation@0.5.1";
+(async () => {
+  const { annotate } = await import("https://esm.sh/rough-notation@0.5.1");
 
-class DeckMark extends HTMLElement {
-  connectedCallback() {
-    if (this.annotation) { return; }           // reveal moves the node, so guard it
-    this.annotation = annotate(this, {
-      type: this.getAttribute("type") || "circle",   // circle, underline, box, highlight
-      color: this.getAttribute("color") || "var(--mkd-accent)",
-      strokeWidth: 2,
-      padding: 6,
-      animationDuration: 700,
-      multiline: this.hasAttribute("multiline"),
-    });
-    // Draw the mark when the slide arrives. Reset it when the slide leaves,
-    // so a second visit draws it again.
-    this.unsubscribe = window.mkdeck.onSlide(({ slide }) => {
-      if (slide && slide.contains(this)) { this.annotation.show(); }
-      else { this.annotation.hide(); }
-    });
+  class DeckMark extends HTMLElement {
+    connectedCallback() {
+      if (this.annotation) { return; }           // reveal moves the node, so guard it
+      this.annotation = annotate(this, {
+        type: this.getAttribute("type") || "circle",   // circle, underline, box, highlight
+        color: this.getAttribute("color") || "var(--mkd-accent)",
+        strokeWidth: 2,
+        padding: 6,
+        animationDuration: 700,
+        multiline: this.hasAttribute("multiline"),
+      });
+      // Draw the mark when the slide arrives. Reset it when the slide leaves,
+      // so a second visit draws it again.
+      this.unsubscribe = window.mkdeck.onSlide(({ slide }) => {
+        if (slide && slide.contains(this)) { this.annotation.show(); }
+        else { this.annotation.hide(); }
+      });
+    }
+
+    disconnectedCallback() {
+      if (this.unsubscribe) { this.unsubscribe(); }
+    }
   }
 
-  disconnectedCallback() {
-    if (this.unsubscribe) { this.unsubscribe(); }
-  }
-}
-
-customElements.define("deck-mark", DeckMark);
+  customElements.define("deck-mark", DeckMark);
+})();
 ```
+
+The element is defined once the import has arrived. A `<deck-mark>` already on
+the page is upgraded at that moment, so the order does not matter.
 
 ```css
 /* theme/marks.css — the element is inline, and must not move the line. */

@@ -1,10 +1,16 @@
 """The slide model: the one intermediate representation of a deck.
 
 The Markdown parser in `mkdeck.markdown` produces these dataclasses and the Python API
-builds them directly, so both paths render through the same code. Nothing here emits HTML
-or reads a file; it only holds the deck and states the rules a deck has to keep.
+builds them directly, so both paths render through the same code. This module holds the
+deck and states the rules a deck has to keep. It emits no HTML and reads no file itself:
+`Deck.build` and `Deck.serve` hand the deck to `mkdeck.build` and `mkdeck.server`, which
+they import when called, so that `import mkdeck` does not load the renderer or the file
+watcher.
 """
 
+import json
+import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path, PurePosixPath
@@ -26,6 +32,7 @@ __all__ = [
     "Slide",
     "Table",
     "deck_has_rollouts",
+    "raw_rollout_tags",
     "resolve_embed_kind",
     "resolve_layout",
     "slide_name",
@@ -67,6 +74,8 @@ DEFAULT_UNITS: tuple[str, ...] = (
     "kg",
     "m",
     "s",
+    "m/s",
+    "%",
     "percent",
     "degrees",
 )
@@ -148,7 +157,8 @@ class Deck:
     """A whole deck.
 
     Attributes:
-        title: The deck title, shown on the generated opening slide.
+        title: The deck title: the title of the page, and the text of the generated
+            opening slide.
         date: The deck date, shown on the opening slide and in the chrome.
         theme: The name of the theme stylesheet to link.
         slides: The slides, in the order they are shown.
@@ -156,7 +166,9 @@ class Deck:
         extra_css: Extra stylesheets, linked after the theme.
         extra_js: Extra scripts, loaded after `mkdeck.js`.
         reveal: Options merged into `Reveal.initialize`.
-        title_slide: Whether to generate the opening title slide.
+        title_slide: Whether to generate the opening title slide from `title` and `date`.
+            It is left out when the first slide is itself a title slide (`layout="title"`),
+            which is then the opening slide.
     """
 
     title: str
@@ -197,9 +209,9 @@ class Deck:
             The path of the written HTML document.
 
         Raises:
-            DeckError: If the deck or a slide breaks a rule of the model, the output
-                folder is the source folder, or a file the deck names is outside the
-                source folder.
+            DeckError: If the deck or a slide breaks a rule of the model, the source
+                folder does not exist, the output folder is the source folder or its
+                `assets` folder, or a file the deck names is outside the source folder.
         """
         from mkdeck.build import build_deck
 
@@ -216,26 +228,30 @@ class Deck:
     ) -> None:
         """Serve this deck until interrupted.
 
+        The deck is the one in hand: it is built again, unchanged, whenever a file under
+        `source` changes. The Python code that made the slides is not run again.
+
         Args:
-            source: The folder the deck's assets live in; it is watched when given.
+            source: The folder the deck's assets live in; the current directory when
+                omitted. It is watched, and the page reloads when a file in it changes.
             host: The interface to bind.
             port: The port to bind.
             open_browser: True to open the deck in a browser once it is up.
             reload: True to watch `source` and push reloads.
 
         Raises:
-            DeckError: If the deck cannot be rendered or the port is taken.
+            DeckError: If the deck cannot be rendered, the source folder does not exist,
+                or the port is taken.
         """
-        from mkdeck.server import serve_deck
+        from mkdeck.build import build_deck
+        from mkdeck.server import serve
 
-        serve_deck(
-            self,
-            source=source,
-            host=host,
-            port=port,
-            open_browser=open_browser,
-            reload=reload,
-        )
+        folder = Path(source) if source is not None else Path.cwd()
+
+        def build(root: Path, live: bool) -> None:
+            build_deck(self, root, source=folder, live_reload=live)
+
+        serve(build, watch_paths=[folder], host=host, port=port, open_browser=open_browser, reload=reload)
 
 
 def slide_name(slide: Slide, index: int | None = None) -> str:
@@ -292,6 +308,40 @@ def resolve_embed_kind(embed: Embed) -> Literal["iframe", "image", "rollout"]:
     return "iframe" if suffix in {".html", ".htm"} else "image"
 
 
+_ROLLOUT_TAG = re.compile(r"<deck-rollout\b[^>]*>?", re.IGNORECASE)
+
+
+def _slide_texts(slide: Slide) -> Iterator[str]:
+    """Walk the text of a slide that takes raw HTML.
+
+    Args:
+        slide: The slide to walk.
+
+    Yields:
+        The title, sentence, raw HTML, bullets, figure labels and table cells that are set.
+    """
+    yield from (text for text in (slide.title, slide.sentence, slide.html, *slide.bullets) if text)
+    yield from (embed.label for embed in slide.embeds if embed.label)
+    if slide.table is not None:
+        for cells in (slide.table.columns, *slide.table.rows):
+            yield from map(str, cells)
+
+
+def raw_rollout_tags(deck: Deck) -> list[str]:
+    """Find the `<deck-rollout>` elements the slides write in raw HTML.
+
+    A figure whose source is a rollout becomes one of these elements without the author
+    writing it. Writing it by hand is how a rollout gets options such as `data-view`.
+
+    Args:
+        deck: The deck to look through.
+
+    Returns:
+        The opening tag of each element, as written.
+    """
+    return [tag for slide in deck.slides for text in _slide_texts(slide) for tag in _ROLLOUT_TAG.findall(text)]
+
+
 def deck_has_rollouts(deck: Deck) -> bool:
     """Say whether any slide draws a rollout.
 
@@ -302,9 +352,11 @@ def deck_has_rollouts(deck: Deck) -> bool:
         deck: The deck to look through.
 
     Returns:
-        True when at least one embed resolves to a rollout.
+        True when an embed resolves to a rollout, or a slide writes a `<deck-rollout>`
+        element in raw HTML.
     """
-    return any(resolve_embed_kind(embed) == "rollout" for slide in deck.slides for embed in slide.embeds)
+    figures = any(resolve_embed_kind(embed) == "rollout" for slide in deck.slides for embed in slide.embeds)
+    return figures or bool(raw_rollout_tags(deck))
 
 
 def validate_slide(slide: Slide, *, index: int | None = None, source: Path | str | None = None) -> None:
@@ -351,7 +403,8 @@ def validate_deck(deck: Deck, *, source: Path | str | None = None) -> None:
         source: The deck file or folder, used in the error messages.
 
     Raises:
-        DeckError: If a setting or a slide breaks a rule, or two slides share an id.
+        DeckError: If a setting or a slide breaks a rule, the deck would show nothing, or
+            two slides share an id.
     """
     fail = partial(DeckError, source=source)
     _expect_text(deck.title, "title", fail=fail)
@@ -371,12 +424,21 @@ def validate_deck(deck: Deck, *, source: Path | str | None = None) -> None:
         raise fail(
             f'The deck setting "reveal" has to be a mapping, but it holds a value of type {type(deck.reveal).__name__}.'
         )
+    try:
+        json.dumps(deck.reveal)
+    except (TypeError, ValueError) as error:
+        raise fail(f'The deck setting "reveal" has to hold only values that JSON can write: {error}.') from error
     if not isinstance(deck.title_slide, bool):
         raise fail(
             f'The deck setting "title_slide" has to be true or false, not a value of type {type(deck.title_slide).__name__}.'
         )
     if not isinstance(deck.slides, list) or not all(isinstance(slide, Slide) for slide in deck.slides):
         raise fail("The deck's slides have to be a list of Slide objects.")
+    if not deck.slides and not deck.title_slide:
+        raise fail(
+            "The deck has no slides and no title slide, so there is nothing to show; "
+            "write a slide, or give the deck a title so that it opens with a title slide."
+        )
     seen: dict[str, int] = {}
     for index, slide in enumerate(deck.slides):
         validate_slide(slide, index=index, source=source)

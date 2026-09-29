@@ -5,24 +5,24 @@
 // It runs the real mkdeck-rollout.js (bundleFrom, in a stubbed page) to build the
 // bundle the viewer reads, then the real bundle_parser.js on that. A rollout's shared
 // meshes are looked up beside the file, as a single-file deck carries them inline.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import vm from "node:vm";
 
 const [assets, file] = process.argv.slice(2);
 const folder = dirname(file);
 
-const inline = (selector) => {
-  const name = /data-mkd-rollout="(.*)"\]$/.exec(selector)?.[1];
-  try {
-    return name ? { textContent: readFileSync(join(folder, name)).toString("base64") } : null;
-  } catch {
-    return null;
-  }
-};
+// Every file beside the rollout stands in for a payload the single-file deck carries inline.
+const inline = () =>
+  readdirSync(folder).map((name) => ({
+    getAttribute: () => name,
+    get textContent() {
+      return readFileSync(join(folder, name)).toString("base64");
+    },
+  }));
 const sandbox = {
   window: { location: { protocol: "http:" }, customElements: { get: () => true, define() {} }, console },
-  document: { querySelector: inline },
+  document: { querySelectorAll: inline },
   atob, Blob, Response, DecompressionStream, TextDecoder, TextEncoder,
 };
 const script = readFileSync(join(assets, "mkdeck-rollout.js"), "utf8");

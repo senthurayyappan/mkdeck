@@ -6,16 +6,15 @@ from pathlib import Path
 import pytest
 
 from mkdeck import check as check_module
+from mkdeck.browser import browser_page, file_path
 from mkdeck.check import (
     EMBED_BLOCK_BYTES,
-    PROBE,
     _format_row,
     _prepare,
     _route,
     blocks_embed,
-    browser_page,
     check_deck,
-    file_path,
+    probe_script,
     report_text,
     slide_flags,
 )
@@ -98,8 +97,7 @@ def test_the_report_text_has_a_header_and_a_row_per_slide() -> None:
 
 def test_the_probe_ships_beside_the_module_and_reports_rollouts() -> None:
     assert Path(check_module.__file__).with_name("probe.js").is_file()
-    assert "rollout_errors" in PROBE
-    assert "MKDECK_BROWSER_LIBS" not in Path(check_module.__file__).read_text(encoding="utf-8")
+    assert "rollout_errors" in probe_script()
 
 
 # --------------------------------------------------------------------------- #
@@ -249,3 +247,81 @@ def test_a_diagram_that_did_not_draw_is_flagged(chromium, tmp_path, script, flag
     )
     (record,) = check_deck(folder, out=tmp_path / "report", size=(1280, 720), shots=False)
     assert record["flags"] == flags
+
+
+def hostile_deck(tmp_path: Path) -> tuple[Path, Path]:
+    """A deck whose raw HTML frames a file outside it, as well as one of its own."""
+    secret = tmp_path / "secret.html"
+    secret.write_text("<html><body>SECRETTEXT</body></html>")
+    folder = tmp_path / "deck"
+    (folder / "assets").mkdir(parents=True)
+    (folder / "assets" / "own.html").write_text("<html><body>OWNTEXT</body></html>")
+    (folder / "deck.md").write_text(
+        f'---\ntitle: T\ntitle_slide: false\n---\n\n<iframe src="{secret.as_uri()}"></iframe>\n\n'
+        '<iframe src="assets/own.html"></iframe>\n'
+    )
+    return folder, secret
+
+
+def test_a_page_in_the_browser_cannot_read_a_local_file_outside_its_deck(chromium, tmp_path) -> None:
+    """Raw HTML such as an iframe of `file:///etc/hosts` was drawn into check screenshots and the PDF."""
+    folder, _ = hostile_deck(tmp_path)
+    document = _prepare(folder, tmp_path / "work")
+    with browser_page((1280, 720), folder=document.parent) as page:
+        page.goto(document.as_uri())
+        page.wait_for_function("window.Reveal && Reveal.isReady()")
+        page.wait_for_function("Array.from(document.querySelectorAll('iframe')).length === 2")
+        page.wait_for_timeout(500)
+        texts = [frame.content() for frame in page.frames[1:]]
+    assert any("OWNTEXT" in text for text in texts)
+    assert not any("SECRETTEXT" in text for text in texts)
+
+
+def test_check_and_export_both_keep_the_page_to_the_folder_of_its_deck(chromium, tmp_path, monkeypatch) -> None:
+    from mkdeck import export as export_module
+
+    folder, _ = hostile_deck(tmp_path)
+    folders: list[Path | None] = []
+
+    def spy(size, *, folder=None):
+        folders.append(folder)
+        return browser_page(size, folder=folder)
+
+    monkeypatch.setattr(check_module, "browser_page", spy)
+    monkeypatch.setattr(export_module, "browser_page", spy)
+    check_deck(folder, out=tmp_path / "report", size=(640, 360), shots=False)
+    export_module.export_deck(folder, tmp_path / "deck.pdf", size=(640, 360))
+    assert len(folders) == 2
+    assert all(isinstance(path, Path) for path in folders)
+
+
+def test_a_check_clears_the_screenshots_of_an_earlier_longer_run(chromium, rollout_deck, tmp_path) -> None:
+    out = tmp_path / "report"
+    out.mkdir()
+    for number in (5, 6, 7):
+        (out / f"slide_{number:02d}.png").write_bytes(b"old")
+    (out / "notes.txt").write_text("mine")
+    check_deck(rollout_deck, out=out, size=(640, 360))
+    assert sorted(path.name for path in out.glob("slide_*.png")) == [f"slide_0{n}.png" for n in (1, 2, 3, 4)]
+    assert (out / "notes.txt").read_text() == "mine"
+    check_deck(rollout_deck, out=out, size=(640, 360), shots=False)
+    assert not list(out.glob("slide_*.png"))
+
+
+def test_strict_check_exits_with_an_error_on_a_deck_that_overflows(chromium, tmp_path) -> None:
+    from typer.testing import CliRunner
+
+    from mkdeck.cli import app
+
+    deck = tmp_path / "deck.md"
+    deck.write_text(
+        "---\ntitle: T\ntitle_slide: false\n---\n\nToo much.\n\n" + "\n".join(f"- point {n}" for n in range(60))
+    )
+    runner = CliRunner()
+    args = ["check", str(deck), "--size", "640x360", "--no-shots", "--out", str(tmp_path / "report")]
+    lenient = runner.invoke(app, args)
+    assert lenient.exit_code == 0, lenient.output
+    assert "OVERFLOW" in lenient.output
+    strict = runner.invoke(app, [*args, "--strict"])
+    assert strict.exit_code == 1
+    assert "1 of 1 slides are flagged" in strict.output

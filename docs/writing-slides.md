@@ -20,8 +20,13 @@ the near face.
 # Results
 ```
 
-mkdeck adds an opening title slide from `title` and `date`. If the deck starts
-with its own title slide, mkdeck uses that one instead.
+A deck that sets a `title` opens with a generated title slide, drawn from
+`title` and `date`. If the first slide of the file is a title slide itself (a
+`#` heading alone, or `layout: title`), that one is the opening slide instead,
+whatever it says, and nothing is generated. A deck that sets no `title` gets no
+generated slide at all: its first slide is the first one you wrote. The title
+of the browser tab is then the first `#` heading of the deck, or "Slide Deck"
+when there is none. A deck with no slide and no title slide is an error.
 
 A separator is a line of three or more dashes, alone on its line. It cuts the
 slide wherever it sits, including right under a paragraph. mkdeck ignores it
@@ -53,8 +58,27 @@ that carries a single message reads better than a slide that carries three.
 | Two figures | Both images inside a `::: figures` block |
 | Table | A GFM table with pipes |
 | Diagram | A `mermaid` code fence |
-| Notes | `<!-- notes: say this out loud -->` |
+| Notes | `<!-- notes: say this out loud -->`, anywhere on the slide |
 | Heading | `#`. Alone on a slide it makes a title slide; with other content it is drawn above it |
+
+### Order on the slide
+
+The order you write things in does not decide where they land. A slide is drawn
+in one fixed order: the heading, then the display formulas, then the sentences,
+then the bullets, then the figures or the table, and last the code blocks, raw
+HTML and diagrams. So
+
+```markdown
+The loss is
+
+$$L = x$$
+
+which matters
+```
+
+draws the formula first, then the two paragraphs of text. To keep a formula
+inside a sentence, write it as inline math (`$L = x$`), or split the text across
+two slides.
 
 ### Inline formatting
 
@@ -78,7 +102,6 @@ that reads as options has to be valid YAML and hold only the options below;
 otherwise it is an error that names the slide.
 
 ```markdown
----
 <!--
 id: departure
 layout: statement
@@ -87,6 +110,16 @@ classes: [dense]
 
 Five of five seeds cross the wall at 22 N m.
 ```
+
+This is the first slide of a file. On a later slide the comment follows the
+`---` separator.
+
+The one comment that is never read as options is a `notes:` comment. It is
+speaker notes, wherever it sits on the slide, and everything after `notes:` is
+the text of the notes, exactly as written, so a colon, a `#` or a word such as
+`yes` in it is only text. That also means a `notes:` comment cannot hold other
+options. To set `notes` next to them, list it after the others, and quote it
+when it needs to be YAML.
 
 | Option | Meaning |
 | --- | --- |
@@ -98,7 +131,7 @@ Five of five seeds cross the wall at 22 N m.
 | `math` | A list of display formulas |
 | `notes` | Speaker notes |
 | `date` | On a title slide, the date that restamps every later slide |
-| `classes` | Extra CSS classes. `dense` tightens a large table |
+| `classes` | Extra CSS classes. `dense` uses the tighter sizes; mkdeck also adds it to a crowded slide (bullets, a heading or two formulas), and a `dense` you set is never taken away |
 
 Leave `layout` at `auto` in most decks. mkdeck picks the layout from what the
 slide holds: a heading alone is a title slide, figures make a figures slide, a
@@ -133,10 +166,15 @@ Five of five seeds cross the wall.
 The `theme` setting is checked as well: a name that has no stylesheet is an
 error, not an unstyled deck.
 
-An image inside a bullet or a table cell is drawn where you wrote it, but mkdeck
-does not copy its file into the build, so a local image there is warned about
-and breaks in the output. Only a paragraph made of images becomes figures and
-is copied. Write the image on a line of its own.
+An image inside a bullet or a table cell is drawn where you wrote it. mkdeck
+copies everything under `assets/`, so an image there works. An image anywhere
+else is copied by nothing, so a local one there is warned about and breaks in
+the output. Move the file under `assets/`, or write the image on a line of its
+own so that it becomes a figure.
+
+An image alone in a paragraph is a figure, and so is an image that only a link
+or emphasis wraps: `[![Run 3](assets/run3.png)](https://example.org)` is the
+figure, without the link.
 
 ## Figures
 
@@ -165,8 +203,14 @@ Two figures sit side by side inside a `figures` block:
 
 A slide holds at most two figures. Move a third figure to a new slide.
 
-Keep the files under the deck folder. mkdeck copies that folder into the build,
-so the deck stays self-contained. An `http` or `https` URL also works.
+Keep the files under the deck folder. A folder build copies the `assets/`
+folder (hidden files apart), and then each file that a figure, `extra_css` or
+`extra_js` names, wherever it sits under the deck folder. It copies nothing else.
+So a file that only a page or raw HTML refers to is left behind unless it is
+under `assets/`: a `data.js` beside `figs/g.html`, or the file an `<iframe>` in
+raw HTML points at. An `http` or `https` URL also works. A `--single-file`
+build folds the stylesheets, scripts and rollouts into the document, and still
+needs `assets/` beside it for the pages and images.
 
 ### Large embeds stay fast
 
@@ -204,7 +248,16 @@ saved on your own runs.
 
 A rollout plays when its slide arrives and follows the robot, so a run that
 travels stays in frame. Hover it for the play button and the scrub bar. The
-element takes a few options:
+`<deck-rollout>` element takes a few options. A figure written as `![](...)`
+has no place to put them, so write the element yourself, as raw HTML, and keep
+the file under `assets/`:
+
+```html
+<deck-rollout src="assets/stage0.rollout" data-view="side" data-autoplay="false"></deck-rollout>
+```
+
+mkdeck sees the element and adds the viewer to the deck, as it does for a figure.
+The options are:
 
 | attribute | what it does |
 | --- | --- |
@@ -243,9 +296,12 @@ inside a word is left alone, so the `2` in `Go2` stays grey.
 These units are recognised by default:
 
 ```
-N m s/rad, kg m^2, rad/s, body weights, N m, mm, ms, Hz, kg, m, s,
+N m s/rad, kg m^2, rad/s, body weights, N m, mm, ms, Hz, kg, m, s, m/s, %,
 percent, degrees
 ```
+
+Only the number in the text of a slide is marked: a sentence, a bullet or a
+table cell. A figure label, a heading and a table header keep one weight.
 
 Set your own list in `deck.yml`, or as `units` in the frontmatter or on a
 `Deck` in Python. The list replaces the defaults, and its order does not
@@ -267,14 +323,14 @@ this file, so you can keep shared settings here and override them per deck.
 
 | Key | Meaning |
 | --- | --- |
-| `title` | The deck title |
+| `title` | The deck title, and the text of the generated title slide. Without it the deck gets no generated slide |
 | `date` | The date on the title slide and in the corner of every slide |
 | `theme` | `minimal` or `dark`. Any other name is an error |
 | `units` | The units the number marking recognises |
 | `extra_css` | Your stylesheets, linked after the theme |
 | `extra_js` | Your scripts, loaded after `mkdeck.js` |
 | `reveal` | Options merged into `Reveal.initialize` |
-| `title_slide` | `false` to drop the generated title slide |
+| `title_slide` | `false` to drop the generated title slide. It is also left out when the first slide is a title slide already |
 
 See [Extending a deck](extending.md) for `extra_css` and `extra_js`.
 

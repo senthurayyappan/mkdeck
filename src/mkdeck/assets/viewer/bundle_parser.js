@@ -1,5 +1,5 @@
 // Dependency-free .rbundle parser, taken from the rollout gallery this viewer was forked from
-// (see scripts/VENDOR_VIEWER.md in the mkdeck repository).
+// (its origin is written down in scripts/VENDOR_VIEWER.md of the mkdeck source repository).
 // Imported by rollout_viewer.js as "rollout-bundle". NO `three` import.
 //
 // .rbundle wire format (authoritative twin of mkdeck/rollout.py, which writes the

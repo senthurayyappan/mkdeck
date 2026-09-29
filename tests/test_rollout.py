@@ -8,6 +8,7 @@ import os
 import shutil
 import struct
 import subprocess
+import sys
 import zlib
 from array import array
 from pathlib import Path
@@ -325,6 +326,12 @@ MALFORMED = {
     "too few rotations": set_frame(rot=[[1.0, 0.0, 0.0, 0.0]]),
     "too many positions": set_frame(pos=[[0, 0, 0]] * 3),
     "a ragged face list": lambda payload: payload["geoms"]["torso"][0].update(face=[[0, 1, 2], [0, 1]]),
+    "a NaN position": set_frame(pos=[[float("nan"), 0, 0], [0, 0, 0]]),
+    "an infinite vertex": lambda payload: payload["geoms"]["torso"][0].update(
+        vert=[[0.0, 0.0, float("inf")], *VERTS[1:]]
+    ),
+    "a timestep too small to divide by": lambda payload: payload["opt"].update(timestep=1e-320),
+    "a NaN timestep": lambda payload: payload["opt"].update(timestep=float("nan")),
     "a face past the vertices": lambda payload: payload["geoms"]["torso"][0].update(face=[[0, 1, 9]]),
     "a geom on a link that is not there": lambda payload: payload["geoms"]["leg"][0].update(link_idx=7),
     "a size that is a string": lambda payload: payload["geoms"]["leg"][0].update(size="abc"),
@@ -425,8 +432,14 @@ def test_a_rollout_names_its_meshes(brax, tmp_path):
 
 @pytest.mark.parametrize(
     "damage",
-    [b"RSPL", b"RSPL" + struct.pack("<Q", 500) + b"{}", b"RSPL" + struct.pack("<Q", 3) + b"not"],
-    ids=["truncated", "header runs past the end", "header is not JSON"],
+    [
+        b"RSPL",
+        b"RSPL" + struct.pack("<Q", 500) + b"{}",
+        b"RSPL" + struct.pack("<Q", 3) + b"not",
+        b"RSPL" + struct.pack("<Q", 2**63) + b"{}",
+        b"RSPL" + struct.pack("<Q", 2**64 - 1) + b"{}",
+    ],
+    ids=["truncated", "header runs past the end", "header is not JSON", "length past 2**63", "length of 2**64 - 1"],
 )
 def test_a_damaged_rollout_is_a_deck_error(damage, tmp_path):
     path = tmp_path / "bad.rollout"
@@ -548,3 +561,16 @@ def test_the_reader_plays_a_gzip_bundle(brax, tmp_path):
     path = tmp_path / "gz.rbundle"
     path.write_bytes(bundle_bytes(made, compress=True))
     check_playback(read_with_node(path))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no permission bits to set")
+@pytest.mark.parametrize(("umask", "mode"), [(0o022, 0o644), (0o077, 0o600), (0o002, 0o664)])
+def test_the_files_written_take_the_umask_like_any_other(umask, mode, brax, tmp_path):
+    """mkstemp made them readable by their owner alone, so another user or a container got a 403."""
+    before = os.umask(umask)
+    try:
+        converted = convert_brax_html(brax, tmp_path / "out")
+    finally:
+        os.umask(before)
+    assert converted.rollout.stat().st_mode & 0o777 == mode
+    assert converted.meshes.stat().st_mode & 0o777 == mode

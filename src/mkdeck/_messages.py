@@ -18,25 +18,25 @@ def warn_deck(message: str) -> None:
     warnings.warn(message, DeckWarning, stacklevel=3)
 
 
+_standard_format = warnings.formatwarning
+
+
+def _format_warning(
+    message: Warning | str, category: type[Warning], filename: str, lineno: int, line: str | None = None
+) -> str:
+    """Write a `DeckWarning` as one line, and any other warning the standard way."""
+    if issubclass(category, DeckWarning):
+        return f"mkdeck: warning: {message}\n"
+    return _standard_format(message, category, filename, lineno, line)
+
+
 def install_warning_formatter() -> None:
     """Show a `DeckWarning` as `mkdeck: warning: <message>`, every time it happens.
 
     A command line tool calls this once at start-up. Other warnings keep the standard
     format, and calling it again changes nothing.
     """
-    if getattr(warnings.formatwarning, "installed_by_mkdeck", False):
-        return
-    standard = warnings.formatwarning
-
-    def format_warning(
-        message: Warning | str, category: type[Warning], filename: str, lineno: int, line: str | None = None
-    ) -> str:
-        if issubclass(category, DeckWarning):
-            return f"mkdeck: warning: {message}\n"
-        return standard(message, category, filename, lineno, line)
-
-    format_warning.installed_by_mkdeck = True  # ty: ignore[unresolved-attribute]
-    warnings.formatwarning = format_warning  # ty: ignore[invalid-assignment]
+    warnings.formatwarning = _format_warning  # ty: ignore[invalid-assignment]
     warnings.simplefilter("always", DeckWarning)
 
 

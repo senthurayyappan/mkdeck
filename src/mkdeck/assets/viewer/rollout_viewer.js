@@ -1,7 +1,7 @@
 // Rollout viewer: draws an .rbundle with vendored three.js r150.
 //
-// Forked from the viewer of a rollout gallery (see scripts/VENDOR_VIEWER.md in the
-// mkdeck repository). That one is one viewer per sandboxed iframe, sized to the
+// Forked from the viewer of a rollout gallery (its origin is written down in
+// scripts/VENDOR_VIEWER.md of the mkdeck source repository). That one is one viewer per sandboxed iframe, sized to the
 // window and driven by the dashboard's clock over postMessage. A deck cannot use iframes: an ES module
 // will not load from a file:// URL, which is how a shipped deck is opened, so
 // the viewer runs in the slide itself. Hence the shape change — a factory
