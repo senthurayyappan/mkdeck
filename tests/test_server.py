@@ -480,6 +480,7 @@ def test_serving_to_this_machine_is_not(folder) -> None:
             pass
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="os.kill(SIGTERM) ends the whole process on Windows")
 def test_sigterm_ends_the_wait_and_gives_the_handler_back() -> None:
     before = signal.getsignal(signal.SIGTERM)
     timer = threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGTERM))
