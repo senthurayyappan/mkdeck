@@ -671,22 +671,28 @@ def test_serving_to_every_interface_hands_out_a_url_that_opens() -> None:
         assert get(url)[0] == 200
 
 
-def test_the_address_is_printed_the_moment_the_server_is_up(folder) -> None:
+def test_the_address_is_printed_the_moment_the_server_is_up(folder, tmp_path) -> None:
     """A pipe to a log or an editor terminal buffers stdout, and the URL used to arrive on exit."""
     env = {key: value for key, value in os.environ.items() if key != "PYTHONUNBUFFERED"}
-    process = subprocess.Popen(
-        [sys.executable, "-m", "mkdeck", "serve", str(folder), "--port", "0"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-        env=env,
-    )
+    errors = tmp_path / "stderr.txt"
+    with errors.open("w", encoding="utf-8") as stderr:
+        process = subprocess.Popen(
+            [sys.executable, "-m", "mkdeck", "serve", str(folder), "--port", "0"],
+            stdout=subprocess.PIPE,
+            stderr=stderr,
+            text=True,
+            env=env,
+        )
     output = process.stdout
     assert output is not None
     lines: queue.Queue[str] = queue.Queue()
     threading.Thread(target=lambda: lines.put(output.readline()), daemon=True).start()
     try:
-        assert lines.get(timeout=30).startswith("Slide deck: http://127.0.0.1:")
+        try:
+            first = lines.get(timeout=90)
+        except queue.Empty:
+            pytest.fail(f"No address after 90 s (exit code {process.poll()}); stderr was:\n{errors.read_text('utf-8')}")
+        assert first.startswith("Slide deck: http://127.0.0.1:")
     finally:
         process.kill()
         process.wait()

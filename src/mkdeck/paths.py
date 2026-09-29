@@ -118,10 +118,9 @@ def resolve_inside(root: Path, rel: str) -> Path | None:
         The resolved path, links followed, or `None` when it leaves `root` or cannot
         name a file. The file need not exist.
     """
-    try:
-        target = (root / rel).resolve()
-    except ValueError:  # a path holding a NUL character names no file
+    if "\0" in rel:  # no file has a NUL in its name; POSIX rejects it in resolve(), Windows does not
         return None
+    target = (root / rel).resolve()
     return target if stays_inside(target, root) else None
 
 
