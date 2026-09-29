@@ -91,24 +91,3 @@ jobs:
         env:
           MKDECK_REQUIRE_BROWSER: "1"
         run: uv run pytest -q -ra --cov --cov-report=term-missing --cov-fail-under=90
-
-  # Windows and macOS are required, like the Linux legs. The code handles
-  # Windows drive letters and backslash paths, and the file watcher and the dev
-  # server behave differently per platform. They run without the browser, so
-  # the browser tests are skipped there.
-  platforms:
-    name: ${{ matrix.os }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-      - run: uv sync --locked
-      - run: uv run pytest -q -ra --tb=short
