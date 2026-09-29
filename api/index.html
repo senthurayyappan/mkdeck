@@ -1,0 +1,3622 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <script>
+        /* const base_url = "https://senthurayyappan.github.io/mkdeck/"; */
+        const base_url = (new URL("..", window.location)).href.replace(/\/+$/, ""); /* for search plugin notably */
+        /* const root_relative_url = ".."; */
+    </script>
+    <script integrity="sha384-m6cZ+Whl1ci89lidlu8DH4C+sZLNOYBvImtjUIhUK+iaNffXhqtbYgBVuuPfRsa0" src="../js/dark.js"></script>
+
+
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+
+    
+    
+
+
+<title>API reference</title>
+
+
+
+
+
+
+
+
+
+<link rel="canonical" href="https://senthurayyappan.github.io/mkdeck/api/">
+
+
+<!-- Open Graph (Facebook, LinkedIn) -->
+
+<meta property="og:title" content="API reference">
+
+
+
+
+
+<meta property="og:url" content="https://senthurayyappan.github.io/mkdeck/api/">
+
+
+
+
+
+
+<!-- Twitter Card -->
+
+<meta name="twitter:title" content="API reference">
+
+
+
+
+
+
+<!-- JSON-LD Structured Data -->
+
+
+
+    
+    <link href="../img/favicon.ico" rel="icon" />
+
+    <link href="../css/base.css" rel="stylesheet" />
+    <link href="../css/geist.css" rel="stylesheet" />
+
+    
+    
+
+<link id="pygments-light" rel="stylesheet"
+    href="../css/pygments/shadcn-light.css">
+<link id="pygments-dark" rel="stylesheet"
+    href="../css/pygments/github-dark.css"
+    media="(prefers-color-scheme: dark)">
+
+
+    
+
+    <style>
+        :root {
+            --theme-accent: oklch(62.3% 0.214 259.815);
+        }
+    </style>
+    <link href="../assets/_mkdocstrings.css" rel="stylesheet" />
+
+    
+
+    <script integrity="sha384-V2jkXRy811qODUbfkLlkVJYBbf4h6XHAEjcU6ReASBPrJvTrlYh4GrI4t6GCju6n"
+        src="../js/callbacks.js"></script>
+
+    
+
+    
+
+    
+
+    
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll("a.headerlink").forEach(function (link) {
+            link.addEventListener("click", function (e) {
+                e.preventDefault();
+
+                // Build the full URL with the anchor fragment
+                const url = window.location.origin + window.location.pathname + this.getAttribute("href");
+
+                navigator.clipboard.writeText(url).then(function () {
+                    // Optional: brief visual feedback
+                });
+            });
+        });
+    });
+</script>
+    
+
+    
+    
+</head>
+
+<body
+    class="text-foreground group/body overscroll-none font-sans antialiased [--footer-height:calc(var(--spacing)*14)] [--header-height:calc(var(--spacing)*14)] xl:[--footer-height:calc(var(--spacing)*24)] theme-default">
+    <div class="bg-background relative z-10 flex min-h-svh flex-col" id="inner-body">
+        <header class="bg-background sticky top-0 z-50 w-full" view-transition-name="header">
+    <div class="container-wrapper 3xl:fixed:px-0 px-6">
+        <div class="3xl:fixed:container flex h-(--header-height) items-center gap-2 **:data-[slot=separator]:!h-4">
+            <button id="menu-button" data-slot="popover-trigger" onclick="onMobileMenuButtonClick(event)"
+                class="group whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground px-4 py-2 has-[&gt;svg]:px-3 extend-touch-target h-8 touch-manipulation items-center justify-start gap-2.5 !p-0 hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 active:bg-transparent dark:hover:bg-transparent flex lg:hidden"
+                type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-«Rmplb»"
+                data-state="closed">
+                <div class="relative flex h-8 w-4 items-center justify-center">
+                    <div class="relative size-4">
+                        <!-- 16px x 16px -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="0" x2="16" y1="5" y2="5"
+                                class="group-data-[state=open]:translate-y-[2.25px] group-data-[state=open]:-translate-x-[2.25px] group-data-[state=open]:rotate-45 transition-all duration-300 origin-center" />
+                            <line x1="0" x2="16" y1="11" y2="11"
+                                class="group-data-[state=open]:-translate-y-[2.25px] group-data-[state=open]:-translate-x-[2.25px] group-data-[state=open]:-rotate-45 transition-all duration-300 origin-center" />
+                        </svg>
+                    </div>
+
+                    <span class="sr-only">Toggle Menu</span>
+                </div>
+                <span class="flex h-8 items-center text-lg leading-none font-medium">Menu</span>
+            </button>
+            <a data-slot="button"
+                class="items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 hidden h-8 lg:flex"
+                href="https://senthurayyappan.github.io/mkdeck/">
+                <span class="size-8 flex flex-row justify-center items-center">
+                    
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"
+    class="size-5">
+    <rect width="256" height="256" fill="none"></rect>
+    <line x1="208" y1="128" x2="128" y2="208" fill="none" stroke="currentColor" stroke-linecap="round"
+        stroke-linejoin="round" stroke-width="32"></line>
+    <line x1="192" y1="40" x2="40" y2="192" fill="none" stroke="currentColor" stroke-linecap="round"
+        stroke-linejoin="round" stroke-width="32"></line>
+</svg>
+
+
+                </span>
+
+                
+                <h1 class="pr-2">mkdeck</h1>
+                
+            </a>
+            
+            <div class="ml-auto flex items-center gap-2 md:flex-1 md:justify-end">
+                <div class="hidden w-full flex-1 md:flex md:w-auto md:flex-none">
+                    <div class="hidden w-full flex-1 md:flex md:w-auto md:flex-none">
+    <button onclick="onSearchBarClick(event)" data-slot="dialog-trigger" data-variant="outline" data-size="default"
+        class="inline-flex shrink-0 items-center gap-2 text-sm whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*='size-'])]:size-4 border bg-background hover:text-accent-foreground dark:border-input dark:hover:bg-input/50 px-4 py-2 has-[&gt;svg]:px-3 relative h-8 w-full justify-start rounded-lg pl-3 font-normal text-foreground shadow-none hover:bg-muted/50 sm:pr-12 md:w-48 lg:w-56 xl:w-64 dark:bg-card"
+        type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-_r_1_" data-state="closed">
+        <span class="hidden lg:inline-flex">Search documentation...</span>
+        <span class="inline-flex lg:hidden">Search...</span>
+    </button>
+</div>
+<dialog id="search-dialog" onclick="onSearchDialogClick(event)"
+    class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg shadow-lg border overflow-hidden p-0">
+    <div class="w-lg gap-4">
+        <div class="flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground">
+            <div data-slot="command-input-wrapper" class="flex h-9 items-center gap-2 border-b px-3"><svg
+                    xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-search size-4 shrink-0 opacity-50">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                </svg>
+                <input data-slot="command-input"
+                    class="placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Search documentation..." cmdk-input="" autocomplete="off" autocorrect="off"
+                    spellcheck="false" aria-autocomplete="list" role="combobox" aria-expanded="true"
+                    aria-controls="radix-«r1t6»" aria-labelledby="radix-«r1t7»" id="radix-«r1t8»" type="text" value=""
+                    aria-activedescendant="radix-«r1th»" oninput="onInputHandler(event)">
+            </div>
+        </div>
+        <div id="mkdocs-search-results">
+            <!-- search results go there -->
+        </div>
+    </div>
+</dialog>
+<script>
+    document.removeEventListener("keydown", searchShortcutHandler);
+    document.addEventListener("keydown", searchShortcutHandler);
+</script>
+                </div>
+                
+                <div data-orientation="vertical" role="none" data-slot="separator"
+                    class="bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px ml-2 hidden lg:block">
+                </div>
+                <a target="_blank" rel="noreferrer" data-slot="button"
+                    class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 h-8 shadow-none"
+                    href="https://github.com/senthurayyappan/mkdeck">
+                    <svg viewBox="0 0 438.549 438.549">
+                        <path fill="currentColor"
+                            d="M409.132 114.573c-19.608-33.596-46.205-60.194-79.798-79.8-33.598-19.607-70.277-29.408-110.063-29.408-39.781 0-76.472 9.804-110.063 29.408-33.596 19.605-60.192 46.204-79.8 79.8C9.803 148.168 0 184.854 0 224.63c0 47.78 13.94 90.745 41.827 128.906 27.884 38.164 63.906 64.572 108.063 79.227 5.14.954 8.945.283 11.419-1.996 2.475-2.282 3.711-5.14 3.711-8.562 0-.571-.049-5.708-.144-15.417a2549.81 2549.81 0 01-.144-25.406l-6.567 1.136c-4.187.767-9.469 1.092-15.846 1-6.374-.089-12.991-.757-19.842-1.999-6.854-1.231-13.229-4.086-19.13-8.559-5.898-4.473-10.085-10.328-12.56-17.556l-2.855-6.57c-1.903-4.374-4.899-9.233-8.992-14.559-4.093-5.331-8.232-8.945-12.419-10.848l-1.999-1.431c-1.332-.951-2.568-2.098-3.711-3.429-1.142-1.331-1.997-2.663-2.568-3.997-.572-1.335-.098-2.43 1.427-3.289 1.525-.859 4.281-1.276 8.28-1.276l5.708.853c3.807.763 8.516 3.042 14.133 6.851 5.614 3.806 10.229 8.754 13.846 14.842 4.38 7.806 9.657 13.754 15.846 17.847 6.184 4.093 12.419 6.136 18.699 6.136 6.28 0 11.704-.476 16.274-1.423 4.565-.952 8.848-2.383 12.847-4.285 1.713-12.758 6.377-22.559 13.988-29.41-10.848-1.14-20.601-2.857-29.264-5.14-8.658-2.286-17.605-5.996-26.835-11.14-9.235-5.137-16.896-11.516-22.985-19.126-6.09-7.614-11.088-17.61-14.987-29.979-3.901-12.374-5.852-26.648-5.852-42.826 0-23.035 7.52-42.637 22.557-58.817-7.044-17.318-6.379-36.732 1.997-58.24 5.52-1.715 13.706-.428 24.554 3.853 10.85 4.283 18.794 7.952 23.84 10.994 5.046 3.041 9.089 5.618 12.135 7.708 17.705-4.947 35.976-7.421 54.818-7.421s37.117 2.474 54.823 7.421l10.849-6.849c7.419-4.57 16.18-8.758 26.262-12.565 10.088-3.805 17.802-4.853 23.134-3.138 8.562 21.509 9.325 40.922 2.279 58.24 15.036 16.18 22.559 35.787 22.559 58.817 0 16.178-1.958 30.497-5.853 42.966-3.9 12.471-8.941 22.457-15.125 29.979-6.191 7.521-13.901 13.85-23.131 18.986-9.232 5.14-18.182 8.85-26.84 11.136-8.662 2.286-18.415 4.004-29.263 5.146 9.894 8.562 14.842 22.077 14.842 40.539v60.237c0 3.422 1.19 6.279 3.572 8.562 2.379 2.279 6.136 2.95 11.276 1.995 44.163-14.653 80.185-41.062 108.068-79.226 27.88-38.161 41.825-81.126 41.825-128.906-.01-39.771-9.818-76.454-29.414-110.049z">
+                        </path>
+                    </svg>
+                    
+                </a>
+                
+                <div data-orientation="vertical" role="none" data-slot="separator"
+                    class="bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px 3xl:flex hidden">
+                </div>
+                
+                <button data-slot="button"
+                    class="items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 size-8 3xl:flex hidden"
+                    title="Toggle layout" onclick="toggleLayout(event)">
+                    <span class="sr-only">Toggle layout</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-gallery-horizontal">
+                        <path d="M2 3v18"></path>
+                        <rect width="12" height="18" x="6" y="3" rx="2"></rect>
+                        <path d="M22 3v18"></path>
+                    </svg>
+                </button>
+                <div data-orientation="vertical" role="none" data-slot="separator"
+                    class="bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px">
+                </div>
+                <button data-slot="button"
+                    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 group/toggle extend-touch-target size-8"
+                    title="Toggle theme" onclick="onThemeSwitch(event)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="size-4.5">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path>
+                        <path d="M12 3l0 18"></path>
+                        <path d="M12 9l4.65 -4.65"></path>
+                        <path d="M12 14.3l7.37 -7.37"></path>
+                        <path d="M12 19.6l8.85 -8.85"></path>
+                    </svg>
+                    <span class="sr-only">Toggle theme</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+        <main class="flex flex-1 flex-col">
+            <div class="container-wrapper flex flex-1 flex-col px-2">
+                <div class="group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex w-full 3xl:fixed:container 3xl:fixed:px-3 min-h-min flex-1 items-start px-0 [--sidebar-width:220px] [--top-spacing:0] lg:grid lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:[--sidebar-width:240px] lg:[--top-spacing:calc(var(--spacing)*4)]"
+                    data-slot="sidebar-wrapper"
+                    style="--sidebar-width:calc(var(--spacing) * 72);--sidebar-width-icon:3rem;">
+                    <div class="w-(--sidebar-width) flex-col text-sidebar-foreground sticky top-[calc(var(--header-height)+0.6rem)] z-30 hidden h-[calc(100svh-10rem)] overscroll-none bg-transparent [--sidebar-menu-width:--spacing(56)] lg:flex"
+                        data-slot="sidebar">
+                        <div class="h-9"></div>
+                        <div
+                            class="absolute top-8 z-10 h-8 w-(--sidebar-menu-width) shrink-0 bg-gradient-to-b from-background via-background/80 to-background/50 blur-xs">
+                        </div>
+                        <div
+                            class="absolute top-12 right-2 bottom-0 hidden h-full w-px bg-gradient-to-b from-transparent via-border to-transparent lg:flex">
+                        </div>
+                        <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden mx-auto no-scrollbar w-(--sidebar-menu-width) overflow-x-hidden px-2"
+                            data-sidebar="content" data-slot="sidebar-content" view-transition-name="sidebar">
+                            
+
+
+
+
+
+
+
+
+
+
+
+<div data-slot="sidebar-group" data-sidebar="group" class="relative flex w-full min-w-0 flex-col p-2 pt-6">
+    <div data-slot="sidebar-group-content" data-sidebar="group-content" class="w-full text-sm">
+        <ul data-slot="sidebar-menu" data-sidebar="menu" class="flex w-full min-w-0 flex-col gap-0.5">
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href=".."
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        Home
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="../getting-started/"
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        Getting started
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="../writing-slides/"
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        Writing slides
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="../python-api/"
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        Building from Python
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="../extending/"
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        Extending a deck
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
+        data-size="default" href="./"
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        API reference
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+        </ul>
+    </div>
+</div>
+
+
+
+
+
+
+<div
+    class="sticky -bottom-1 z-10 h-16 shrink-0 bg-gradient-to-t from-background via-background/80 to-background/50 blur-xs">
+</div>
+
+                        </div>
+                    </div>
+                    <div class="h-full w-full">
+                        <div class="flex items-stretch text-[1.05rem] sm:text-[15px] xl:w-full" data-slot="docs">
+
+                            <div class="flex min-w-0 flex-1 flex-col">
+                                <div class="h-(--top-spacing) shrink-0"></div>
+                                
+                                
+                                <article class="w-full" view-transition-name="page">
+  <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2">
+      <div id="page-header" class="flex items-start justify-between">
+        <h1 class="scroll-m-20 text-4xl font-semibold tracking-tight sm:text-3xl xl:text-4xl">
+          API reference
+        </h1>
+
+        <div class="flex items-center gap-2 pt-1.5">
+          
+          <button
+    onclick="fetch(`..`).then((r) => r.text()).then((text) => navigator.clipboard.write([new ClipboardItem({ 'text/plain': text })]))"
+    data-slot="button" class="secondary cursor-pointer">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-copy ">
+        <path
+            d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z">
+        </path>
+        <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"></path>
+    </svg>
+    <span class="max-md:hidden">Copy Page</span>
+</button>
+          
+          
+          <a data-slot="button" id="previous-button"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
+            href="../extending/">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="tabler-icon tabler-icon-arrow-left">
+              <path d="M5 12l14 0"></path>
+              <path d="M5 12l6 6"></path>
+              <path d="M5 12l6 -6"></path>
+            </svg>
+            <span class="sr-only">Previous</span>
+          </a>
+          
+          
+        </div>
+      </div>
+      
+    </div>
+    <div class="flex justify-end items-center">
+      
+      
+    </div>
+  </div>
+  <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
+    <h1 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
+<p>Everything on this page is importable from the top-level <code>mkdeck</code> package,
+apart from the rollout converter, which lives in <code>mkdeck.rollout</code>. The public
+modules are <code>mkdeck</code>, <code>mkdeck.errors</code> and <code>mkdeck.rollout</code>. Every other module
+is an implementation detail and can change between releases.</p>
+<p><code>Deck.build</code> and <code>Deck.serve</code> write and show a deck built in Python.
+<code>load_source(...)</code> returns a <code>DeckSource</code> with the same two methods for a deck
+written in Markdown. Those are the only entry points; see
+<a href="../python-api/">Building from Python</a> for how they fit together.</p>
+<h2 id="the-slide-model">The slide model<a class="headerlink" href="#the-slide-model" title="Permanent link">&para;</a></h2>
+<p>The classes the Markdown loader produces and the renderer reads. You can also
+build them yourself.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.Deck" class="doc doc-heading">
+            <code>mkdeck.Deck</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#mkdeck.Deck" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>A whole deck.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.title">title</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The deck title: the title of the page, and the text of the generated
+opening slide.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.date">date</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The deck date, shown on the opening slide and in the chrome.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.theme">theme</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The name of the theme stylesheet to link.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.slides">slides</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<a class="autorefs autorefs-internal" title="mkdeck.Slide
+
+
+  
+      dataclass
+   (mkdeck.model.Slide)" href="#mkdeck.Slide">Slide</a>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The slides, in the order they are shown.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.units">units</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The units the number highlighting recognises, in any order.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.extra_css">extra_css</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Extra stylesheets, linked after the theme.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.extra_js">extra_js</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Extra scripts, loaded after <code>mkdeck.js</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.reveal">reveal</span></code></td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Options merged into <code>Reveal.initialize</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Deck.title_slide">title_slide</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to generate the opening title slide from <code>title</code> and <code>date</code>.
+It is left out when the first slide is itself a title slide (<code>layout="title"</code>),
+which is then the opening slide.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/model.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Deck</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A whole deck.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        title: The deck title: the title of the page, and the text of the generated</span>
+<span class="sd">            opening slide.</span>
+<span class="sd">        date: The deck date, shown on the opening slide and in the chrome.</span>
+<span class="sd">        theme: The name of the theme stylesheet to link.</span>
+<span class="sd">        slides: The slides, in the order they are shown.</span>
+<span class="sd">        units: The units the number highlighting recognises, in any order.</span>
+<span class="sd">        extra_css: Extra stylesheets, linked after the theme.</span>
+<span class="sd">        extra_js: Extra scripts, loaded after `mkdeck.js`.</span>
+<span class="sd">        reveal: Options merged into `Reveal.initialize`.</span>
+<span class="sd">        title_slide: Whether to generate the opening title slide from `title` and `date`.</span>
+<span class="sd">            It is left out when the first slide is itself a title slide (`layout="title"`),</span>
+<span class="sd">            which is then the opening slide.</span>
+<span class="sd">    """</span>
+
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">date</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">theme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"minimal"</span>
+    <span class="n">slides</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Slide</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">units</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">DEFAULT_UNITS</span><span class="p">))</span>
+    <span class="n">extra_css</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">extra_js</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">reveal</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">title_slide</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="c1"># build and serve import inside the method body on purpose: mkdeck.build and</span>
+    <span class="c1"># mkdeck.server both import this module, so a module-scope import would be circular,</span>
+    <span class="c1"># and `import mkdeck` should not load the file watcher.</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Write this deck to an output folder.</span>
+
+<span class="sd">        Building again into the same folder brings it up to date: every file is copied</span>
+<span class="sd">        afresh, and a file the previous build wrote that this one no longer needs is</span>
+<span class="sd">        removed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            out: The output folder, or the HTML file when `single_file` is set and the</span>
+<span class="sd">                path ends in `.html`.</span>
+<span class="sd">            source: The folder the deck's assets live in; the current directory when</span>
+<span class="sd">                omitted.</span>
+<span class="sd">            single_file: True to inline every stylesheet and script.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The path of the written HTML document.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DeckError: If the deck or a slide breaks a rule of the model, the source</span>
+<span class="sd">                folder does not exist, the output folder is the source folder or its</span>
+<span class="sd">                `assets` folder, or a file the deck names is outside the source folder.</span>
+<span class="sd">        """</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
+
+        <span class="k">return</span> <span class="n">build_deck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"127.0.0.1"</span><span class="p">,</span>
+        <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5020</span><span class="p">,</span>
+        <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Serve this deck until interrupted.</span>
+
+<span class="sd">        The deck is the one in hand: it is built again, unchanged, whenever a file under</span>
+<span class="sd">        `source` changes. The Python code that made the slides is not run again.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            source: The folder the deck's assets live in; the current directory when</span>
+<span class="sd">                omitted. It is watched, and the page reloads when a file in it changes.</span>
+<span class="sd">            host: The interface to bind.</span>
+<span class="sd">            port: The port to bind.</span>
+<span class="sd">            open_browser: True to open the deck in a browser once it is up.</span>
+<span class="sd">            reload: True to watch `source` and push reloads.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DeckError: If the deck cannot be rendered, the source folder does not exist,</span>
+<span class="sd">                or the port is taken.</span>
+<span class="sd">        """</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>
+
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">build_deck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
+
+        <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="n">folder</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mkdeck.Deck.build" class="doc doc-heading">
+            <code class=" language-python"><span class="n">build</span><span class="p">(</span><span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'site'</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span></code>
+
+<a href="#mkdeck.Deck.build" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write this deck to an output folder.</p>
+<p>Building again into the same folder brings it up to date: every file is copied
+afresh, and a file the previous build wrote that this one no longer needs is
+removed.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>out</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The output folder, or the HTML file when <code>single_file</code> is set and the
+path ends in <code>.html</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;site&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The folder the deck's assets live in; the current directory when
+omitted.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>single_file</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True to inline every stylesheet and script.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path of the written HTML document.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the deck or a slide breaks a rule of the model, the source
+folder does not exist, the output folder is the source folder or its
+<code>assets</code> folder, or a file the deck names is outside the source folder.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/model.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Write this deck to an output folder.</span>
+
+<span class="sd">    Building again into the same folder brings it up to date: every file is copied</span>
+<span class="sd">    afresh, and a file the previous build wrote that this one no longer needs is</span>
+<span class="sd">    removed.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        out: The output folder, or the HTML file when `single_file` is set and the</span>
+<span class="sd">            path ends in `.html`.</span>
+<span class="sd">        source: The folder the deck's assets live in; the current directory when</span>
+<span class="sd">            omitted.</span>
+<span class="sd">        single_file: True to inline every stylesheet and script.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The path of the written HTML document.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DeckError: If the deck or a slide breaks a rule of the model, the source</span>
+<span class="sd">            folder does not exist, the output folder is the source folder or its</span>
+<span class="sd">            `assets` folder, or a file the deck names is outside the source folder.</span>
+<span class="sd">    """</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
+
+    <span class="k">return</span> <span class="n">build_deck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mkdeck.Deck.serve" class="doc doc-heading">
+            <code class=" language-python"><span class="n">serve</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'127.0.0.1'</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5020</span><span class="p">,</span> <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+
+<a href="#mkdeck.Deck.serve" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Serve this deck until interrupted.</p>
+<p>The deck is the one in hand: it is built again, unchanged, whenever a file under
+<code>source</code> changes. The Python code that made the slides is not run again.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The folder the deck's assets live in; the current directory when
+omitted. It is watched, and the page reloads when a file in it changes.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>host</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The interface to bind.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;127.0.0.1&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>port</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The port to bind.</p>
+              </div>
+            </td>
+            <td>
+                  <code>5020</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>open_browser</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True to open the deck in a browser once it is up.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>reload</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True to watch <code>source</code> and push reloads.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the deck cannot be rendered, the source folder does not exist,
+or the port is taken.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/model.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"127.0.0.1"</span><span class="p">,</span>
+    <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5020</span><span class="p">,</span>
+    <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Serve this deck until interrupted.</span>
+
+<span class="sd">    The deck is the one in hand: it is built again, unchanged, whenever a file under</span>
+<span class="sd">    `source` changes. The Python code that made the slides is not run again.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        source: The folder the deck's assets live in; the current directory when</span>
+<span class="sd">            omitted. It is watched, and the page reloads when a file in it changes.</span>
+<span class="sd">        host: The interface to bind.</span>
+<span class="sd">        port: The port to bind.</span>
+<span class="sd">        open_browser: True to open the deck in a browser once it is up.</span>
+<span class="sd">        reload: True to watch `source` and push reloads.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DeckError: If the deck cannot be rendered, the source folder does not exist,</span>
+<span class="sd">            or the port is taken.</span>
+<span class="sd">    """</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>
+
+    <span class="n">folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">build_deck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
+
+    <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="n">folder</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.Slide" class="doc doc-heading">
+            <code>mkdeck.Slide</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#mkdeck.Slide" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>One slide of a deck.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.id">id</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A stable identifier, emitted as <code>data-id</code>, or <code>None</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.layout">layout</span></code></td>
+            <td>
+                  <code><span title="mkdeck.model.Layout">Layout</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How the slide is laid out; <code>"auto"</code> picks from the content.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.title">title</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The heading, drawn above the rest of the slide. A slide that holds
+nothing else is a title slide.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.sentence">sentence</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The visible headline. Inline Markdown and <code>$...$</code> math are allowed,
+and so is an HTML element, which is kept as written.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.bullets">bullets</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A compact list drawn under the sentence, with the same inline syntax.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.math">math</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Display formulas, one per line, drawn above the sentence.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.embeds">embeds</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<a class="autorefs autorefs-internal" title="mkdeck.Embed
+
+
+  
+      dataclass
+   (mkdeck.model.Embed)" href="#mkdeck.Embed">Embed</a>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The figures on the slide, at most <code>MAX_EMBEDS</code> of them. A slide takes
+figures or a table, not both.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.table">table</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.Table
+
+
+  
+      dataclass
+   (mkdeck.model.Table)" href="#mkdeck.Table">Table</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The table on the slide, or <code>None</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.html">html</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Raw HTML drawn with the rest of the slide. The escape hatch.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.notes">notes</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Speaker notes, shown in reveal's presenter view.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.date">date</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>On <code>layout="title"</code>, the date that restamps every later slide.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Slide.classes">classes</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Extra CSS classes put on the <code>&lt;section&gt;</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/model.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Slide</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One slide of a deck.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        id: A stable identifier, emitted as `data-id`, or `None`.</span>
+<span class="sd">        layout: How the slide is laid out; `"auto"` picks from the content.</span>
+<span class="sd">        title: The heading, drawn above the rest of the slide. A slide that holds</span>
+<span class="sd">            nothing else is a title slide.</span>
+<span class="sd">        sentence: The visible headline. Inline Markdown and `$...$` math are allowed,</span>
+<span class="sd">            and so is an HTML element, which is kept as written.</span>
+<span class="sd">        bullets: A compact list drawn under the sentence, with the same inline syntax.</span>
+<span class="sd">        math: Display formulas, one per line, drawn above the sentence.</span>
+<span class="sd">        embeds: The figures on the slide, at most `MAX_EMBEDS` of them. A slide takes</span>
+<span class="sd">            figures or a table, not both.</span>
+<span class="sd">        table: The table on the slide, or `None`.</span>
+<span class="sd">        html: Raw HTML drawn with the rest of the slide. The escape hatch.</span>
+<span class="sd">        notes: Speaker notes, shown in reveal's presenter view.</span>
+<span class="sd">        date: On `layout="title"`, the date that restamps every later slide.</span>
+<span class="sd">        classes: Extra CSS classes put on the `&lt;section&gt;`.</span>
+<span class="sd">    """</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">layout</span><span class="p">:</span> <span class="n">Layout</span> <span class="o">=</span> <span class="s2">"auto"</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">sentence</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">bullets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">math</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">embeds</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Embed</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">table</span><span class="p">:</span> <span class="n">Table</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">html</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">notes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">date</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">classes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.Embed" class="doc doc-heading">
+            <code>mkdeck.Embed</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#mkdeck.Embed" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>A figure on a slide: an iframe page, an image or an animation.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Embed.src">src</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The page or image, relative to the deck source folder. An <code>http</code> or
+<code>https</code> URL is also accepted; an absolute path is not. A query or fragment,
+as in <code>plot.html?seed=2</code>, is kept in the document and left off the file name.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Embed.label">label</span></code></td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The caption drawn above the frame, or <code>None</code> for no caption.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Embed.kind">kind</span></code></td>
+            <td>
+                  <code><span title="mkdeck.model.EmbedKind">EmbedKind</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"iframe"</code>, <code>"image"</code> or <code>"rollout"</code>, or <code>"auto"</code> to pick from the suffix
+of <code>src</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/model.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Embed</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A figure on a slide: an iframe page, an image or an animation.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        src: The page or image, relative to the deck source folder. An `http` or</span>
+<span class="sd">            `https` URL is also accepted; an absolute path is not. A query or fragment,</span>
+<span class="sd">            as in `plot.html?seed=2`, is kept in the document and left off the file name.</span>
+<span class="sd">        label: The caption drawn above the frame, or `None` for no caption.</span>
+<span class="sd">        kind: `"iframe"`, `"image"` or `"rollout"`, or `"auto"` to pick from the suffix</span>
+<span class="sd">            of `src`.</span>
+<span class="sd">    """</span>
+
+    <span class="n">src</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="n">EmbedKind</span> <span class="o">=</span> <span class="s2">"auto"</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.Table" class="doc doc-heading">
+            <code>mkdeck.Table</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#mkdeck.Table" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>A table on a slide.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Table.columns">columns</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The header cells, at least one. Each is shown with <code>str()</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.Table.rows">rows</span></code></td>
+            <td>
+                  <code><span title="list">list</span>[<span title="list">list</span>[<span title="str">str</span>]]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The body rows; every row holds one cell per column, each shown with <code>str()</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/model.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Table</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A table on a slide.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        columns: The header cells, at least one. Each is shown with `str()`.</span>
+<span class="sd">        rows: The body rows; every row holds one cell per column, each shown with `str()`.</span>
+<span class="sd">    """</span>
+
+    <span class="n">columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="mkdeck.DEFAULT_UNITS" class="doc doc-heading">
+            <code class=" language-python"><span class="n">mkdeck</span><span class="o">.</span><span class="n">DEFAULT_UNITS</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'N m s/rad'</span><span class="p">,</span> <span class="s1">'kg m^2'</span><span class="p">,</span> <span class="s1">'rad/s'</span><span class="p">,</span> <span class="s1">'body weights'</span><span class="p">,</span> <span class="s1">'N m'</span><span class="p">,</span> <span class="s1">'mm'</span><span class="p">,</span> <span class="s1">'ms'</span><span class="p">,</span> <span class="s1">'Hz'</span><span class="p">,</span> <span class="s1">'kg'</span><span class="p">,</span> <span class="s1">'m'</span><span class="p">,</span> <span class="s1">'s'</span><span class="p">,</span> <span class="s1">'m/s'</span><span class="p">,</span> <span class="s1">'%'</span><span class="p">,</span> <span class="s1">'percent'</span><span class="p">,</span> <span class="s1">'degrees'</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#mkdeck.DEFAULT_UNITS" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+        <p>The units a number may carry and still be highlighted, when a deck does not set its own.</p>
+<p>The order does not matter: the renderer tries the longest spelling first.</p>
+
+    </div>
+
+</div><h2 id="load-a-deck-from-disk">Load a deck from disk<a class="headerlink" href="#load-a-deck-from-disk" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="mkdeck.load_source" class="doc doc-heading">
+            <code class=" language-python"><span class="n">mkdeck</span><span class="o">.</span><span class="n">load_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeckSource</span></code>
+
+<a href="#mkdeck.load_source" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Load a deck and its settings from disk.</p>
+<p>The <code>deck.yml</code> beside the Markdown and the frontmatter are read once and merged into
+the fields of the deck, the frontmatter winning.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>path</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A Markdown file, or a folder holding <code>deck.md</code> or <code>slides.md</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckSource
+
+
+  
+      dataclass
+   (mkdeck.source.DeckSource)" href="#mkdeck.DeckSource">DeckSource</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The loaded deck, with its source folder.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the path holds no deck, the file is not readable UTF-8 text, or the
+deck cannot be parsed.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/source.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeckSource</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Load a deck and its settings from disk.</span>
+
+<span class="sd">    The `deck.yml` beside the Markdown and the frontmatter are read once and merged into</span>
+<span class="sd">    the fields of the deck, the frontmatter winning.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path: A Markdown file, or a folder holding `deck.md` or `slides.md`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The loaded deck, with its source folder.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DeckError: If the path holds no deck, the file is not readable UTF-8 text, or the</span>
+<span class="sd">            deck cannot be parsed.</span>
+<span class="sd">    """</span>
+    <span class="n">markdown</span> <span class="o">=</span> <span class="n">find_markdown</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">deck</span> <span class="o">=</span> <span class="n">parse_markdown</span><span class="p">(</span><span class="n">read_text</span><span class="p">(</span><span class="n">markdown</span><span class="p">),</span> <span class="n">source</span><span class="o">=</span><span class="n">markdown</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="n">read_config_file</span><span class="p">(</span><span class="n">markdown</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">DeckSource</span><span class="p">(</span><span class="n">deck</span><span class="o">=</span><span class="n">deck</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">markdown</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">markdown</span><span class="o">=</span><span class="n">markdown</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.DeckSource" class="doc doc-heading">
+            <code>mkdeck.DeckSource</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#mkdeck.DeckSource" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>A deck loaded from disk, ready to build or serve.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.DeckSource.deck">deck</span></code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.Deck
+
+
+  
+      dataclass
+   (mkdeck.model.Deck)" href="#mkdeck.Deck">Deck</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The parsed deck. The frontmatter and <code>deck.yml</code> are already merged into its
+fields, so the deck alone carries the settings.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.DeckSource.directory">directory</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The folder holding the Markdown and its assets.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.DeckSource.markdown">markdown</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The Markdown file the deck came from.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/source.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span>
+<span class="normal">86</span>
+<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeckSource</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A deck loaded from disk, ready to build or serve.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        deck: The parsed deck. The frontmatter and `deck.yml` are already merged into its</span>
+<span class="sd">            fields, so the deck alone carries the settings.</span>
+<span class="sd">        directory: The folder holding the Markdown and its assets.</span>
+<span class="sd">        markdown: The Markdown file the deck came from.</span>
+<span class="sd">    """</span>
+
+    <span class="n">deck</span><span class="p">:</span> <span class="n">Deck</span>
+    <span class="n">directory</span><span class="p">:</span> <span class="n">Path</span>
+    <span class="n">markdown</span><span class="p">:</span> <span class="n">Path</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Write the deck to an output folder, with the assets it names.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            out: The output folder, or the HTML file when `single_file` is set and the</span>
+<span class="sd">                path ends in `.html`.</span>
+<span class="sd">            single_file: True to inline every stylesheet and script.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The path of the written HTML document.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DeckError: If a slide breaks a rule of the model, the output folder is the</span>
+<span class="sd">                deck folder, or a file the deck names is outside the deck folder.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">deck</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"127.0.0.1"</span><span class="p">,</span>
+        <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5020</span><span class="p">,</span>
+        <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Serve the deck until interrupted, and read it again whenever its folder changes.</span>
+
+<span class="sd">        The first build uses `deck` as it is, but every rebuild reads the Markdown and</span>
+<span class="sd">        `deck.yml` from disk again, so a change made to `deck` in Python shows only until</span>
+<span class="sd">        the first edit. To serve a deck that is changed in Python, serve that `Deck`</span>
+<span class="sd">        with `Deck.serve` instead.</span>
+
+<span class="sd">        The folder is watched apart from the ones `mkdeck build`, `check` and `export`</span>
+<span class="sd">        write into by default (`site`, `report` and `deck.pdf`).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            host: The interface to bind.</span>
+<span class="sd">            port: The port to bind.</span>
+<span class="sd">            open_browser: True to open the deck in a browser once it is up.</span>
+<span class="sd">            reload: True to watch the folder and push reloads.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DeckError: If the deck cannot be rendered or the port is taken.</span>
+<span class="sd">        """</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>  <span class="c1"># imported here, so that `import mkdeck` loads neither</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>  <span class="c1"># the renderer nor the file watcher</span>
+
+        <span class="n">pending</span><span class="p">:</span> <span class="n">DeckSource</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">nonlocal</span> <span class="n">pending</span>
+            <span class="n">current</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">pending</span> <span class="ow">or</span> <span class="n">load_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">),</span> <span class="kc">None</span>  <span class="c1"># the first build reuses the deck in hand</span>
+            <span class="n">build_deck</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
+
+        <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mkdeck.DeckSource.build" class="doc doc-heading">
+            <code class=" language-python"><span class="n">build</span><span class="p">(</span><span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'site'</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span></code>
+
+<a href="#mkdeck.DeckSource.build" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write the deck to an output folder, with the assets it names.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>out</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The output folder, or the HTML file when <code>single_file</code> is set and the
+path ends in <code>.html</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;site&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>single_file</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True to inline every stylesheet and script.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path of the written HTML document.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a slide breaks a rule of the model, the output folder is the
+deck folder, or a file the deck names is outside the deck folder.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/source.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Write the deck to an output folder, with the assets it names.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        out: The output folder, or the HTML file when `single_file` is set and the</span>
+<span class="sd">            path ends in `.html`.</span>
+<span class="sd">        single_file: True to inline every stylesheet and script.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The path of the written HTML document.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DeckError: If a slide breaks a rule of the model, the output folder is the</span>
+<span class="sd">            deck folder, or a file the deck names is outside the deck folder.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">deck</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mkdeck.DeckSource.serve" class="doc doc-heading">
+            <code class=" language-python"><span class="n">serve</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'127.0.0.1'</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5020</span><span class="p">,</span> <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+
+<a href="#mkdeck.DeckSource.serve" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Serve the deck until interrupted, and read it again whenever its folder changes.</p>
+<p>The first build uses <code>deck</code> as it is, but every rebuild reads the Markdown and
+<code>deck.yml</code> from disk again, so a change made to <code>deck</code> in Python shows only until
+the first edit. To serve a deck that is changed in Python, serve that <code>Deck</code>
+with <code>Deck.serve</code> instead.</p>
+<p>The folder is watched apart from the ones <code>mkdeck build</code>, <code>check</code> and <code>export</code>
+write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf</code>).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>host</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The interface to bind.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;127.0.0.1&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>port</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The port to bind.</p>
+              </div>
+            </td>
+            <td>
+                  <code>5020</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>open_browser</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True to open the deck in a browser once it is up.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>reload</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True to watch the folder and push reloads.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the deck cannot be rendered or the port is taken.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/source.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span>
+<span class="normal">86</span>
+<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"127.0.0.1"</span><span class="p">,</span>
+    <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5020</span><span class="p">,</span>
+    <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Serve the deck until interrupted, and read it again whenever its folder changes.</span>
+
+<span class="sd">    The first build uses `deck` as it is, but every rebuild reads the Markdown and</span>
+<span class="sd">    `deck.yml` from disk again, so a change made to `deck` in Python shows only until</span>
+<span class="sd">    the first edit. To serve a deck that is changed in Python, serve that `Deck`</span>
+<span class="sd">    with `Deck.serve` instead.</span>
+
+<span class="sd">    The folder is watched apart from the ones `mkdeck build`, `check` and `export`</span>
+<span class="sd">    write into by default (`site`, `report` and `deck.pdf`).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        host: The interface to bind.</span>
+<span class="sd">        port: The port to bind.</span>
+<span class="sd">        open_browser: True to open the deck in a browser once it is up.</span>
+<span class="sd">        reload: True to watch the folder and push reloads.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DeckError: If the deck cannot be rendered or the port is taken.</span>
+<span class="sd">    """</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>  <span class="c1"># imported here, so that `import mkdeck` loads neither</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>  <span class="c1"># the renderer nor the file watcher</span>
+
+    <span class="n">pending</span><span class="p">:</span> <span class="n">DeckSource</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">nonlocal</span> <span class="n">pending</span>
+        <span class="n">current</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">pending</span> <span class="ow">or</span> <span class="n">load_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">),</span> <span class="kc">None</span>  <span class="c1"># the first build reuses the deck in hand</span>
+        <span class="n">build_deck</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
+
+    <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="errors-and-warnings">Errors and warnings<a class="headerlink" href="#errors-and-warnings" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.DeckError" class="doc doc-heading">
+            <code>mkdeck.DeckError</code>
+
+
+<a href="#mkdeck.DeckError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="Exception">Exception</span></code></p>
+
+
+
+        <p>A deck could not be read, validated or rendered.</p>
+<p>The string form of the error is <code>&lt;source&gt;: &lt;slide&gt;: &lt;message&gt;</code>, with the parts that
+are known. Name the slide with <code>mkdeck.model.slide_name</code> so that every message names
+it the same way.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.DeckError.message">message</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>What went wrong and what the author should do about it.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.DeckError.slide">slide</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The offending slide, already named, or <code>None</code> for a deck-level problem.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.DeckError.source">source</span></code></td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The deck file or folder the problem came from, or <code>None</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/errors.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeckError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A deck could not be read, validated or rendered.</span>
+
+<span class="sd">    The string form of the error is `&lt;source&gt;: &lt;slide&gt;: &lt;message&gt;`, with the parts that</span>
+<span class="sd">    are known. Name the slide with `mkdeck.model.slide_name` so that every message names</span>
+<span class="sd">    it the same way.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        message: What went wrong and what the author should do about it.</span>
+<span class="sd">        slide: The offending slide, already named, or `None` for a deck-level problem.</span>
+<span class="sd">        source: The deck file or folder the problem came from, or `None`.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create the error.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message: What went wrong and what the author should do about it. Write it as</span>
+<span class="sd">                a complete sentence with its own subject, because it is also shown</span>
+<span class="sd">                without the prefix, for example `"This slide has 3 embeds, but a slide</span>
+<span class="sd">                takes at most 2; move one onto a new slide."`.</span>
+<span class="sd">            slide: The offending slide, named by `mkdeck.model.slide_name`.</span>
+<span class="sd">            source: The deck file or folder the problem came from.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slide</span> <span class="o">=</span> <span class="n">slide</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="s2">": "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">part</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">)</span> <span class="k">if</span> <span class="n">part</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="n">message</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="mkdeck.DeckError.__init__" class="doc doc-heading">
+            <code class=" language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span></code>
+
+<a href="#mkdeck.DeckError.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create the error.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>message</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>What went wrong and what the author should do about it. Write it as
+a complete sentence with its own subject, because it is also shown
+without the prefix, for example <code>"This slide has 3 embeds, but a slide
+takes at most 2; move one onto a new slide."</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slide</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The offending slide, named by <code>mkdeck.model.slide_name</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The deck file or folder the problem came from.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/errors.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Create the error.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        message: What went wrong and what the author should do about it. Write it as</span>
+<span class="sd">            a complete sentence with its own subject, because it is also shown</span>
+<span class="sd">            without the prefix, for example `"This slide has 3 embeds, but a slide</span>
+<span class="sd">            takes at most 2; move one onto a new slide."`.</span>
+<span class="sd">        slide: The offending slide, named by `mkdeck.model.slide_name`.</span>
+<span class="sd">        source: The deck file or folder the problem came from.</span>
+<span class="sd">    """</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">slide</span> <span class="o">=</span> <span class="n">slide</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s2">": "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">part</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span><span class="p">)</span> <span class="k">if</span> <span class="n">part</span><span class="p">)</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="n">message</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.DeckWarning" class="doc doc-heading">
+            <code>mkdeck.DeckWarning</code>
+
+
+<a href="#mkdeck.DeckWarning" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="UserWarning">UserWarning</span></code></p>
+
+
+
+        <p>A problem that leaves the deck usable, such as an embed that is not on disk.</p>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/errors.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
+<span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeckWarning</span><span class="p">(</span><span class="ne">UserWarning</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A problem that leaves the deck usable, such as an embed that is not on disk."""</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+    </div>
+
+</div><h2 id="rollouts">Rollouts<a class="headerlink" href="#rollouts" title="Permanent link">&para;</a></h2>
+<p><code>mkdeck rollout</code> calls this function. It reads one Brax playback page and
+writes a <code>.rollout</code> file and, for a model it has not seen, its shared
+<code>.meshes</code> file. A page that holds no Brax scene raises <code>NotBraxPage</code>, a
+<code>DeckError</code> that a caller converting a folder of pages can catch and skip.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="mkdeck.rollout.convert_brax_html" class="doc doc-heading">
+            <code class=" language-python"><span class="n">mkdeck</span><span class="o">.</span><span class="n">rollout</span><span class="o">.</span><span class="n">convert_brax_html</span><span class="p">(</span><span class="n">src</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Converted</span></code>
+
+<a href="#mkdeck.rollout.convert_brax_html" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Convert one Brax page into a rollout and its shared meshes.</p>
+<p>The mesh file is named after its own content, so converting a second run of
+the same model writes only the small per-run file and leaves the meshes
+alone. Both files are written whole or not at all.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>src</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The Brax <code>.html</code> to read.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>out</code>
+            </td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The folder to write into; it is created when missing.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.rollout.Converted
+
+
+  
+      dataclass
+  " href="#mkdeck.rollout.Converted">Converted</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Where the files went.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.rollout.NotBraxPage" href="#mkdeck.rollout.NotBraxPage">NotBraxPage</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the page holds no scene at all.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the page holds a scene that cannot be converted.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/mkdeck/rollout.py</code></summary>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">convert_brax_html</span><span class="p">(</span><span class="n">src</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Converted</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Convert one Brax page into a rollout and its shared meshes.</span>
+
+<span class="sd">    The mesh file is named after its own content, so converting a second run of</span>
+<span class="sd">    the same model writes only the small per-run file and leaves the meshes</span>
+<span class="sd">    alone. Both files are written whole or not at all.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        src: The Brax ``.html`` to read.</span>
+<span class="sd">        out: The folder to write into; it is created when missing.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Where the files went.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        NotBraxPage: If the page holds no scene at all.</span>
+<span class="sd">        DeckError: If the page holds a scene that cannot be converted.</span>
+<span class="sd">    """</span>
+    <span class="n">src</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">src</span><span class="p">),</span> <span class="n">Path</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+    <span class="n">scene</span> <span class="o">=</span> <span class="n">read_brax_scene</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">rollout</span> <span class="o">=</span> <span class="n">to_rollout</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">DeckError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DeckError</span><span class="p">(</span><span class="n">exc</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">src</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DeckError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"holds a Brax scene this version cannot read (</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">)."</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">src</span>
+        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">meshes</span> <span class="o">=</span> <span class="n">out</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rollout</span><span class="o">.</span><span class="n">meshes_hash</span><span class="si">}{</span><span class="n">MESHES_SUFFIX</span><span class="si">}</span><span class="s2">"</span>
+    <span class="n">shared</span> <span class="o">=</span> <span class="n">meshes</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">shared</span><span class="p">:</span>
+        <span class="n">_write_atomic</span><span class="p">(</span><span class="n">meshes</span><span class="p">,</span> <span class="n">gzip</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">rollout</span><span class="o">.</span><span class="n">meshes</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">mtime</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">out</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">src</span><span class="o">.</span><span class="n">stem</span><span class="si">}{</span><span class="n">ROLLOUT_SUFFIX</span><span class="si">}</span><span class="s2">"</span>
+    <span class="n">_write_atomic</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">dump_rollout</span><span class="p">(</span><span class="n">rollout</span><span class="p">,</span> <span class="n">meshes_name</span><span class="o">=</span><span class="n">meshes</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">Converted</span><span class="p">(</span><span class="n">rollout</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">meshes</span><span class="o">=</span><span class="n">meshes</span><span class="p">,</span> <span class="n">shared</span><span class="o">=</span><span class="n">shared</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.rollout.Converted" class="doc doc-heading">
+            <code>mkdeck.rollout.Converted</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#mkdeck.rollout.Converted" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Where one conversion put its files.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <div class="table-wrapper"><table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.rollout.Converted.rollout">rollout</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The written <code>.rollout</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.rollout.Converted.meshes">meshes</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The shared <code>.meshes</code> the rollout points at.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="mkdeck.rollout.Converted.shared">shared</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True when the mesh file was already there, written by an
+earlier run of the same model.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table></div>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/rollout.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Converted</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Where one conversion put its files.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        rollout: The written ``.rollout``.</span>
+<span class="sd">        meshes: The shared ``.meshes`` the rollout points at.</span>
+<span class="sd">        shared: True when the mesh file was already there, written by an</span>
+<span class="sd">            earlier run of the same model.</span>
+<span class="sd">    """</span>
+
+    <span class="n">rollout</span><span class="p">:</span> <span class="n">Path</span>
+    <span class="n">meshes</span><span class="p">:</span> <span class="n">Path</span>
+    <span class="n">shared</span><span class="p">:</span> <span class="nb">bool</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="mkdeck.rollout.NotBraxPage" class="doc doc-heading">
+            <code>mkdeck.rollout.NotBraxPage</code>
+
+
+<a href="#mkdeck.rollout.NotBraxPage" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="mkdeck.DeckError (mkdeck.errors.DeckError)" href="#mkdeck.DeckError">DeckError</a></code></p>
+
+
+
+        <p>The page is not a Brax playback page, which is not always a mistake.</p>
+<p>An assets folder normally mixes playback pages with plots, so a caller
+converting a batch may want to skip these and still fail on the rest.</p>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/mkdeck/rollout.py</code></summary>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">NotBraxPage</span><span class="p">(</span><span class="n">DeckError</span><span class="p">):</span>  <span class="c1"># noqa: N818 - a case for the caller to choose on, not a failure name</span>
+<span class="w">    </span><span class="sd">"""The page is not a Brax playback page, which is not always a mistake.</span>
+
+<span class="sd">    An assets folder normally mixes playback pages with plots, so a caller</span>
+<span class="sd">    converting a batch may want to skip these and still fail on the rest.</span>
+<span class="sd">    """</span>
+</code></pre></div></td></tr></table></div></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+  </div>
+  
+  <script>
+    document.querySelectorAll('article h2, article h3').forEach((header) => {
+      toc.observer.observe(header);
+    });
+  </script>
+</article>
+                                <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
+    
+    <a data-slot="button"
+        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 shadow-none"
+        href="../extending/">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="tabler-icon tabler-icon-arrow-left ">
+            <path d="M5 12l14 0"></path>
+            <path d="M5 12l6 6"></path>
+            <path d="M5 12l6 -6"></path>
+        </svg>
+        <span class="max-[500px]:hidden">Extending a deck</span>
+    </a>
+    
+    
+</div>
+                                
+                                
+                            </div>
+                            
+                            <dialog id="bottom-sidebar" onclick="onBottomSidebarDialogClick(event)" class="bg-transparent"
+    style="position: fixed; left: 0px; top: 0px; transform: translate(0px, 58px); min-width: max-content; --radix-popper-transform-origin: 0% 0px; will-change: transform; z-index: 50; --radix-popper-available-width: 504px; --radix-popper-available-height: 857px; --radix-popper-anchor-width: 72.94999694824219px; --radix-popper-anchor-height: 32px;">
+    <div data-side="bottom" data-align="start" data-state="open" role="dialog" data-slot="popover-content"
+        class="text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 origin-(--radix-popover-content-transform-origin) border outline-hidden bg-background/90 no-scrollbar h-(--radix-popper-available-height) w-(--radix-popper-available-width) overflow-y-auto rounded-none border-none p-0 shadow-none backdrop-blur duration-100"
+        style="--radix-popover-content-transform-origin: var(--radix-popper-transform-origin); --radix-popover-content-available-width: var(--radix-popper-available-width); --radix-popover-content-available-height: var(--radix-popper-available-height); --radix-popover-trigger-width: var(--radix-popper-anchor-width); --radix-popover-trigger-height: var(--radix-popper-anchor-height);"
+        tabindex="-1">
+        <div class="flex flex-col gap-12 overflow-auto px-6 py-6">
+            
+            
+            
+
+            
+            <div class="flex flex-col gap-4">
+                <div class="text-muted-foreground text-sm font-medium">Menu</div>
+                <div class="flex flex-col gap-3">
+                    
+                    <a class="text-2xl font-medium" href="..">
+                        
+                        Home
+                        
+                    </a>
+                    
+                    <a class="text-2xl font-medium" href="../getting-started/">
+                        
+                        Getting started
+                        
+                    </a>
+                    
+                    <a class="text-2xl font-medium" href="../writing-slides/">
+                        
+                        Writing slides
+                        
+                    </a>
+                    
+                    <a class="text-2xl font-medium" href="../python-api/">
+                        
+                        Building from Python
+                        
+                    </a>
+                    
+                    <a class="text-2xl font-medium" href="../extending/">
+                        
+                        Extending a deck
+                        
+                    </a>
+                    
+                    <a class="text-2xl font-medium" href="./">
+                        
+                        API reference
+                        
+                    </a>
+                    
+                </div>
+            </div>
+            
+
+            
+            
+
+        </div>
+    </div>
+</dialog>
+                            <div
+                                class="sticky top-[calc(var(--header-height)+1px)] ml-auto hidden h-[calc(100svh-var(--header-height)-var(--footer-height))] w-72 flex-col gap-4 overflow-hidden overscroll-none pb-8 xl:flex">
+                                <div class="h-(--top-spacing) shrink-0"></div>
+                                
+                                
+                                <div id="toc" view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
+    <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
+        <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">On This Page</p>
+        
+        
+        
+        
+        <a href="#the-slide-model"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#the-slide-model');">
+            The slide model
+        </a>
+        
+
+        
+        <a href="#mkdeck.Deck"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.Deck');">
+            Deck
+        </a>
+        
+        
+        <a href="#mkdeck.Deck.build"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#mkdeck.Deck.build');">
+            build
+        </a>
+        
+        <a href="#mkdeck.Deck.serve"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#mkdeck.Deck.serve');">
+            serve
+        </a>
+        
+        
+
+        
+        <a href="#mkdeck.Slide"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.Slide');">
+            Slide
+        </a>
+        
+
+        
+        <a href="#mkdeck.Embed"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.Embed');">
+            Embed
+        </a>
+        
+
+        
+        <a href="#mkdeck.Table"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.Table');">
+            Table
+        </a>
+        
+
+        
+        <a href="#mkdeck.DEFAULT_UNITS"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.DEFAULT_UNITS');">
+            DEFAULT_UNITS
+        </a>
+        
+
+        
+        <a href="#load-a-deck-from-disk"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#load-a-deck-from-disk');">
+            Load a deck from disk
+        </a>
+        
+
+        
+        <a href="#mkdeck.load_source"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.load_source');">
+            load_source
+        </a>
+        
+
+        
+        <a href="#mkdeck.DeckSource"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.DeckSource');">
+            DeckSource
+        </a>
+        
+        
+        <a href="#mkdeck.DeckSource.build"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#mkdeck.DeckSource.build');">
+            build
+        </a>
+        
+        <a href="#mkdeck.DeckSource.serve"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#mkdeck.DeckSource.serve');">
+            serve
+        </a>
+        
+        
+
+        
+        <a href="#errors-and-warnings"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#errors-and-warnings');">
+            Errors and warnings
+        </a>
+        
+
+        
+        <a href="#mkdeck.DeckError"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.DeckError');">
+            DeckError
+        </a>
+        
+        
+        <a href="#mkdeck.DeckError.__init__"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3" onClick="deferSetActiveTocLink('#mkdeck.DeckError.__init__');">
+            __init__
+        </a>
+        
+        
+
+        
+        <a href="#mkdeck.DeckWarning"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.DeckWarning');">
+            DeckWarning
+        </a>
+        
+
+        
+        <a href="#rollouts"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#rollouts');">
+            Rollouts
+        </a>
+        
+
+        
+        <a href="#mkdeck.rollout.convert_brax_html"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.rollout.convert_brax_html');">
+            convert_brax_html
+        </a>
+        
+
+        
+        <a href="#mkdeck.rollout.Converted"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.rollout.Converted');">
+            Converted
+        </a>
+        
+
+        
+        <a href="#mkdeck.rollout.NotBraxPage"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2" onClick="deferSetActiveTocLink('#mkdeck.rollout.NotBraxPage');">
+            NotBraxPage
+        </a>
+        
+
+        
+        
+        
+        
+
+    </div>
+    <div class="h-12"></div>
+
+</div>
+                                
+                                
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer view-transition-name="footer"
+    class="group-has-[.section-soft]/body:bg-surface/40 3xl:fixed:bg-transparent dark:bg-transparent">
+    <div class="container-wrapper px-4 xl:px-6">
+        <div class="flex h-(--footer-height) items-center justify-between">
+            <div class="text-muted-foreground w-full text-center text-xs leading-loose sm:text-sm">
+                
+                <a href="https://github.com/asiffer/mkdocs-shadcn">shadcn theme</a> provided by
+                <a href="https://github.com/asiffer">@asiffer</a>
+            </div>
+        </div>
+    </div>
+</footer>
+    </div>
+     
+
+<script src="../search/main.js"></script>
+
+
+    
+
+    <script integrity="sha384-JLNLRFGzvOp0up707XKgSnAjjt1w5BF/+lbeLQvlf6mNwf0m89IXFdpNAk4t6Hcs"
+        src="../js/copy-button.js"></script>
+    <script integrity="sha384-JBx6cBEiyhK1KPwZgBHiI6GDaAmvlOxMQFyWAZTEpW5Ifo5XQ2LBcJ61GVOumwF1"
+        src="../js/sidebar.js"></script>
+    <script integrity="sha384-fNURFMRt0p/HqXnQnV4+CT9dX1GiU5F0fC3pFbg7gfoANytoUMErSW7suWSBkSuF"
+        src="../js/slider.js"></script>
+    <script>updatePygmentsStylesheet();</script>
+    
+    
+    <script integrity="sha384-Oi13RhLSSgEpSmRyDbfsfmU5N1KzT7IBoQqMenKZoi1Mu+0mCDcF1mKtSZw3cd80" src="../js/mkdocstrings.js"></script>
+    
+    
+    <script type="speculationrules">
+{
+  "prerender": [
+    {
+      "where": {
+          "selector_matches": ["#next-button", "#previous-button"]
+      }
+    }
+  ]
+}
+</script>
+</body>
+
+</html>
