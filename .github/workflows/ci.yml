@@ -76,4 +76,4 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run pytest -q -ra
+      - run: uv run pytest -v -ra --tb=short
