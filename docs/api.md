@@ -1,19 +1,14 @@
 # API reference
 
-Everything on this page is importable from the top-level `mkdeck` package,
-apart from the rollout converter, which lives in `mkdeck.rollout`. The public
-modules are `mkdeck`, `mkdeck.errors` and `mkdeck.rollout`. Every other module
-is an implementation detail and can change between releases.
+Look up every public class and function of mkdeck.
 
-`Deck.build` and `Deck.serve` write and show a deck built in Python.
-`load_source(...)` returns a `DeckSource` with the same two methods for a deck
-written in Markdown. Those are the only entry points; see
-[Building from Python](python-api.md) for how they fit together.
+You import everything on this page from the top-level `mkdeck` package. The one exception is the rollout converter, which lives in `mkdeck.rollout`. The public modules are `mkdeck`, `mkdeck.errors`, and `mkdeck.rollout`. Every other module is an implementation detail, and it can change between releases.
+
+`Deck.build` and `Deck.serve` write and show a deck that you build in Python. `load_source(...)` returns a `DeckSource` with the same two methods for a deck written in Markdown. These are the only entry points. See [Build a deck from Python](python/build-a-deck.md) for how they fit together.
 
 ## The slide model
 
-The classes the Markdown loader produces and the renderer reads. You can also
-build them yourself.
+Markdown produces these classes, and the renderer reads them. You can also build them yourself.
 
 ::: mkdeck.Deck
 
@@ -39,10 +34,7 @@ build them yourself.
 
 ## Rollouts
 
-`mkdeck rollout` calls this function. It reads one Brax playback page and
-writes a `.rollout` file and, for a model it has not seen, its shared
-`.meshes` file. A page that holds no Brax scene raises `NotBraxPage`, a
-`DeckError` that a caller converting a folder of pages can catch and skip.
+`mkdeck rollout` calls `convert_brax_html`. It reads one Brax playback page. It writes a `.rollout` file and, for a model it has not seen, a shared `.meshes` file. A page with no Brax scene raises `NotBraxPage`, which is a `DeckError`. A caller that converts a folder of pages can catch it and skip the page.
 
 ::: mkdeck.rollout.convert_brax_html
 

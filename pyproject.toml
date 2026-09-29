@@ -46,7 +46,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/senthurayyappan/mkdeck"
-Documentation = "https://senthurayyappan.github.io/mkdeck/"
+Documentation = "https://senthurayyappan.com/mkdeck/"
 Issues = "https://github.com/senthurayyappan/mkdeck/issues"
 Changelog = "https://github.com/senthurayyappan/mkdeck/blob/main/CHANGELOG.md"
 

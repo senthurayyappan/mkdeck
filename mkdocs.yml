@@ -1,6 +1,6 @@
 site_name: "mkdeck"
 site_description: "Minimal HTML slide decks from Markdown or Python, served like mkdocs."
-site_url: https://senthurayyappan.github.io/mkdeck/
+site_url: https://senthurayyappan.com/mkdeck/
 repo_url: https://github.com/senthurayyappan/mkdeck
 repo_name: senthurayyappan/mkdeck
 strict: true
@@ -13,11 +13,52 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
-  - Writing slides: writing-slides.md
-  - Building from Python: python-api.md
-  - Extending a deck: extending.md
-  - API reference: api.md
+  - Get started:
+      - Install mkdeck: start/install.md
+      - Your first deck: start/first-deck.md
+      - The deck folder: start/deck-folder.md
+  - Write slides:
+      - Slide basics: write/slide-basics.md
+      - Text and bullets: write/text.md
+      - Layouts: write/layouts.md
+      - Numbers and units: write/numbers.md
+      - Math: write/math.md
+      - Diagrams: write/diagrams.md
+      - Figures: write/figures.md
+      - HTML pages in slides: write/embeds.md
+      - Tables: write/tables.md
+      - Speaker notes: write/notes.md
+      - Slide options: write/slide-options.md
+      - Deck settings: write/deck-settings.md
+      - What a slide cannot hold: write/limits.md
+  - Robot runs:
+      - Convert Brax pages: robots/convert.md
+      - Show a rollout: robots/show-a-rollout.md
+      - Viewer options: robots/viewer-options.md
+      - Share and export rollouts: robots/share-rollouts.md
+  - Build and share:
+      - Build a folder: share/build.md
+      - Build one file: share/single-file.md
+      - Serve a deck: share/serve.md
+      - Install the browser tools: share/browser.md
+      - Check your slides: share/check.md
+      - Export to PDF: share/export.md
+  - Python API:
+      - Build a deck from Python: python/build-a-deck.md
+      - The slide model: python/slide-model.md
+      - Load a deck: python/load-a-deck.md
+      - Serve from Python: python/serve.md
+      - Errors and warnings: python/messages.md
+  - Extend a deck:
+      - Custom CSS: extend/css.md
+      - Custom JavaScript: extend/js.md
+      - Custom elements: extend/elements.md
+      - Vendored libraries: extend/libraries.md
+  - Reference:
+      - "CLI: new, serve, build": reference/cli.md
+      - "CLI: rollout, check, export": reference/cli-tools.md
+      - Troubleshooting: reference/troubleshooting.md
+      - API reference: api.md
 plugins:
   - shadcn/search
   - mkdocstrings:
