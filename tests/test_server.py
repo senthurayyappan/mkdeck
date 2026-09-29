@@ -117,6 +117,23 @@ class Stream:
         self.sock.close()
 
 
+def wait_until_quiet(builds: Builds, seconds: float = 1.5, timeout: float = 20.0) -> int:
+    """Wait until no rebuild has happened for `seconds`, and return the number of builds so far.
+
+    macOS replays the events of a test's own setup writes, and how late they arrive depends on the
+    load on the machine. Counting from a quiet moment keeps a late replay out of the count.
+    """
+    deadline = time.monotonic() + timeout
+    seen, since = builds.calls, time.monotonic()
+    while time.monotonic() < deadline:
+        time.sleep(0.05)
+        if builds.calls != seen:
+            seen, since = builds.calls, time.monotonic()
+        elif time.monotonic() - since >= seconds:
+            return seen
+    raise AssertionError("the rebuilds never stopped")
+
+
 def settle(*streams: Stream) -> None:
     """Let the file watch report the files the test has just made, then forget them.
 
@@ -571,15 +588,16 @@ def test_a_build_written_into_a_relative_watch_path_does_not_rebuild_the_deck(tm
         stream = Stream(url)
         stream.until(": mkdeck connected")
         settle(stream)
+        before = wait_until_quiet(builds)
         (talk / "site").mkdir()
         (talk / "site" / "index.html").write_text("built")
         (talk / "report").mkdir()
         (talk / "report" / "report.txt").write_text("checked")
         (talk / "deck.pdf").write_bytes(b"%PDF")
         time.sleep(1.0)
-        assert builds.calls == 1
+        assert builds.calls == before
         (talk / "site-notes.md").write_text("mine")
-        wait_for(lambda: builds.calls == 2)
+        wait_for(lambda: builds.calls > before)
         stream.close()
 
 
