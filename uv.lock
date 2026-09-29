@@ -555,7 +555,7 @@ requires-dist = [
     { name = "markupsafe", specifier = ">=3" },
     { name = "mdit-py-plugins", specifier = ">=0.4" },
     { name = "playwright", marker = "extra == 'check'", specifier = ">=1.48" },
-    { name = "pyyaml", specifier = ">=6" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "typer", specifier = ">=0.21,<1" },
     { name = "watchfiles", specifier = ">=1" },
 ]

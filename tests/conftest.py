@@ -1,14 +1,27 @@
-"""Fixtures shared by the tests that open a deck in a browser."""
+"""Fixtures shared by the tests that open a deck in a browser.
+
+The tests that drive headless Chromium need the ``check`` extra and a browser
+(``uv sync --extra check`` and ``uv run playwright install chromium``). Without
+them those tests are skipped, so ``make test`` works on a bare checkout. Set
+``MKDECK_REQUIRE_BROWSER=1`` to make a missing Playwright or Chromium a failure
+instead; CI does this on the leg that installs the browser, so the front end
+(mkdeck.js, the rollout viewer, probe.js, KaTeX, Mermaid, PDF export) cannot go
+untested unnoticed.
+"""
 
 import base64
 import json
+import os
 import zlib
 
 import pytest
 
-from mkdeck.check import browser_page
+from mkdeck.browser import browser_page
 from mkdeck.errors import DeckError
 from mkdeck.rollout import convert_brax_html
+
+REQUIRE_BROWSER = "MKDECK_REQUIRE_BROWSER"
+"""Environment variable that turns a missing browser from a skip into a failure."""
 
 SCENE = {
     "opt": {"timestep": 0.02},
@@ -47,9 +60,15 @@ def rollout_deck(tmp_path):
 
 @pytest.fixture(scope="session")
 def chromium() -> None:
-    """Skip the test unless Playwright and a Chromium for it are here."""
+    """Skip the test unless Playwright and a Chromium for it are here.
+
+    With ``MKDECK_REQUIRE_BROWSER`` set to a non-empty value other than ``0``
+    the test fails instead of skipping.
+    """
     try:
         with browser_page((100, 100)):
             pass
     except DeckError as exc:
+        if os.environ.get(REQUIRE_BROWSER, "0") not in ("", "0"):
+            pytest.fail(f"{REQUIRE_BROWSER} is set, but there is no headless Chromium: {exc}", pytrace=False)
         pytest.skip(f"no headless Chromium: {exc}")

@@ -5,6 +5,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
+env:
+  # The uv release every job installs, so a new uv cannot change a build unannounced.
+  # Dependabot does not bump this; raise it by hand now and then.
+  UV_VERSION: "0.12.20"
 permissions:
   contents: read
 concurrency:
@@ -13,10 +17,12 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
       # --all-extras so ty can resolve Playwright, which mkdeck check imports.
       - run: uv sync --locked --all-extras
@@ -33,38 +39,66 @@ jobs:
   # package really carries them, so install it somewhere clean and run it.
   package:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
       - run: uv build --no-sources --clear
-      - run: uvx twine check --strict dist/*
+      - run: uvx twine==7.0.0 check --strict dist/*
       - run: uv run --no-project python scripts/smoke_wheel.py dist
 
+  # Only the Python 3.13 leg installs the `check` extra and Chromium and runs the
+  # browser tests (mkdeck.js, the rollout viewer, probe.js, KaTeX, Mermaid, PDF
+  # export). It sets MKDECK_REQUIRE_BROWSER so a missing browser fails the job
+  # instead of skipping those tests. The other legs stay fast and skip them.
   tests:
     name: Python ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
         python: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - python: "3.13"
+            browser: true
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --locked
-      - run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
+      - if: ${{ !matrix.browser }}
+        run: uv sync --locked
+      - if: ${{ !matrix.browser }}
+        run: uv run pytest -q -ra
+      - if: ${{ matrix.browser }}
+        run: uv sync --locked --extra check
+      # The cache holds the Chromium download; `playwright install` finds it
+      # and skips the download, and still installs the system libraries.
+      - if: ${{ matrix.browser }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+      - if: ${{ matrix.browser }}
+        run: uv run playwright install --with-deps chromium
+      - if: ${{ matrix.browser }}
+        env:
+          MKDECK_REQUIRE_BROWSER: "1"
+        run: uv run pytest -q -ra --cov --cov-report=term-missing --cov-fail-under=90
 
-  # Windows and macOS are reported but do not block a merge yet. The code
-  # handles Windows drive letters and backslash paths, and the file watcher and
-  # the dev server behave differently per platform. Make these jobs required
-  # once they are green.
+  # Windows and macOS are required, like the Linux legs. The code handles
+  # Windows drive letters and backslash paths, and the file watcher and the dev
+  # server behave differently per platform. They run without the browser, so
+  # the browser tests are skipped there.
   platforms:
     name: ${{ matrix.os }}
-    continue-on-error: true
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -74,6 +108,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
       - run: uv sync --locked
       - run: uv run pytest -q -ra --tb=short

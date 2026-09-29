@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+env:
+  # The uv release every job installs, so a new uv cannot change a release unannounced.
+  # Dependabot does not bump this; raise it by hand now and then.
+  UV_VERSION: "0.12.20"
 permissions:
   contents: write
   pull-requests: write
@@ -13,6 +17,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -31,7 +36,8 @@ jobs:
   build:
     name: Build the release
     needs: release
-    if: ${{ needs.release.outputs.release_created }}
+    if: ${{ needs.release.outputs.release_created == 'true' }}
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,8 +46,10 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.tag_name }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: ${{ env.UV_VERSION }}
       - run: uv build --no-sources --clear
-      - run: uvx twine check --strict dist/*
+      - run: uvx twine==7.0.0 check --strict dist/*
       # Install the wheel into an empty virtualenv and run it, so a file left
       # out of the wheel fails the release instead of reaching PyPI.
       - run: uv run --no-project python scripts/smoke_wheel.py dist
@@ -54,7 +62,8 @@ jobs:
   publish:
     name: Publish to PyPI
     needs: [release, build]
-    if: ${{ needs.release.outputs.release_created }}
+    if: ${{ needs.release.outputs.release_created == 'true' }}
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     # Trusted publishing: PyPI accepts this workflow, in this environment, with
     # no API token stored anywhere. See CONTRIBUTING.md for the one-time setup.

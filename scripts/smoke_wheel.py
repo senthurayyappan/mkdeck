@@ -4,13 +4,15 @@ The tests run against the source tree, and ``.gitignore`` swallows ``dist/``,
 which is where reveal.js and KaTeX keep their files. A file left out of the
 wheel is therefore invisible to the test suite and to a build that merely
 succeeds. This script builds nothing; it takes what ``uv build`` produced and
-answers three questions:
+answers four questions:
 
 1. Does the wheel hold the vendored front end, the themes, ``py.typed`` and
    every license file?
 2. Does the wheel install into an empty virtualenv outside the checkout, so
    nothing can be imported from ``src/``?
 3. Do ``mkdeck new`` and ``mkdeck build`` work from that installation?
+4. Does the source distribution carry the tests and everything they load, such
+   as ``scripts/vendor_assets.py``, so its tests can be collected?
 
 Usage::
 
@@ -22,9 +24,11 @@ Nothing here is imported by mkdeck, and it uses the standard library only.
 
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import NoReturn
 
 REQUIRED_FILES = (
     "mkdeck/py.typed",
@@ -69,6 +73,22 @@ LICENSE_FILES = (
 )
 """Files that have to sit under ``<name>.dist-info/licenses/``."""
 
+SDIST_FILES = (
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "pyproject.toml",
+    "scripts/vendor_assets.py",
+    "src/mkdeck/probe.js",
+    "tests/conftest.py",
+    "tests/rollout_reader.mjs",
+    "tests/test_vendor_assets.py",
+)
+"""Paths the source distribution has to hold, relative to its root folder.
+
+``tests/test_vendor_assets.py`` loads ``scripts/vendor_assets.py``, so a
+source distribution without the script cannot even collect its tests.
+"""
+
 BUILT_FILES = (
     "index.html",
     "mkdeck-assets/reveal.js/dist/reveal.js",
@@ -78,7 +98,7 @@ BUILT_FILES = (
 """Files a folder build has to write, relative to the output folder."""
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     """Report a failed check and stop.
 
     Args:
@@ -127,6 +147,37 @@ def check_contents(wheel: Path) -> None:
     if stray:
         fail("the wheel holds files that do not belong in it:\n  " + "\n  ".join(stray))
     print(f"ok: {wheel.name} holds {len(names)} entries, including the vendored assets and license files")
+
+
+def find_sdist(dist: Path) -> Path:
+    """Find the one source distribution in a build folder.
+
+    Args:
+        dist: The folder ``uv build`` wrote into.
+
+    Returns:
+        The source distribution.
+    """
+    sdists = sorted(dist.glob("*.tar.gz"))
+    if len(sdists) != 1:
+        fail(f"expected one source distribution in {dist}, found {len(sdists)}")
+    return sdists[0]
+
+
+def check_sdist(sdist: Path) -> None:
+    """Check that the source distribution holds the tests and what they load.
+
+    Args:
+        sdist: The built source distribution.
+    """
+    with tarfile.open(sdist) as archive:
+        names = archive.getnames()
+    root = sdist.name.removesuffix(".tar.gz")
+    missing = [path for path in SDIST_FILES if f"{root}/{path}" not in names]
+    if missing:
+        fail("the source distribution is missing:\n  " + "\n  ".join(missing))
+    tests = [name for name in names if name.startswith(f"{root}/tests/test_")]
+    print(f"ok: {sdist.name} holds {len(names)} entries, including {len(tests)} test modules and the scripts they load")
 
 
 def run(command: list[str], *, cwd: Path) -> str:
@@ -181,13 +232,15 @@ def check_installation(wheel: Path) -> None:
 
 
 def main(args: list[str]) -> None:
-    """Run every check against the wheel in a build folder.
+    """Run every check against the wheel and the source distribution in a build folder.
 
     Args:
         args: The command line, holding the build folder (``dist`` by default).
     """
-    wheel = find_wheel(Path(args[0] if args else "dist").resolve())
+    dist = Path(args[0] if args else "dist").resolve()
+    wheel = find_wheel(dist)
     check_contents(wheel)
+    check_sdist(find_sdist(dist))
     check_installation(wheel)
     print("smoke test passed")
 

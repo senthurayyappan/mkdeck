@@ -22,6 +22,25 @@ The `check` extra (`pip install "mkdeck[check]"`) installs Playwright, which
 both `mkdeck check` and `mkdeck export` need. It keeps its name because the
 hint that `mkdeck check` prints refers to it.
 
+## Browser tests
+
+The tests that drive headless Chromium cover `mkdeck.js`, the rollout viewer,
+`probe.js`, KaTeX, Mermaid and the PDF export. They need the `check` extra and a
+browser:
+
+```sh
+uv sync --extra check
+uv run playwright install chromium
+uv run pytest
+```
+
+Without them these tests are skipped, so `make test` works on a bare checkout.
+Set `MKDECK_REQUIRE_BROWSER=1` to make a missing Playwright or Chromium a
+failure instead of a skip (`MKDECK_REQUIRE_BROWSER=1 uv run pytest`). CI sets it
+on the Python 3.13 leg, so those tests cannot be skipped there without anyone
+noticing. The tests need no network: the Mermaid test uses a stub instead of
+the CDN.
+
 ## Code layout
 
 Only `mkdeck`, `mkdeck.errors` and `mkdeck.rollout` are public API. Every other
@@ -53,11 +72,27 @@ CI runs on pushes to `main` and on pull requests:
   reveal.js and KaTeX keep their files, so a file missing from the wheel would
   otherwise go unnoticed. `make smoke` runs the same checks locally.
 - **tests** runs the test suite on Linux with Python 3.11, 3.12, 3.13 and 3.14.
-- **platforms** runs the test suite on Windows and macOS. These jobs are
-  informational (`continue-on-error`) until they are green, because the code
-  handles Windows paths and the file watcher and dev server behave differently
-  per platform. Check them on your pull request, and make them required once
-  they pass.
+  The 3.13 leg also installs the `check` extra and Chromium (cached between
+  runs), sets `MKDECK_REQUIRE_BROWSER=1` so the browser tests must run, and
+  fails if coverage drops below 90%. The other legs skip the browser tests and
+  stay fast.
+- **platforms** runs the test suite on Windows and macOS, without the browser
+  tests. Both are required, like the Linux legs, because the code handles
+  Windows paths and the file watcher and dev server behave differently per
+  platform.
+
+Every job has a `timeout-minutes`. The workflows install the uv version in
+`UV_VERSION` (at the top of each workflow file) and `twine` at the version
+pinned in `Makefile` and the workflows. Dependabot does not bump either, so
+raise them by hand now and then. To move `UV_VERSION` past the `uv_build` range
+in `pyproject.toml`, change that range too.
+
+The source distribution carries `tests/`, `scripts/` and `docs/`, so its tests
+can be collected: `tests/test_vendor_assets.py` loads
+`scripts/vendor_assets.py`. `make smoke` checks that the sdist holds those
+files. If a test starts reading another file outside `tests/` and `src/`, add
+it to `source-include` in `pyproject.toml` and to `SDIST_FILES` in
+`scripts/smoke_wheel.py`.
 
 ## Vendored libraries
 
@@ -103,6 +138,12 @@ Release Please opens a pull request with the new version and changelog.
 It updates the version in both `pyproject.toml` and `uv.lock`. After that pull
 request is merged, its next run creates the GitHub release and version tag.
 
+`.release-please-config.json` holds `"release-as": "0.1.0"` for the first
+release. No tag exists yet, so without it Release Please would open a 0.1.1 or
+0.2.0 pull request on top of the 0.1.0 in `.release-please-manifest.json`.
+**Remove that line right after the first release is published**, or every
+later release pull request would be 0.1.0 again.
+
 In Settings → Actions → General, enable **Allow GitHub Actions to create and approve
 pull requests**. With automatic CI enabled, add a
 `RELEASE_PLEASE_TOKEN` secret to run checks on release pull requests. Use a
@@ -122,6 +163,18 @@ downloads it and uploads it with
 [trusted publishing](https://docs.pypi.org/trusted-publishers/). There is no
 PyPI token to store or rotate. The build job cannot mint the upload credential,
 so nothing that runs during the build can publish.
+
+### First release checklist
+
+1. Do the one-time PyPI setup below.
+2. Check that **CI** is green on `main`, including the Python 3.13 leg that
+   runs the browser tests.
+3. Merge the release pull request that Release Please opens. Check that it is
+   version 0.1.0.
+4. Approve the `pypi` environment if you made yourself a required reviewer,
+   and check that the package appears at https://pypi.org/project/mkdeck/.
+5. Remove `"release-as": "0.1.0"` from `.release-please-config.json` and merge
+   that as `chore: drop release-as after the first release`.
 
 ### One-time PyPI setup
 

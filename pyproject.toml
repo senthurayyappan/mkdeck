@@ -39,7 +39,7 @@ dependencies = [
     "markdown-it-py>=3",
     "markupsafe>=3",
     "mdit-py-plugins>=0.4",
-    "pyyaml>=6",
+    "pyyaml>=6.0.2",
     "typer>=0.21,<1",
     "watchfiles>=1",
 ]
@@ -51,8 +51,9 @@ Issues = "https://github.com/senthurayyappan/mkdeck/issues"
 Changelog = "https://github.com/senthurayyappan/mkdeck/blob/main/CHANGELOG.md"
 
 [tool.uv.build-backend]
-# The sdist carries the tests and the docs sources next to the package.
-source-include = ["tests/**", "docs/**", "mkdocs.yml", "CONTRIBUTING.md"]
+# The sdist carries the tests, the scripts they load (tests/test_vendor_assets.py
+# runs scripts/vendor_assets.py) and the docs sources next to the package.
+source-include = ["tests/**", "scripts/**", "docs/**", "mkdocs.yml", "CONTRIBUTING.md"]
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13"]
@@ -108,7 +109,7 @@ docstring-code-format = true
 python-version = "3.11"
 
 [tool.ty.src]
-include = ["src", "tests", ".github/scripts"]
+include = ["src", "tests", "scripts", ".github/scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
