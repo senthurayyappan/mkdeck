@@ -1,34 +1,40 @@
+---
+title: mkdeck
+---
+
+![mkdeck: Markdown in, slide deck out](images/banner.jpg)
+
 # mkdeck
 
-Minimal HTML slide decks from Markdown or Python, served like mkdocs.
+mkdeck turns a Markdown file or a Python script into a slide deck. The deck is one HTML page that runs in any browser.
 
-A deck is one Markdown file, one small config file, and a folder of figures.
-mkdeck turns them into a single HTML page and serves it on a local port.
+## What mkdeck is
 
-## What you get
+A deck is one Markdown file, one small settings file, and a folder of figures. mkdeck builds them into an HTML page. It also serves that page on your computer and reloads it when you save a file.
 
-- **Python only.** mkdeck needs Python 3.11 or newer. It carries reveal.js,
-  KaTeX and the Roboto font inside the wheel, so you do not install Node. A
-  built deck needs no network, apart from a diagram, which fetches Mermaid
-  unless you give it a local copy.
-- **Live figures.** Point a slide at an HTML page to embed it. A Brax viewer, a
-  Plotly chart or a WebGL scene runs inside the slide.
-- **One deck, two ways to write it.** Author in Markdown, or build the slides
-  from Python when the deck reports measured results. Both paths use the same
-  slide model, so they cannot drift apart.
-- **Math and diagrams.** KaTeX draws `$...$` and `$$...$$` in the browser,
-  offline. A `mermaid` code fence becomes a diagram, and the diagram loads
-  Mermaid from a CDN, so it needs a network connection.
-- **One visual language.** White page, one grey sentence, dark numbers. You
-  change the colours with CSS variables, and you add components with custom
-  elements.
+mkdeck needs only Python 3.11 or newer. reveal.js, KaTeX, and the Roboto font ship inside the package, so you do not install Node.
 
-## Start here
+## Who it is for
 
-| Page | Content |
-| --- | --- |
-| [Getting started](getting-started.md) | Install mkdeck and serve your first deck |
-| [Writing slides](writing-slides.md) | The Markdown format and the deck settings |
-| [Building from Python](python-api.md) | Generate a deck from your own data |
-| [Extending a deck](extending.md) | Add your colours, fonts and components |
-| [API reference](api.md) | Every public class and function |
+mkdeck is for people who know Markdown and Python basics and want slides quickly. It suits researchers and engineers who show measured results next to a sentence that explains them.
+
+## What you can do
+
+- Write slides in Markdown, or generate them from Python.
+- Show live figures, such as a Plotly chart or a WebGL scene.
+- Play Brax robot runs offline.
+- Draw math with KaTeX and diagrams with Mermaid.
+- Check every slide for overflow, then export a PDF.
+- Restyle a deck with CSS variables, and add your own components.
+
+A built deck works offline. Diagrams are the one exception, because Mermaid loads from a CDN unless you give it a local copy.
+
+## Where to start
+
+1. [Install mkdeck](start/install.md), then [make your first deck](start/first-deck.md).
+2. [Learn the slide format](write/slide-basics.md) to write slides.
+3. [Show robot runs](robots/convert.md) if you use Brax.
+4. [Build and share](share/build.md) your deck as a folder, a single file, or a PDF.
+5. [Build a deck from Python](python/build-a-deck.md) when your slides report computed numbers.
+6. [Extend a deck](extend/css.md) with your own colors, fonts, and components.
+7. Look up a command in the [CLI reference](reference/cli.md) or a class in the [API reference](api.md).
