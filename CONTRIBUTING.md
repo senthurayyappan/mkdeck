@@ -172,6 +172,3 @@ PyPI accepts an upload only from the trusted publisher that you registered:
 | Environment name | `pypi` |
 
 If you rename the workflow file or the environment, change the publisher on PyPI to match. Otherwise, PyPI rejects the upload.
-
-!!! warning
-    If `.release-please-config.json` still has a `"release-as"` line, remove it in a `chore:` commit. That line pins every release pull request to one version.
