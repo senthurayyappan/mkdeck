@@ -138,12 +138,6 @@ Release Please opens a pull request with the new version and changelog.
 It updates the version in both `pyproject.toml` and `uv.lock`. After that pull
 request is merged, its next run creates the GitHub release and version tag.
 
-`.release-please-config.json` holds `"release-as": "0.1.0"` for the first
-release. No tag exists yet, so without it Release Please would open a 0.1.1 or
-0.2.0 pull request on top of the 0.1.0 in `.release-please-manifest.json`.
-**Remove that line right after the first release is published**, or every
-later release pull request would be 0.1.0 again.
-
 In Settings → Actions → General, enable **Allow GitHub Actions to create and approve
 pull requests**. With automatic CI enabled, add a
 `RELEASE_PLEASE_TOKEN` secret to run checks on release pull requests. Use a
@@ -164,21 +158,10 @@ downloads it and uploads it with
 PyPI token to store or rotate. The build job cannot mint the upload credential,
 so nothing that runs during the build can publish.
 
-### First release checklist
-
-1. Do the one-time PyPI setup below.
-2. Check that **CI** is green on `main`, including the Python 3.13 leg that
-   runs the browser tests.
-3. Merge the release pull request that Release Please opens. Check that it is
-   version 0.1.0.
-4. Approve the `pypi` environment if you made yourself a required reviewer,
-   and check that the package appears at https://pypi.org/project/mkdeck/.
-5. Remove `"release-as": "0.1.0"` from `.release-please-config.json` and merge
-   that as `chore: drop release-as after the first release`.
-
 ### One-time PyPI setup
 
-A maintainer has to do this once, before the first release:
+A maintainer did this once, before the first release (0.1.0). It is needed again only
+if the project moves to another repository, workflow file or environment:
 
 1. On GitHub, open Settings → Environments and create an environment named
    `pypi`. Adding yourself as a required reviewer makes every release wait for
@@ -190,8 +173,8 @@ A maintainer has to do this once, before the first release:
    - Repository name: `mkdeck`
    - Workflow name: `release-please.yml`
    - Environment name: `pypi`
-3. Merge the first release pull request. The first upload creates the project
-   and turns the pending publisher into a regular one.
+3. Merge the release pull request. The first upload creates the project and
+   turns the pending publisher into a regular one.
 
 If you rename the workflow file or the environment, change the publisher on
 PyPI to match, or the upload is rejected.
