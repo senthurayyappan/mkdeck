@@ -266,6 +266,9 @@ export function createViewer(mount, options = {}) {
       controls.dispose();
       bodyGroups.forEach(clearGroup);
       renderer.dispose();
+      // dispose() alone leaves the context alive until garbage collection, and a
+      // browser that holds too many drops the oldest, which may be a live slide.
+      renderer.forceContextLoss();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       bundle = null;
     },

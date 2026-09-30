@@ -509,9 +509,10 @@ def test_the_header_padding_is_spaces_and_the_json_still_parses(brax):
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
 
-def read_with_node(path):
+def read_with_node(path, *flags):
     """Read a rollout or bundle through the deck's own JavaScript."""
-    done = subprocess.run(["node", str(READER), str(ASSETS), str(path)], capture_output=True, text=True, timeout=120)
+    command = ["node", str(READER), str(ASSETS), str(path), *flags]
+    done = subprocess.run(command, capture_output=True, text=True, timeout=120)
     assert done.returncode == 0, done.stderr
     return json.loads(done.stdout)
 
@@ -545,6 +546,12 @@ def check_playback(got):
 def test_the_reader_parses_a_rollout_python_wrote(brax, tmp_path):
     converted = convert_brax_html(brax, tmp_path / "out")
     check_playback(read_with_node(converted.rollout))
+
+
+@needs_node
+def test_the_reader_decodes_inline_meshes_without_from_base64(brax, tmp_path):
+    converted = convert_brax_html(brax, tmp_path / "out")
+    check_playback(read_with_node(converted.rollout, "--atob"))
 
 
 @needs_node
