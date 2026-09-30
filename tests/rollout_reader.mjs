@@ -1,6 +1,9 @@
 // Reads a .rollout or .rbundle the way a deck does, and prints what came out as JSON.
 //
-//   node rollout_reader.mjs <assets folder> <file>
+//   node rollout_reader.mjs <assets folder> <file> [--atob]
+//
+// --atob takes Uint8Array.fromBase64 away, so inline payloads decode the way an
+// older browser decodes them.
 //
 // It runs the real mkdeck-rollout.js (bundleFrom, in a stubbed page) to build the
 // bundle the viewer reads, then the real bundle_parser.js on that. A rollout's shared
@@ -9,7 +12,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import vm from "node:vm";
 
-const [assets, file] = process.argv.slice(2);
+const [assets, file, mode] = process.argv.slice(2);
 const folder = dirname(file);
 
 // Every file beside the rollout stands in for a payload the single-file deck carries inline.
@@ -25,9 +28,11 @@ const sandbox = {
   document: { querySelectorAll: inline },
   atob, Blob, Response, DecompressionStream, TextDecoder, TextEncoder,
 };
+const context = vm.createContext(sandbox);
+if (mode === "--atob") vm.runInContext("delete Uint8Array.fromBase64;", context);
 const script = readFileSync(join(assets, "mkdeck-rollout.js"), "utf8");
 // bundleFrom is a function declaration inside the script's own scope; hand it out.
-vm.runInNewContext(script.replace('"use strict";', '"use strict"; window.reader = { bundleFrom };'), sandbox);
+vm.runInContext(script.replace('"use strict";', '"use strict"; window.reader = { bundleFrom };'), context);
 
 const parser = readFileSync(join(assets, "viewer", "bundle_parser.js"), "utf8");
 const { parseBundle } = await import(`data:text/javascript;base64,${Buffer.from(parser).toString("base64")}`);
