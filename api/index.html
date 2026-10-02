@@ -1260,8 +1260,8 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The deck title: the title of the page, and the text of the generated
-opening slide.</p>
+                <p>The deck title: the title of the page, and the text of the
+generated opening slide.</p>
               </div>
             </td>
           </tr>
@@ -1354,9 +1354,9 @@ opening slide.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Whether to generate the opening title slide from <code>title</code> and <code>date</code>.
-It is left out when the first slide is itself a title slide (<code>layout="title"</code>),
-which is then the opening slide.</p>
+                <p>Whether to generate the opening title slide from <code>title</code>
+and <code>date</code>. It is left out when the first slide is itself a title
+slide (<code>layout="title"</code>), which is then the opening slide.</p>
               </div>
             </td>
           </tr>
@@ -1372,12 +1372,7 @@ which is then the opening slide.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/model.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">160</span>
 <span class="normal">161</span>
 <span class="normal">162</span>
 <span class="normal">163</span>
@@ -1471,13 +1466,29 @@ which is then the opening slide.</p>
 <span class="normal">251</span>
 <span class="normal">252</span>
 <span class="normal">253</span>
-<span class="normal">254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Deck</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""A whole deck.</span>
 
 <span class="sd">    Attributes:</span>
-<span class="sd">        title: The deck title: the title of the page, and the text of the generated</span>
-<span class="sd">            opening slide.</span>
+<span class="sd">        title: The deck title: the title of the page, and the text of the</span>
+<span class="sd">            generated opening slide.</span>
 <span class="sd">        date: The deck date, shown on the opening slide and in the chrome.</span>
 <span class="sd">        theme: The name of the theme stylesheet to link.</span>
 <span class="sd">        slides: The slides, in the order they are shown.</span>
@@ -1485,9 +1496,9 @@ which is then the opening slide.</p>
 <span class="sd">        extra_css: Extra stylesheets, linked after the theme.</span>
 <span class="sd">        extra_js: Extra scripts, loaded after `mkdeck.js`.</span>
 <span class="sd">        reveal: Options merged into `Reveal.initialize`.</span>
-<span class="sd">        title_slide: Whether to generate the opening title slide from `title` and `date`.</span>
-<span class="sd">            It is left out when the first slide is itself a title slide (`layout="title"`),</span>
-<span class="sd">            which is then the opening slide.</span>
+<span class="sd">        title_slide: Whether to generate the opening title slide from `title`</span>
+<span class="sd">            and `date`. It is left out when the first slide is itself a title</span>
+<span class="sd">            slide (`layout="title"`), which is then the opening slide.</span>
 <span class="sd">    """</span>
 
     <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
@@ -1501,7 +1512,8 @@ which is then the opening slide.</p>
     <span class="n">title_slide</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="c1"># build and serve import inside the method body on purpose: mkdeck.build and</span>
-    <span class="c1"># mkdeck.server both import this module, so a module-scope import would be circular,</span>
+    <span class="c1"># mkdeck.server both import this module, so a module-scope import would be</span>
+    <span class="c1"># circular,</span>
     <span class="c1"># and `import mkdeck` should not load the file watcher.</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
@@ -1513,24 +1525,25 @@ which is then the opening slide.</p>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Write this deck to an output folder.</span>
 
-<span class="sd">        Building again into the same folder brings it up to date: every file is copied</span>
-<span class="sd">        afresh, and a file the previous build wrote that this one no longer needs is</span>
-<span class="sd">        removed.</span>
+<span class="sd">        Building again into the same folder brings it up to date: every file is</span>
+<span class="sd">        copied afresh, and a file the previous build wrote that this one no</span>
+<span class="sd">        longer needs is removed.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            out: The output folder, or the HTML file when `single_file` is set and the</span>
-<span class="sd">                path ends in `.html`.</span>
-<span class="sd">            source: The folder the deck's assets live in; the current directory when</span>
-<span class="sd">                omitted.</span>
+<span class="sd">            out: The output folder, or the HTML file when `single_file` is set</span>
+<span class="sd">                and the path ends in `.html`.</span>
+<span class="sd">            source: The folder the deck's assets live in; the current directory</span>
+<span class="sd">                when omitted.</span>
 <span class="sd">            single_file: True to inline every stylesheet and script.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            The path of the written HTML document.</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            DeckError: If the deck or a slide breaks a rule of the model, the source</span>
-<span class="sd">                folder does not exist, the output folder is the source folder or its</span>
-<span class="sd">                `assets` folder, or a file the deck names is outside the source folder.</span>
+<span class="sd">            DeckError: If the deck or a slide breaks a rule of the model, the</span>
+<span class="sd">                source folder does not exist, the output folder is the source</span>
+<span class="sd">                folder or its `assets` folder, or a file the deck names is</span>
+<span class="sd">                outside the source folder.</span>
 <span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
 
@@ -1547,20 +1560,22 @@ which is then the opening slide.</p>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Serve this deck until interrupted.</span>
 
-<span class="sd">        The deck is the one in hand: it is built again, unchanged, whenever a file under</span>
-<span class="sd">        `source` changes. The Python code that made the slides is not run again.</span>
+<span class="sd">        The deck is the one in hand: it is built again, unchanged, whenever a</span>
+<span class="sd">        file under `source` changes. The Python code that made the slides is not</span>
+<span class="sd">        run again.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            source: The folder the deck's assets live in; the current directory when</span>
-<span class="sd">                omitted. It is watched, and the page reloads when a file in it changes.</span>
+<span class="sd">            source: The folder the deck's assets live in; the current directory</span>
+<span class="sd">                when omitted. It is watched, and the page reloads when a file in</span>
+<span class="sd">                it changes.</span>
 <span class="sd">            host: The interface to bind.</span>
 <span class="sd">            port: The port to bind.</span>
 <span class="sd">            open_browser: True to open the deck in a browser once it is up.</span>
 <span class="sd">            reload: True to watch `source` and push reloads.</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            DeckError: If the deck cannot be rendered, the source folder does not exist,</span>
-<span class="sd">                or the port is taken.</span>
+<span class="sd">            DeckError: If the deck cannot be rendered, the source folder does</span>
+<span class="sd">                not exist, or the port is taken.</span>
 <span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>
@@ -1570,7 +1585,14 @@ which is then the opening slide.</p>
         <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">build_deck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
 
-        <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="n">folder</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+        <span class="n">serve</span><span class="p">(</span>
+            <span class="n">build</span><span class="p">,</span>
+            <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="n">folder</span><span class="p">],</span>
+            <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+            <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+            <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span>
+            <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span>
+        <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
               </details>
 
@@ -1599,9 +1621,9 @@ which is then the opening slide.</p>
     <div class="doc doc-contents ">
 
         <p>Write this deck to an output folder.</p>
-<p>Building again into the same folder brings it up to date: every file is copied
-afresh, and a file the previous build wrote that this one no longer needs is
-removed.</p>
+<p>Building again into the same folder brings it up to date: every file is
+copied afresh, and a file the previous build wrote that this one no
+longer needs is removed.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1624,8 +1646,8 @@ removed.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The output folder, or the HTML file when <code>single_file</code> is set and the
-path ends in <code>.html</code>.</p>
+                <p>The output folder, or the HTML file when <code>single_file</code> is set
+and the path ends in <code>.html</code>.</p>
               </div>
             </td>
             <td>
@@ -1641,8 +1663,8 @@ path ends in <code>.html</code>.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The folder the deck's assets live in; the current directory when
-omitted.</p>
+                <p>The folder the deck's assets live in; the current directory
+when omitted.</p>
               </div>
             </td>
             <td>
@@ -1707,9 +1729,10 @@ omitted.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If the deck or a slide breaks a rule of the model, the source
-folder does not exist, the output folder is the source folder or its
-<code>assets</code> folder, or a file the deck names is outside the source folder.</p>
+                <p>If the deck or a slide breaks a rule of the model, the
+source folder does not exist, the output folder is the source
+folder or its <code>assets</code> folder, or a file the deck names is
+outside the source folder.</p>
               </div>
             </td>
           </tr>
@@ -1719,13 +1742,7 @@ folder does not exist, the output folder is the source folder or its
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/model.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
@@ -1749,7 +1766,14 @@ folder does not exist, the output folder is the source folder or its
 <span class="normal">215</span>
 <span class="normal">216</span>
 <span class="normal">217</span>
-<span class="normal">218</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -1758,24 +1782,25 @@ folder does not exist, the output folder is the source folder or its
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Write this deck to an output folder.</span>
 
-<span class="sd">    Building again into the same folder brings it up to date: every file is copied</span>
-<span class="sd">    afresh, and a file the previous build wrote that this one no longer needs is</span>
-<span class="sd">    removed.</span>
+<span class="sd">    Building again into the same folder brings it up to date: every file is</span>
+<span class="sd">    copied afresh, and a file the previous build wrote that this one no</span>
+<span class="sd">    longer needs is removed.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        out: The output folder, or the HTML file when `single_file` is set and the</span>
-<span class="sd">            path ends in `.html`.</span>
-<span class="sd">        source: The folder the deck's assets live in; the current directory when</span>
-<span class="sd">            omitted.</span>
+<span class="sd">        out: The output folder, or the HTML file when `single_file` is set</span>
+<span class="sd">            and the path ends in `.html`.</span>
+<span class="sd">        source: The folder the deck's assets live in; the current directory</span>
+<span class="sd">            when omitted.</span>
 <span class="sd">        single_file: True to inline every stylesheet and script.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        The path of the written HTML document.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        DeckError: If the deck or a slide breaks a rule of the model, the source</span>
-<span class="sd">            folder does not exist, the output folder is the source folder or its</span>
-<span class="sd">            `assets` folder, or a file the deck names is outside the source folder.</span>
+<span class="sd">        DeckError: If the deck or a slide breaks a rule of the model, the</span>
+<span class="sd">            source folder does not exist, the output folder is the source</span>
+<span class="sd">            folder or its `assets` folder, or a file the deck names is</span>
+<span class="sd">            outside the source folder.</span>
 <span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
 
@@ -1798,8 +1823,9 @@ folder does not exist, the output folder is the source folder or its
     <div class="doc doc-contents ">
 
         <p>Serve this deck until interrupted.</p>
-<p>The deck is the one in hand: it is built again, unchanged, whenever a file under
-<code>source</code> changes. The Python code that made the slides is not run again.</p>
+<p>The deck is the one in hand: it is built again, unchanged, whenever a
+file under <code>source</code> changes. The Python code that made the slides is not
+run again.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1822,8 +1848,9 @@ folder does not exist, the output folder is the source folder or its
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The folder the deck's assets live in; the current directory when
-omitted. It is watched, and the page reloads when a file in it changes.</p>
+                <p>The folder the deck's assets live in; the current directory
+when omitted. It is watched, and the page reloads when a file in
+it changes.</p>
               </div>
             </td>
             <td>
@@ -1913,8 +1940,8 @@ omitted. It is watched, and the page reloads when a file in it changes.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If the deck cannot be rendered, the source folder does not exist,
-or the port is taken.</p>
+                <p>If the deck cannot be rendered, the source folder does
+not exist, or the port is taken.</p>
               </div>
             </td>
           </tr>
@@ -1924,14 +1951,7 @@ or the port is taken.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/model.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">227</span>
 <span class="normal">228</span>
 <span class="normal">229</span>
 <span class="normal">230</span>
@@ -1958,7 +1978,23 @@ or the port is taken.</p>
 <span class="normal">251</span>
 <span class="normal">252</span>
 <span class="normal">253</span>
-<span class="normal">254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1969,20 +2005,22 @@ or the port is taken.</p>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Serve this deck until interrupted.</span>
 
-<span class="sd">    The deck is the one in hand: it is built again, unchanged, whenever a file under</span>
-<span class="sd">    `source` changes. The Python code that made the slides is not run again.</span>
+<span class="sd">    The deck is the one in hand: it is built again, unchanged, whenever a</span>
+<span class="sd">    file under `source` changes. The Python code that made the slides is not</span>
+<span class="sd">    run again.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        source: The folder the deck's assets live in; the current directory when</span>
-<span class="sd">            omitted. It is watched, and the page reloads when a file in it changes.</span>
+<span class="sd">        source: The folder the deck's assets live in; the current directory</span>
+<span class="sd">            when omitted. It is watched, and the page reloads when a file in</span>
+<span class="sd">            it changes.</span>
 <span class="sd">        host: The interface to bind.</span>
 <span class="sd">        port: The port to bind.</span>
 <span class="sd">        open_browser: True to open the deck in a browser once it is up.</span>
 <span class="sd">        reload: True to watch `source` and push reloads.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        DeckError: If the deck cannot be rendered, the source folder does not exist,</span>
-<span class="sd">            or the port is taken.</span>
+<span class="sd">        DeckError: If the deck cannot be rendered, the source folder does</span>
+<span class="sd">            not exist, or the port is taken.</span>
 <span class="sd">    """</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>
@@ -1992,7 +2030,14 @@ or the port is taken.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">build_deck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
 
-    <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="n">folder</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+    <span class="n">serve</span><span class="p">(</span>
+        <span class="n">build</span><span class="p">,</span>
+        <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="n">folder</span><span class="p">],</span>
+        <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+        <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+        <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span>
+        <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span>
+    <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
             </details>
     </div>
@@ -2068,8 +2113,8 @@ or the port is taken.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The heading, drawn above the rest of the slide. A slide that holds
-nothing else is a title slide.</p>
+                <p>The heading, drawn above the rest of the slide. A slide that
+holds nothing else is a title slide.</p>
               </div>
             </td>
           </tr>
@@ -2080,8 +2125,8 @@ nothing else is a title slide.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The visible headline. Inline Markdown and <code>$...$</code> math are allowed,
-and so is an HTML element, which is kept as written.</p>
+                <p>The visible headline. Inline Markdown and <code>$...$</code> math are
+allowed, and so is an HTML element, which is kept as written.</p>
               </div>
             </td>
           </tr>
@@ -2092,7 +2137,8 @@ and so is an HTML element, which is kept as written.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>A compact list drawn under the sentence, with the same inline syntax.</p>
+                <p>A compact list drawn under the sentence, with the same inline
+syntax.</p>
               </div>
             </td>
           </tr>
@@ -2119,8 +2165,8 @@ and so is an HTML element, which is kept as written.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The figures on the slide, at most <code>MAX_EMBEDS</code> of them. A slide takes
-figures or a table, not both.</p>
+                <p>The figures on the slide, at most <code>MAX_EMBEDS</code> of them. A slide
+takes figures or a table, not both.</p>
               </div>
             </td>
           </tr>
@@ -2196,11 +2242,7 @@ figures or a table, not both.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/model.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">119</span>
-<span class="normal">120</span>
-<span class="normal">121</span>
-<span class="normal">122</span>
-<span class="normal">123</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">123</span>
 <span class="normal">124</span>
 <span class="normal">125</span>
 <span class="normal">126</span>
@@ -2229,21 +2271,27 @@ figures or a table, not both.</p>
 <span class="normal">149</span>
 <span class="normal">150</span>
 <span class="normal">151</span>
-<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Slide</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""One slide of a deck.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        id: A stable identifier, emitted as `data-id`, or `None`.</span>
 <span class="sd">        layout: How the slide is laid out; `"auto"` picks from the content.</span>
-<span class="sd">        title: The heading, drawn above the rest of the slide. A slide that holds</span>
-<span class="sd">            nothing else is a title slide.</span>
-<span class="sd">        sentence: The visible headline. Inline Markdown and `$...$` math are allowed,</span>
-<span class="sd">            and so is an HTML element, which is kept as written.</span>
-<span class="sd">        bullets: A compact list drawn under the sentence, with the same inline syntax.</span>
+<span class="sd">        title: The heading, drawn above the rest of the slide. A slide that</span>
+<span class="sd">            holds nothing else is a title slide.</span>
+<span class="sd">        sentence: The visible headline. Inline Markdown and `$...$` math are</span>
+<span class="sd">            allowed, and so is an HTML element, which is kept as written.</span>
+<span class="sd">        bullets: A compact list drawn under the sentence, with the same inline</span>
+<span class="sd">            syntax.</span>
 <span class="sd">        math: Display formulas, one per line, drawn above the sentence.</span>
-<span class="sd">        embeds: The figures on the slide, at most `MAX_EMBEDS` of them. A slide takes</span>
-<span class="sd">            figures or a table, not both.</span>
+<span class="sd">        embeds: The figures on the slide, at most `MAX_EMBEDS` of them. A slide</span>
+<span class="sd">            takes figures or a table, not both.</span>
 <span class="sd">        table: The table on the slide, or `None`.</span>
 <span class="sd">        html: Raw HTML drawn with the rest of the slide. The escape hatch.</span>
 <span class="sd">        notes: Speaker notes, shown in reveal's presenter view.</span>
@@ -2327,8 +2375,9 @@ figures or a table, not both.</p>
             <td>
               <div class="doc-md-description">
                 <p>The page or image, relative to the deck source folder. An <code>http</code> or
-<code>https</code> URL is also accepted; an absolute path is not. A query or fragment,
-as in <code>plot.html?seed=2</code>, is kept in the document and left off the file name.</p>
+<code>https</code> URL is also accepted; an absolute path is not. A query or
+fragment, as in <code>plot.html?seed=2</code>, is kept in the document and left
+off the file name.</p>
               </div>
             </td>
           </tr>
@@ -2350,8 +2399,8 @@ as in <code>plot.html?seed=2</code>, is kept in the document and left off the fi
             </td>
             <td>
               <div class="doc-md-description">
-                <p><code>"iframe"</code>, <code>"image"</code> or <code>"rollout"</code>, or <code>"auto"</code> to pick from the suffix
-of <code>src</code>.</p>
+                <p><code>"iframe"</code>, <code>"image"</code> or <code>"rollout"</code>, or <code>"auto"</code> to pick from the
+suffix of <code>src</code>.</p>
               </div>
             </td>
           </tr>
@@ -2367,9 +2416,7 @@ of <code>src</code>.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/model.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 88</span>
-<span class="normal"> 89</span>
-<span class="normal"> 90</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 90</span>
 <span class="normal"> 91</span>
 <span class="normal"> 92</span>
 <span class="normal"> 93</span>
@@ -2382,17 +2429,21 @@ of <code>src</code>.</p>
 <span class="normal">100</span>
 <span class="normal">101</span>
 <span class="normal">102</span>
-<span class="normal">103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Embed</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""A figure on a slide: an iframe page, an image or an animation.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        src: The page or image, relative to the deck source folder. An `http` or</span>
-<span class="sd">            `https` URL is also accepted; an absolute path is not. A query or fragment,</span>
-<span class="sd">            as in `plot.html?seed=2`, is kept in the document and left off the file name.</span>
+<span class="sd">            `https` URL is also accepted; an absolute path is not. A query or</span>
+<span class="sd">            fragment, as in `plot.html?seed=2`, is kept in the document and left</span>
+<span class="sd">            off the file name.</span>
 <span class="sd">        label: The caption drawn above the frame, or `None` for no caption.</span>
-<span class="sd">        kind: `"iframe"`, `"image"` or `"rollout"`, or `"auto"` to pick from the suffix</span>
-<span class="sd">            of `src`.</span>
+<span class="sd">        kind: `"iframe"`, `"image"` or `"rollout"`, or `"auto"` to pick from the</span>
+<span class="sd">            suffix of `src`.</span>
 <span class="sd">    """</span>
 
     <span class="n">src</span><span class="p">:</span> <span class="nb">str</span>
@@ -2472,7 +2523,8 @@ of <code>src</code>.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The body rows; every row holds one cell per column, each shown with <code>str()</code>.</p>
+                <p>The body rows; every row holds one cell per column, each shown
+with <code>str()</code>.</p>
               </div>
             </td>
           </tr>
@@ -2488,23 +2540,25 @@ of <code>src</code>.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/model.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">106</span>
-<span class="normal">107</span>
-<span class="normal">108</span>
-<span class="normal">109</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
 <span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
-<span class="normal">116</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Table</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""A table on a slide.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        columns: The header cells, at least one. Each is shown with `str()`.</span>
-<span class="sd">        rows: The body rows; every row holds one cell per column, each shown with `str()`.</span>
+<span class="sd">        rows: The body rows; every row holds one cell per column, each shown</span>
+<span class="sd">            with `str()`.</span>
 <span class="sd">    """</span>
 
     <span class="n">columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -2549,7 +2603,8 @@ of <code>src</code>.</p>
 
     <div class="doc doc-contents first">
 
-        <p>The units a number may carry and still be highlighted, when a deck does not set its own.</p>
+        <p>The units a number may carry and still be highlighted.</p>
+<p>These apply when a deck does not set its own.</p>
 <p>The order does not matter: the renderer tries the longest spelling first.</p>
 
     </div>
@@ -2569,8 +2624,8 @@ of <code>src</code>.</p>
     <div class="doc doc-contents first">
 
         <p>Load a deck and its settings from disk.</p>
-<p>The <code>deck.yml</code> beside the Markdown and the frontmatter are read once and merged into
-the fields of the deck, the frontmatter winning.</p>
+<p>The <code>deck.yml</code> beside the Markdown and the frontmatter are read once and
+merged into the fields of the deck, the frontmatter winning.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -2647,8 +2702,8 @@ the fields of the deck, the frontmatter winning.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If the path holds no deck, the file is not readable UTF-8 text, or the
-deck cannot be parsed.</p>
+                <p>If the path holds no deck, the file is not readable UTF-8
+text, or the deck cannot be parsed.</p>
               </div>
             </td>
           </tr>
@@ -2658,29 +2713,33 @@ deck cannot be parsed.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/source.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">117</span>
-<span class="normal">118</span>
-<span class="normal">119</span>
-<span class="normal">120</span>
-<span class="normal">121</span>
-<span class="normal">122</span>
-<span class="normal">123</span>
-<span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
-<span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeckSource</span><span class="p">:</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeckSource</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Load a deck and its settings from disk.</span>
 
-<span class="sd">    The `deck.yml` beside the Markdown and the frontmatter are read once and merged into</span>
-<span class="sd">    the fields of the deck, the frontmatter winning.</span>
+<span class="sd">    The `deck.yml` beside the Markdown and the frontmatter are read once and</span>
+<span class="sd">    merged into the fields of the deck, the frontmatter winning.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        path: A Markdown file, or a folder holding `deck.md` or `slides.md`.</span>
@@ -2689,11 +2748,15 @@ deck cannot be parsed.</p>
 <span class="sd">        The loaded deck, with its source folder.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        DeckError: If the path holds no deck, the file is not readable UTF-8 text, or the</span>
-<span class="sd">            deck cannot be parsed.</span>
+<span class="sd">        DeckError: If the path holds no deck, the file is not readable UTF-8</span>
+<span class="sd">            text, or the deck cannot be parsed.</span>
 <span class="sd">    """</span>
     <span class="n">markdown</span> <span class="o">=</span> <span class="n">find_markdown</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-    <span class="n">deck</span> <span class="o">=</span> <span class="n">parse_markdown</span><span class="p">(</span><span class="n">read_text</span><span class="p">(</span><span class="n">markdown</span><span class="p">),</span> <span class="n">source</span><span class="o">=</span><span class="n">markdown</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="n">read_config_file</span><span class="p">(</span><span class="n">markdown</span><span class="p">))</span>
+    <span class="n">deck</span> <span class="o">=</span> <span class="n">parse_markdown</span><span class="p">(</span>
+        <span class="n">read_text</span><span class="p">(</span><span class="n">markdown</span><span class="p">),</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">markdown</span><span class="p">,</span>
+        <span class="n">defaults</span><span class="o">=</span><span class="n">read_config_file</span><span class="p">(</span><span class="n">markdown</span><span class="p">),</span>
+    <span class="p">)</span>
     <span class="k">return</span> <span class="n">DeckSource</span><span class="p">(</span><span class="n">deck</span><span class="o">=</span><span class="n">deck</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="n">markdown</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">markdown</span><span class="o">=</span><span class="n">markdown</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
             </details>
@@ -2745,8 +2808,8 @@ deck cannot be parsed.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The parsed deck. The frontmatter and <code>deck.yml</code> are already merged into its
-fields, so the deck alone carries the settings.</p>
+                <p>The parsed deck. The frontmatter and <code>deck.yml</code> are already merged
+into its fields, so the deck alone carries the settings.</p>
               </div>
             </td>
           </tr>
@@ -2784,82 +2847,103 @@ fields, so the deck alone carries the settings.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/source.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">18</span>
-<span class="normal">19</span>
-<span class="normal">20</span>
-<span class="normal">21</span>
-<span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
-<span class="normal">28</span>
-<span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
-<span class="normal">37</span>
-<span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span>
-<span class="normal">43</span>
-<span class="normal">44</span>
-<span class="normal">45</span>
-<span class="normal">46</span>
-<span class="normal">47</span>
-<span class="normal">48</span>
-<span class="normal">49</span>
-<span class="normal">50</span>
-<span class="normal">51</span>
-<span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
-<span class="normal">56</span>
-<span class="normal">57</span>
-<span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
-<span class="normal">64</span>
-<span class="normal">65</span>
-<span class="normal">66</span>
-<span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span>
-<span class="normal">70</span>
-<span class="normal">71</span>
-<span class="normal">72</span>
-<span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span>
-<span class="normal">76</span>
-<span class="normal">77</span>
-<span class="normal">78</span>
-<span class="normal">79</span>
-<span class="normal">80</span>
-<span class="normal">81</span>
-<span class="normal">82</span>
-<span class="normal">83</span>
-<span class="normal">84</span>
-<span class="normal">85</span>
-<span class="normal">86</span>
-<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 21</span>
+<span class="normal"> 22</span>
+<span class="normal"> 23</span>
+<span class="normal"> 24</span>
+<span class="normal"> 25</span>
+<span class="normal"> 26</span>
+<span class="normal"> 27</span>
+<span class="normal"> 28</span>
+<span class="normal"> 29</span>
+<span class="normal"> 30</span>
+<span class="normal"> 31</span>
+<span class="normal"> 32</span>
+<span class="normal"> 33</span>
+<span class="normal"> 34</span>
+<span class="normal"> 35</span>
+<span class="normal"> 36</span>
+<span class="normal"> 37</span>
+<span class="normal"> 38</span>
+<span class="normal"> 39</span>
+<span class="normal"> 40</span>
+<span class="normal"> 41</span>
+<span class="normal"> 42</span>
+<span class="normal"> 43</span>
+<span class="normal"> 44</span>
+<span class="normal"> 45</span>
+<span class="normal"> 46</span>
+<span class="normal"> 47</span>
+<span class="normal"> 48</span>
+<span class="normal"> 49</span>
+<span class="normal"> 50</span>
+<span class="normal"> 51</span>
+<span class="normal"> 52</span>
+<span class="normal"> 53</span>
+<span class="normal"> 54</span>
+<span class="normal"> 55</span>
+<span class="normal"> 56</span>
+<span class="normal"> 57</span>
+<span class="normal"> 58</span>
+<span class="normal"> 59</span>
+<span class="normal"> 60</span>
+<span class="normal"> 61</span>
+<span class="normal"> 62</span>
+<span class="normal"> 63</span>
+<span class="normal"> 64</span>
+<span class="normal"> 65</span>
+<span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">DeckSource</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""A deck loaded from disk, ready to build or serve.</span>
 
 <span class="sd">    Attributes:</span>
-<span class="sd">        deck: The parsed deck. The frontmatter and `deck.yml` are already merged into its</span>
-<span class="sd">            fields, so the deck alone carries the settings.</span>
+<span class="sd">        deck: The parsed deck. The frontmatter and `deck.yml` are already merged</span>
+<span class="sd">            into its fields, so the deck alone carries the settings.</span>
 <span class="sd">        directory: The folder holding the Markdown and its assets.</span>
 <span class="sd">        markdown: The Markdown file the deck came from.</span>
 <span class="sd">    """</span>
@@ -2868,22 +2952,27 @@ fields, so the deck alone carries the settings.</p>
     <span class="n">directory</span><span class="p">:</span> <span class="n">Path</span>
     <span class="n">markdown</span><span class="p">:</span> <span class="n">Path</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Write the deck to an output folder, with the assets it names.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            out: The output folder, or the HTML file when `single_file` is set and the</span>
-<span class="sd">                path ends in `.html`.</span>
+<span class="sd">            out: The output folder, or the HTML file when `single_file` is set</span>
+<span class="sd">                and the path ends in `.html`.</span>
 <span class="sd">            single_file: True to inline every stylesheet and script.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            The path of the written HTML document.</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            DeckError: If a slide breaks a rule of the model, the output folder is the</span>
-<span class="sd">                deck folder, or a file the deck names is outside the deck folder.</span>
+<span class="sd">            DeckError: If a slide breaks a rule of the model, the output folder</span>
+<span class="sd">                is the deck folder, or a file the deck names is outside the deck</span>
+<span class="sd">                folder.</span>
 <span class="sd">        """</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">deck</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">deck</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+            <span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span>
+        <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -2893,15 +2982,17 @@ fields, so the deck alone carries the settings.</p>
         <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Serve the deck until interrupted, and read it again whenever its folder changes.</span>
+<span class="w">        </span><span class="sd">"""Serve the deck until interrupted.</span>
 
-<span class="sd">        The first build uses `deck` as it is, but every rebuild reads the Markdown and</span>
-<span class="sd">        `deck.yml` from disk again, so a change made to `deck` in Python shows only until</span>
-<span class="sd">        the first edit. To serve a deck that is changed in Python, serve that `Deck`</span>
-<span class="sd">        with `Deck.serve` instead.</span>
+<span class="sd">        Read it again whenever its folder changes.</span>
 
-<span class="sd">        The folder is watched apart from the ones `mkdeck build`, `check` and `export`</span>
-<span class="sd">        write into by default (`site`, `report` and `deck.pdf`).</span>
+<span class="sd">        The first build uses `deck` as it is, but every rebuild reads the</span>
+<span class="sd">        Markdown and `deck.yml` from disk again, so a change made to `deck` in</span>
+<span class="sd">        Python shows only until the first edit. To serve a deck that is changed</span>
+<span class="sd">        in Python, serve that `Deck` with `Deck.serve` instead.</span>
+
+<span class="sd">        The folder is watched apart from the ones `mkdeck build`, `check` and</span>
+<span class="sd">        `export` write into by default (`site`, `report` and `deck.pdf`).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            host: The interface to bind.</span>
@@ -2912,17 +3003,31 @@ fields, so the deck alone carries the settings.</p>
 <span class="sd">        Raises:</span>
 <span class="sd">            DeckError: If the deck cannot be rendered or the port is taken.</span>
 <span class="sd">        """</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>  <span class="c1"># imported here, so that `import mkdeck` loads neither</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+            <span class="n">build_deck</span><span class="p">,</span>  <span class="c1"># imported here, so that `import mkdeck` loads neither</span>
+        <span class="p">)</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>  <span class="c1"># the renderer nor the file watcher</span>
 
         <span class="n">pending</span><span class="p">:</span> <span class="n">DeckSource</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="bp">self</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">nonlocal</span> <span class="n">pending</span>
-            <span class="n">current</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">pending</span> <span class="ow">or</span> <span class="n">load_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">),</span> <span class="kc">None</span>  <span class="c1"># the first build reuses the deck in hand</span>
-            <span class="n">build_deck</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
+            <span class="n">current</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">pending</span> <span class="ow">or</span> <span class="n">load_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">),</span>
+                <span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>  <span class="c1"># the first build reuses the deck in hand</span>
+            <span class="n">build_deck</span><span class="p">(</span>
+                <span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span>
+            <span class="p">)</span>
 
-        <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+        <span class="n">serve</span><span class="p">(</span>
+            <span class="n">build</span><span class="p">,</span>
+            <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">],</span>
+            <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+            <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+            <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span>
+            <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span>
+        <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
               </details>
 
@@ -2973,8 +3078,8 @@ fields, so the deck alone carries the settings.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The output folder, or the HTML file when <code>single_file</code> is set and the
-path ends in <code>.html</code>.</p>
+                <p>The output folder, or the HTML file when <code>single_file</code> is set
+and the path ends in <code>.html</code>.</p>
               </div>
             </td>
             <td>
@@ -3039,8 +3144,9 @@ path ends in <code>.html</code>.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If a slide breaks a rule of the model, the output folder is the
-deck folder, or a file the deck names is outside the deck folder.</p>
+                <p>If a slide breaks a rule of the model, the output folder
+is the deck folder, or a file the deck names is outside the deck
+folder.</p>
               </div>
             </td>
           </tr>
@@ -3050,10 +3156,7 @@ deck folder, or a file the deck names is outside the deck folder.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/source.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
 <span class="normal">37</span>
 <span class="normal">38</span>
 <span class="normal">39</span>
@@ -3065,22 +3168,35 @@ deck folder, or a file the deck names is outside the deck folder.</p>
 <span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
-<span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"site"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Write the deck to an output folder, with the assets it names.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        out: The output folder, or the HTML file when `single_file` is set and the</span>
-<span class="sd">            path ends in `.html`.</span>
+<span class="sd">        out: The output folder, or the HTML file when `single_file` is set</span>
+<span class="sd">            and the path ends in `.html`.</span>
 <span class="sd">        single_file: True to inline every stylesheet and script.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        The path of the written HTML document.</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        DeckError: If a slide breaks a rule of the model, the output folder is the</span>
-<span class="sd">            deck folder, or a file the deck names is outside the deck folder.</span>
+<span class="sd">        DeckError: If a slide breaks a rule of the model, the output folder</span>
+<span class="sd">            is the deck folder, or a file the deck names is outside the deck</span>
+<span class="sd">            folder.</span>
 <span class="sd">    """</span>
-    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">deck</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">deck</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+        <span class="n">out</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="n">single_file</span>
+    <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
             </details>
     </div>
@@ -3098,13 +3214,14 @@ deck folder, or a file the deck names is outside the deck folder.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Serve the deck until interrupted, and read it again whenever its folder changes.</p>
-<p>The first build uses <code>deck</code> as it is, but every rebuild reads the Markdown and
-<code>deck.yml</code> from disk again, so a change made to <code>deck</code> in Python shows only until
-the first edit. To serve a deck that is changed in Python, serve that <code>Deck</code>
-with <code>Deck.serve</code> instead.</p>
-<p>The folder is watched apart from the ones <code>mkdeck build</code>, <code>check</code> and <code>export</code>
-write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf</code>).</p>
+        <p>Serve the deck until interrupted.</p>
+<p>Read it again whenever its folder changes.</p>
+<p>The first build uses <code>deck</code> as it is, but every rebuild reads the
+Markdown and <code>deck.yml</code> from disk again, so a change made to <code>deck</code> in
+Python shows only until the first edit. To serve a deck that is changed
+in Python, serve that <code>Deck</code> with <code>Deck.serve</code> instead.</p>
+<p>The folder is watched apart from the ones <code>mkdeck build</code>, <code>check</code> and
+<code>export</code> write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf</code>).</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3211,44 +3328,60 @@ write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/source.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">50</span>
-<span class="normal">51</span>
-<span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span>
-<span class="normal">55</span>
-<span class="normal">56</span>
-<span class="normal">57</span>
-<span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
-<span class="normal">64</span>
-<span class="normal">65</span>
-<span class="normal">66</span>
-<span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span>
-<span class="normal">70</span>
-<span class="normal">71</span>
-<span class="normal">72</span>
-<span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span>
-<span class="normal">76</span>
-<span class="normal">77</span>
-<span class="normal">78</span>
-<span class="normal">79</span>
-<span class="normal">80</span>
-<span class="normal">81</span>
-<span class="normal">82</span>
-<span class="normal">83</span>
-<span class="normal">84</span>
-<span class="normal">85</span>
-<span class="normal">86</span>
-<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 58</span>
+<span class="normal"> 59</span>
+<span class="normal"> 60</span>
+<span class="normal"> 61</span>
+<span class="normal"> 62</span>
+<span class="normal"> 63</span>
+<span class="normal"> 64</span>
+<span class="normal"> 65</span>
+<span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"127.0.0.1"</span><span class="p">,</span>
@@ -3256,15 +3389,17 @@ write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf
     <span class="n">open_browser</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">reload</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Serve the deck until interrupted, and read it again whenever its folder changes.</span>
+<span class="w">    </span><span class="sd">"""Serve the deck until interrupted.</span>
 
-<span class="sd">    The first build uses `deck` as it is, but every rebuild reads the Markdown and</span>
-<span class="sd">    `deck.yml` from disk again, so a change made to `deck` in Python shows only until</span>
-<span class="sd">    the first edit. To serve a deck that is changed in Python, serve that `Deck`</span>
-<span class="sd">    with `Deck.serve` instead.</span>
+<span class="sd">    Read it again whenever its folder changes.</span>
 
-<span class="sd">    The folder is watched apart from the ones `mkdeck build`, `check` and `export`</span>
-<span class="sd">    write into by default (`site`, `report` and `deck.pdf`).</span>
+<span class="sd">    The first build uses `deck` as it is, but every rebuild reads the</span>
+<span class="sd">    Markdown and `deck.yml` from disk again, so a change made to `deck` in</span>
+<span class="sd">    Python shows only until the first edit. To serve a deck that is changed</span>
+<span class="sd">    in Python, serve that `Deck` with `Deck.serve` instead.</span>
+
+<span class="sd">    The folder is watched apart from the ones `mkdeck build`, `check` and</span>
+<span class="sd">    `export` write into by default (`site`, `report` and `deck.pdf`).</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        host: The interface to bind.</span>
@@ -3275,17 +3410,31 @@ write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf
 <span class="sd">    Raises:</span>
 <span class="sd">        DeckError: If the deck cannot be rendered or the port is taken.</span>
 <span class="sd">    """</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_deck</span>  <span class="c1"># imported here, so that `import mkdeck` loads neither</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.build</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+        <span class="n">build_deck</span><span class="p">,</span>  <span class="c1"># imported here, so that `import mkdeck` loads neither</span>
+    <span class="p">)</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck.server</span><span class="w"> </span><span class="kn">import</span> <span class="n">serve</span>  <span class="c1"># the renderer nor the file watcher</span>
 
     <span class="n">pending</span><span class="p">:</span> <span class="n">DeckSource</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="bp">self</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">live</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">nonlocal</span> <span class="n">pending</span>
-        <span class="n">current</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="n">pending</span> <span class="ow">or</span> <span class="n">load_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">),</span> <span class="kc">None</span>  <span class="c1"># the first build reuses the deck in hand</span>
-        <span class="n">build_deck</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">)</span>
+        <span class="n">current</span><span class="p">,</span> <span class="n">pending</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">pending</span> <span class="ow">or</span> <span class="n">load_source</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">),</span>
+            <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>  <span class="c1"># the first build reuses the deck in hand</span>
+        <span class="n">build_deck</span><span class="p">(</span>
+            <span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span>
+        <span class="p">)</span>
 
-    <span class="n">serve</span><span class="p">(</span><span class="n">build</span><span class="p">,</span> <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">],</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span> <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">)</span>
+    <span class="n">serve</span><span class="p">(</span>
+        <span class="n">build</span><span class="p">,</span>
+        <span class="n">watch_paths</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">],</span>
+        <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+        <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+        <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span>
+        <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span>
+    <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
             </details>
     </div>
@@ -3319,9 +3468,9 @@ write into by default (<code>site</code>, <code>report</code> and <code>deck.pdf
 
 
         <p>A deck could not be read, validated or rendered.</p>
-<p>The string form of the error is <code>&lt;source&gt;: &lt;slide&gt;: &lt;message&gt;</code>, with the parts that
-are known. Name the slide with <code>mkdeck.model.slide_name</code> so that every message names
-it the same way.</p>
+<p>The string form of the error is <code>&lt;source&gt;: &lt;slide&gt;: &lt;message&gt;</code>, with the
+parts that are known. Name the slide with <code>mkdeck.model.slide_name</code> so that
+every message names it the same way.</p>
 
 
 <p><span class="doc-section-title">Attributes:</span></p>
@@ -3350,7 +3499,8 @@ it the same way.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The offending slide, already named, or <code>None</code> for a deck-level problem.</p>
+                <p>The offending slide, already named, or <code>None</code> for a deck-level
+problem.</p>
               </div>
             </td>
           </tr>
@@ -3376,8 +3526,7 @@ it the same way.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/errors.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">16</span>
-<span class="normal">17</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">17</span>
 <span class="normal">18</span>
 <span class="normal">19</span>
 <span class="normal">20</span>
@@ -3404,27 +3553,44 @@ it the same way.</p>
 <span class="normal">41</span>
 <span class="normal">42</span>
 <span class="normal">43</span>
-<span class="normal">44</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeckError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeckError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""A deck could not be read, validated or rendered.</span>
 
-<span class="sd">    The string form of the error is `&lt;source&gt;: &lt;slide&gt;: &lt;message&gt;`, with the parts that</span>
-<span class="sd">    are known. Name the slide with `mkdeck.model.slide_name` so that every message names</span>
-<span class="sd">    it the same way.</span>
+<span class="sd">    The string form of the error is `&lt;source&gt;: &lt;slide&gt;: &lt;message&gt;`, with the</span>
+<span class="sd">    parts that are known. Name the slide with `mkdeck.model.slide_name` so that</span>
+<span class="sd">    every message names it the same way.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        message: What went wrong and what the author should do about it.</span>
-<span class="sd">        slide: The offending slide, already named, or `None` for a deck-level problem.</span>
+<span class="sd">        slide: The offending slide, already named, or `None` for a deck-level</span>
+<span class="sd">            problem.</span>
 <span class="sd">        source: The deck file or folder the problem came from, or `None`.</span>
 <span class="sd">    """</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Create the error.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            message: What went wrong and what the author should do about it. Write it as</span>
-<span class="sd">                a complete sentence with its own subject, because it is also shown</span>
-<span class="sd">                without the prefix, for example `"This slide has 3 embeds, but a slide</span>
-<span class="sd">                takes at most 2; move one onto a new slide."`.</span>
+<span class="sd">            message: What went wrong and what the author should do about it.</span>
+<span class="sd">                Write it as a complete sentence with its own subject, because it</span>
+<span class="sd">                is also shown without the prefix, for example `"This slide has 3</span>
+<span class="sd">                embeds, but a slide takes at most 2; move one onto a new</span>
+<span class="sd">                slide."`.</span>
 <span class="sd">            slide: The offending slide, named by `mkdeck.model.slide_name`.</span>
 <span class="sd">            source: The deck file or folder the problem came from.</span>
 <span class="sd">        """</span>
@@ -3483,10 +3649,11 @@ it the same way.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>What went wrong and what the author should do about it. Write it as
-a complete sentence with its own subject, because it is also shown
-without the prefix, for example <code>"This slide has 3 embeds, but a slide
-takes at most 2; move one onto a new slide."</code>.</p>
+                <p>What went wrong and what the author should do about it.
+Write it as a complete sentence with its own subject, because it
+is also shown without the prefix, for example <code>"This slide has 3
+embeds, but a slide takes at most 2; move one onto a new
+slide."</code>.</p>
               </div>
             </td>
             <td>
@@ -3531,9 +3698,7 @@ takes at most 2; move one onto a new slide."</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/errors.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">31</span>
 <span class="normal">32</span>
 <span class="normal">33</span>
 <span class="normal">34</span>
@@ -3546,14 +3711,30 @@ takes at most 2; move one onto a new slide."</code>.</p>
 <span class="normal">41</span>
 <span class="normal">42</span>
 <span class="normal">43</span>
-<span class="normal">44</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">slide</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Create the error.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        message: What went wrong and what the author should do about it. Write it as</span>
-<span class="sd">            a complete sentence with its own subject, because it is also shown</span>
-<span class="sd">            without the prefix, for example `"This slide has 3 embeds, but a slide</span>
-<span class="sd">            takes at most 2; move one onto a new slide."`.</span>
+<span class="sd">        message: What went wrong and what the author should do about it.</span>
+<span class="sd">            Write it as a complete sentence with its own subject, because it</span>
+<span class="sd">            is also shown without the prefix, for example `"This slide has 3</span>
+<span class="sd">            embeds, but a slide takes at most 2; move one onto a new</span>
+<span class="sd">            slide."`.</span>
 <span class="sd">        slide: The offending slide, named by `mkdeck.model.slide_name`.</span>
 <span class="sd">        source: The deck file or folder the problem came from.</span>
 <span class="sd">    """</span>
@@ -3593,7 +3774,8 @@ takes at most 2; move one onto a new slide."</code>.</p>
 
 
 
-        <p>A problem that leaves the deck usable, such as an embed that is not on disk.</p>
+        <p>A problem that leaves the deck usable.</p>
+<p>An embed that is not on disk is one such problem.</p>
 
 
 
@@ -3604,9 +3786,15 @@ takes at most 2; move one onto a new slide."</code>.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/errors.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
-<span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeckWarning</span><span class="p">(</span><span class="ne">UserWarning</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">"""A problem that leaves the deck usable, such as an embed that is not on disk."""</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeckWarning</span><span class="p">(</span><span class="ne">UserWarning</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A problem that leaves the deck usable.</span>
+
+<span class="sd">    An embed that is not on disk is one such problem.</span>
+<span class="sd">    """</span>
 </code></pre></div></td></tr></table></div></div>
               </details>
 
@@ -3743,42 +3931,50 @@ alone. Both files are written whole or not at all.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/rollout.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">453</span>
-<span class="normal">454</span>
-<span class="normal">455</span>
-<span class="normal">456</span>
-<span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">convert_brax_html</span><span class="p">(</span><span class="n">src</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Converted</span><span class="p">:</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">convert_brax_html</span><span class="p">(</span><span class="n">src</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Converted</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Convert one Brax page into a rollout and its shared meshes.</span>
 
 <span class="sd">    The mesh file is named after its own content, so converting a second run of</span>
@@ -3802,9 +3998,17 @@ alone. Both files are written whole or not at all.</p>
         <span class="n">rollout</span> <span class="o">=</span> <span class="n">to_rollout</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">stem</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">DeckError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">DeckError</span><span class="p">(</span><span class="n">exc</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">src</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+    <span class="k">except</span> <span class="p">(</span>
+        <span class="ne">KeyError</span><span class="p">,</span>
+        <span class="ne">TypeError</span><span class="p">,</span>
+        <span class="ne">ValueError</span><span class="p">,</span>
+        <span class="ne">AttributeError</span><span class="p">,</span>
+        <span class="ne">OverflowError</span><span class="p">,</span>
+    <span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">DeckError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"holds a Brax scene this version cannot read (</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">)."</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">src</span>
+            <span class="sa">f</span><span class="s2">"holds a Brax scene this version cannot read "</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">)."</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">src</span><span class="p">,</span>
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
     <span class="n">out</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">meshes</span> <span class="o">=</span> <span class="n">out</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">rollout</span><span class="o">.</span><span class="n">meshes_hash</span><span class="si">}{</span><span class="n">MESHES_SUFFIX</span><span class="si">}</span><span class="s2">"</span>
@@ -3881,8 +4085,8 @@ alone. Both files are written whole or not at all.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>True when the mesh file was already there, written by an
-earlier run of the same model.</p>
+                <p>True when the mesh file was already there, written by an earlier
+run of the same model.</p>
               </div>
             </td>
           </tr>
@@ -3898,28 +4102,28 @@ earlier run of the same model.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/rollout.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">101</span>
-<span class="normal">102</span>
-<span class="normal">103</span>
-<span class="normal">104</span>
-<span class="normal">105</span>
-<span class="normal">106</span>
-<span class="normal">107</span>
-<span class="normal">108</span>
-<span class="normal">109</span>
-<span class="normal">110</span>
-<span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span>
-<span class="normal">114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Converted</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Where one conversion put its files.</span>
 
 <span class="sd">    Attributes:</span>
 <span class="sd">        rollout: The written ``.rollout``.</span>
 <span class="sd">        meshes: The shared ``.meshes`` the rollout points at.</span>
-<span class="sd">        shared: True when the mesh file was already there, written by an</span>
-<span class="sd">            earlier run of the same model.</span>
+<span class="sd">        shared: True when the mesh file was already there, written by an earlier</span>
+<span class="sd">            run of the same model.</span>
 <span class="sd">    """</span>
 
     <span class="n">rollout</span><span class="p">:</span> <span class="n">Path</span>
@@ -3979,12 +4183,12 @@ converting a batch may want to skip these and still fail on the rest.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/mkdeck/rollout.py</code></summary>
-                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span>
-<span class="normal">76</span>
-<span class="normal">77</span>
-<span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">NotBraxPage</span><span class="p">(</span><span class="n">DeckError</span><span class="p">):</span>  <span class="c1"># noqa: N818 - a case for the caller to choose on, not a failure name</span>
+                <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">88</span>
+<span class="normal">89</span>
+<span class="normal">90</span>
+<span class="normal">91</span>
+<span class="normal">92</span>
+<span class="normal">93</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">NotBraxPage</span><span class="p">(</span><span class="n">DeckError</span><span class="p">):</span>  <span class="c1"># noqa: N818 - a case for the caller to choose on, not a failure name</span>
 <span class="w">    </span><span class="sd">"""The page is not a Brax playback page, which is not always a mistake.</span>
 
 <span class="sd">    An assets folder normally mixes playback pages with plots, so a caller</span>

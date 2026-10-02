@@ -1230,7 +1230,10 @@
 <p>Generate slides from data that you already compute, so that nobody retypes a number.</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mkdeck</span><span class="w"> </span><span class="kn">import</span> <span class="n">Deck</span><span class="p">,</span> <span class="n">Embed</span><span class="p">,</span> <span class="n">Slide</span>
 
-<span class="n">runs</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">"run3"</span><span class="p">,</span> <span class="s2">"Run 3"</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">22</span><span class="p">),</span> <span class="p">(</span><span class="s2">"run4"</span><span class="p">,</span> <span class="s2">"Run 4"</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">)]</span>  <span class="c1"># name, label, crossings, cap</span>
+<span class="n">runs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">"run3"</span><span class="p">,</span> <span class="s2">"Run 3"</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">22</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"run4"</span><span class="p">,</span> <span class="s2">"Run 4"</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+<span class="p">]</span>  <span class="c1"># name, label, crossings, cap</span>
 
 <span class="n">deck</span> <span class="o">=</span> <span class="n">Deck</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"Vault runs"</span><span class="p">,</span> <span class="n">date</span><span class="o">=</span><span class="s2">"2026-09-18"</span><span class="p">)</span>
 
