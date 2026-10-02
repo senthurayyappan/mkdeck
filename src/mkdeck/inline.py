@@ -1,9 +1,11 @@
-"""Fold a rendered deck into one HTML file: its stylesheets, scripts, fonts and rollouts.
+"""Fold a rendered deck into one HTML file.
 
-A folder build links `mkdeck-assets/` and the deck's own extras next to `index.html`. A
-single-file build reads them instead and writes them into the document, so it opens from
-a `file://` URL. Only the tags of the template are folded; the slides, which may hold the
-author's own HTML, are left as written.
+The file carries its stylesheets, scripts, fonts and rollouts.
+
+A folder build links `mkdeck-assets/` and the deck's own extras next to
+`index.html`. A single-file build reads them instead and writes them into the
+document, so it opens from a `file://` URL. Only the tags of the template are
+folded; the slides, which may hold the author's own HTML, are left as written.
 """
 
 import base64
@@ -27,23 +29,39 @@ from mkdeck.paths import (
 )
 from mkdeck.rollout import meshes_of
 
-__all__ = ["PAYLOAD_MARKER", "SLIDES_CLOSE", "SLIDES_OPEN", "VIEWER_MODULES", "inline_assets", "inline_rollouts"]
+__all__ = [
+    "PAYLOAD_MARKER",
+    "SLIDES_CLOSE",
+    "SLIDES_OPEN",
+    "VIEWER_MODULES",
+    "inline_assets",
+    "inline_rollouts",
+]
 
 PAYLOAD_MARKER = "<!--mkdeck-payloads-->"
 """Where in the head a single-file build puts the viewer and the rollouts."""
 
 SLIDES_OPEN = "<!--mkdeck-slides-->"
 SLIDES_CLOSE = "<!--/mkdeck-slides-->"
-"""Fence the slides in the template, so single-file inlining leaves the author's HTML alone."""
+"""Fence the slides in the template.
+
+Single-file inlining then leaves the author's HTML alone.
+"""
 
 VIEWER_MODULES: tuple[tuple[str, str], ...] = (
     ("three", "three/three.module.js"),
-    ("three/addons/controls/OrbitControls.js", "three/addons/controls/OrbitControls.js"),
+    (
+        "three/addons/controls/OrbitControls.js",
+        "three/addons/controls/OrbitControls.js",
+    ),
     ("rollout-bundle", "viewer/bundle_parser.js"),
     ("mkdeck-camera", "viewer/camera.js"),
     ("mkdeck-viewer", "viewer/rollout_viewer.js"),
 )
-"""The viewer's modules, by import specifier and path under the assets. The twin of MODULES in mkdeck-rollout.js."""
+"""The viewer's modules, by import specifier and path under the assets.
+
+The twin of MODULES in mkdeck-rollout.js.
+"""
 
 _CSS_REF = re.compile(
     r"""@import\s+(?:url\(\s*(?P<iquote>['"]?)(?P<iurl>[^'")]+)(?P=iquote)\s*\)|(?P<squote>['"])(?P<surl>[^'"]+)(?P=squote))"""
@@ -93,25 +111,31 @@ def _script_safe(text: str, tag: str) -> str:
         tag: `script` or `style`, the element it is going into.
 
     Returns:
-        The source with a closing tag, and in a script an opening comment, escaped. Both
-        escapes read the same to JavaScript and CSS.
+        The source with a closing tag, and in a script an opening comment,
+        escaped. Both escapes read the same to JavaScript and CSS.
     """
     text = text.replace(f"</{tag}", f"<\\/{tag}")
     return text.replace("<!--", "<\\!--") if tag == "script" else text
 
 
-def _inline_css(text: str, *, base: Path, root: Path, chain: tuple[Path, ...] = ()) -> str:
-    """Inline what a stylesheet refers to: its `@import`s and its `url(...)` files.
+def _inline_css(
+    text: str, *, base: Path, root: Path, chain: tuple[Path, ...] = ()
+) -> str:
+    """Inline what a stylesheet refers to.
 
-    A local `url(...)` becomes a `data:` URI and a local `@import` becomes the stylesheet
-    it names, inlined in turn. A remote reference is left alone. One that resolves outside
-    `root`, or cannot be found, is reported and its file is not read.
+    That is its `@import`s and its `url(...)` files.
+
+    A local `url(...)` becomes a `data:` URI and a local `@import` becomes the
+    stylesheet it names, inlined in turn. A remote reference is left alone. One
+    that resolves outside `root`, or cannot be found, is reported and its file
+    is not read.
 
     Args:
         text: The stylesheet source.
         base: The folder the stylesheet was read from.
         root: The folder a reference has to stay inside.
-        chain: The stylesheets being inlined, outermost first, to catch a loop of imports.
+        chain: The stylesheets being inlined, outermost first, to catch a loop
+            of imports.
 
     Returns:
         The stylesheet with every resolvable local reference inlined.
@@ -120,31 +144,46 @@ def _inline_css(text: str, *, base: Path, root: Path, chain: tuple[Path, ...] = 
     def replace(match: re.Match[str]) -> str:
         imported = match.group("iurl") or match.group("surl")
         target = (imported or match.group("target")).strip()
-        if not target or is_remote(target) or (not imported and target.startswith("#")):
+        if (
+            not target
+            or is_remote(target)
+            or (not imported and target.startswith("#"))
+        ):
             return match.group(0)
         path = (base / local_path(target)).resolve()
         if not stays_inside(path, root):
             warn_deck(
-                f'The stylesheet refers to "{target}", which leaves the deck folder, so the reference was dropped.'
+                f'The stylesheet refers to "{target}", which leaves the deck '
+                f"folder, so the reference was dropped."
             )
             return "" if imported else "url('')"
         if not path.is_file():
-            warn_deck(f'The stylesheet refers to "{target}", which was not found, so the reference stays as written.')
+            warn_deck(
+                f'The stylesheet refers to "{target}", which was not found, so '
+                f"the reference stays as written."
+            )
             return match.group(0)
         if not imported:
             payload = base64.b64encode(path.read_bytes()).decode("ascii")
             return f"url(data:{_media_type(path)};base64,{payload})"
         if path in chain:
-            warn_deck(f'The stylesheet "{target}" imports itself, so the import was dropped.')
+            warn_deck(
+                f'The stylesheet "{target}" imports itself, so the import was '
+                f"dropped."
+            )
             return ""
-        css = _inline_css(read_text(path), base=path.parent, root=root, chain=(*chain, path))
+        css = _inline_css(
+            read_text(path), base=path.parent, root=root, chain=(*chain, path)
+        )
         media = match.group("media").strip()
         return f"@media {media} {{{css}}}" if media else css
 
     return _CSS_REF.sub(replace, text)
 
 
-def _locate_asset(href: str, *, source: Path | None) -> tuple[Path, Path] | None:
+def _locate_asset(
+    href: str, *, source: Path | None
+) -> tuple[Path, Path] | None:
     """Find the file a stylesheet or script reference points at.
 
     Args:
@@ -152,8 +191,8 @@ def _locate_asset(href: str, *, source: Path | None) -> tuple[Path, Path] | None
         source: The deck source folder, for the deck's own extras.
 
     Returns:
-        The file and the folder it has to stay inside, or `None` when the reference is
-        remote or the file is missing (a missing one is reported).
+        The file and the folder it has to stay inside, or `None` when the
+        reference is remote or the file is missing (a missing one is reported).
 
     Raises:
         DeckError: If the reference leaves the folder it belongs to.
@@ -162,7 +201,9 @@ def _locate_asset(href: str, *, source: Path | None) -> tuple[Path, Path] | None
         return None
     prefix = f"{ASSET_BASE}/"
     if href.startswith(prefix):
-        path = find_in_deck(ASSET_ROOT, local_path(href[len(prefix) :]), what="bundled asset")
+        path = find_in_deck(
+            ASSET_ROOT, local_path(href[len(prefix) :]), what="bundled asset"
+        )
         return (path, ASSET_ROOT) if path is not None else None
     if source is None:
         return None
@@ -173,10 +214,11 @@ def _locate_asset(href: str, *, source: Path | None) -> tuple[Path, Path] | None
 def inline_assets(html: str, *, source: Path | str | None = None) -> str:
     """Fold every stylesheet and script of a rendered deck into the document.
 
-    Only the tags of the template are touched; the slides, which may hold the author's
-    own HTML, are left as written. Fonts and images a stylesheet refers to become `data:`
-    URIs, and its `@import`s are inlined, so the result opens from a `file://` URL with
-    only the deck's own figures left outside. A reference to a CDN is left alone.
+    Only the tags of the template are touched; the slides, which may hold the
+    author's own HTML, are left as written. Fonts and images a stylesheet refers
+    to become `data:` URIs, and its `@import`s are inlined, so the result opens
+    from a `file://` URL with only the deck's own figures left outside. A
+    reference to a CDN is left alone.
 
     Args:
         html: The rendered document.
@@ -186,7 +228,8 @@ def inline_assets(html: str, *, source: Path | str | None = None) -> str:
         The document with its stylesheets and scripts inlined.
 
     Raises:
-        DeckError: If a stylesheet or script leaves the deck folder, or cannot be read.
+        DeckError: If a stylesheet or script leaves the deck folder, or cannot
+            be read.
     """
     folder = Path(source) if source is not None else None
 
@@ -206,19 +249,26 @@ def inline_assets(html: str, *, source: Path | str | None = None) -> str:
             return f"<style>{_script_safe(css, 'style')}</style>"
         return f"<script>{_script_safe(text, 'script')}</script>"
 
-    # The slides are fenced off, so a tag the author wrote in one is not mistaken for ours.
+    # The slides are fenced off, so a tag the author wrote in one is not
+    # mistaken for ours.
     before, opened, rest = html.partition(SLIDES_OPEN)
     slides, closed, after = rest.rpartition(SLIDES_CLOSE)
     if not opened or not closed:
         return _ASSET_TAG.sub(fold, html)
-    return _ASSET_TAG.sub(fold, before) + opened + slides + closed + _ASSET_TAG.sub(fold, after)
+    return (
+        _ASSET_TAG.sub(fold, before)
+        + opened
+        + slides
+        + closed
+        + _ASSET_TAG.sub(fold, after)
+    )
 
 
 def _inline_payload(attribute: str, key: str, text: str) -> str:
     """Wrap one inlined source or payload in the tag the loader looks for.
 
-    A `<script>` element holds raw text, so only a closing tag has to be
-    hidden; the loader reads the content back with `textContent`.
+    A `<script>` element holds raw text, so only a closing tag has to be hidden;
+    the loader reads the content back with `textContent`.
 
     Args:
         attribute: The data attribute the loader queries on.
@@ -228,39 +278,61 @@ def _inline_payload(attribute: str, key: str, text: str) -> str:
     Returns:
         The element, as HTML.
     """
-    return f'<script type="text/plain" {attribute}="{escape(key)}">{_script_safe(text, "script")}</script>'
+    return (
+        f'<script type="text/plain" '
+        f'{attribute}="{escape(key)}">{_script_safe(text, "script")}</script>'
+    )
 
 
-def inline_rollouts(html: str, deck: Deck, *, source: Path | str | None = None) -> str:
+def inline_rollouts(
+    html: str, deck: Deck, *, source: Path | str | None = None
+) -> str:
     """Fold the rollout viewer and every rollout into a rendered deck.
 
     A rollout is binary and its viewer is a set of ES modules, neither of which
-    a `file://` page may fetch. Both are carried as text instead — the
-    modules verbatim, the binaries base64 — and `mkdeck-rollout.js` reads
-    them from the document rather than from the network.
+    a `file://` page may fetch. Both are carried as text instead — the modules
+    verbatim, the binaries base64 — and `mkdeck-rollout.js` reads them from the
+    document rather than from the network.
 
     Args:
         html: The rendered document, with its scripts already inlined.
-        deck: The deck being built, for the rollouts its slides name, whether as figures or
-            as `<deck-rollout src="...">` elements written in raw HTML.
-        source: The deck source folder the rollouts sit in; the current directory when
-            omitted.
+        deck: The deck being built, for the rollouts its slides name, whether as
+            figures or as `<deck-rollout src="...">` elements written in raw
+            HTML.
+        source: The deck source folder the rollouts sit in; the current
+            directory when omitted.
 
     Returns:
         The document with the viewer and the rollouts inside it.
 
     Raises:
-        DeckError: If a rollout, or the meshes it names, is outside the deck folder.
+        DeckError: If a rollout, or the meshes it names, is outside the deck
+            folder.
     """
     root = Path(source) if source is not None else Path.cwd()
     parts: list[str] = []
     for specifier, path in VIEWER_MODULES:
-        parts.append(_inline_payload("data-mkd-module", specifier, read_text(ASSET_ROOT / path)))
+        parts.append(
+            _inline_payload(
+                "data-mkd-module", specifier, read_text(ASSET_ROOT / path)
+            )
+        )
 
-    figures = [relative_url(e.src) for slide in deck.slides for e in slide.embeds if resolve_embed_kind(e) == "rollout"]
-    written = [unescape(found.group("src")) for tag in raw_rollout_tags(deck) if (found := _SRC.search(tag))]
+    figures = [
+        relative_url(e.src)
+        for slide in deck.slides
+        for e in slide.embeds
+        if resolve_embed_kind(e) == "rollout"
+    ]
+    written = [
+        unescape(found.group("src"))
+        for tag in raw_rollout_tags(deck)
+        if (found := _SRC.search(tag))
+    ]
     carried: set[str] = set()
-    for emitted in dict.fromkeys([*figures, *written]):  # as the document names them, which is what the viewer asks for
+    for emitted in dict.fromkeys(
+        [*figures, *written]
+    ):  # as the document names them, which is what the viewer asks for
         if is_remote(emitted):
             continue
         run = find_in_deck(root, local_path(emitted), what="rollout")
@@ -268,9 +340,14 @@ def inline_rollouts(html: str, deck: Deck, *, source: Path | str | None = None) 
             continue
         files = [(emitted, run)]
         if (meshes := meshes_of(run)) is not None:
-            # The viewer asks for the meshes by the folder of the rollout's own src, plus their name.
+            # The viewer asks for the meshes by the folder of the rollout's own
+            # src, plus their name.
             key = emitted[: emitted.rfind("/") + 1] + meshes
-            shared = find_in_deck(root, str(PurePosixPath(local_path(emitted)).parent / meshes), what="shared meshes")
+            shared = find_in_deck(
+                root,
+                str(PurePosixPath(local_path(emitted)).parent / meshes),
+                what="shared meshes",
+            )
             if shared is not None:
                 files.append((key, shared))
         for key, origin in files:
@@ -287,5 +364,8 @@ def inline_rollouts(html: str, deck: Deck, *, source: Path | str | None = None) 
     block = "\n".join(parts)
     if PAYLOAD_MARKER in html:
         return html.replace(PAYLOAD_MARKER, block, 1)
-    warn_deck("The deck template has no payload marker, so the rollouts went at the end of the document.")
+    warn_deck(
+        "The deck template has no payload marker, so the rollouts went at the "
+        "end of the document."
+    )
     return html + block

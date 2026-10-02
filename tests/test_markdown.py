@@ -8,9 +8,10 @@ from mkdeck.model import Slide, resolve_layout
 
 SOURCE = Path("slides/deck.md")
 
-# The barkour deck, written in the mkdeck Markdown format: the two-figure crate slide,
-# the model table, a section title that restamps the date, the diagnostics slide with
-# bullets and a display formula, and a paired-figure slide.
+# The barkour deck, written in the mkdeck Markdown format: the two-figure
+# crate slide, the model table, a section title that restamps the date, the
+# diagnostics slide with bullets and a display formula, and a paired-figure
+# slide.
 DECK = r"""---
 title: "Barkour vault: model mismatch, lean formulation, open problems"
 date: 2026-09-16
@@ -24,8 +25,8 @@ units: [N m, kg, m, percent]
 id: a1-crate
 -->
 
-The Go2 finishes standing on the 0.60 m crate with its torso at 0.83 m. The Barkour CAD
-model stops against the near face with its torso at 0.59 m.
+The Go2 finishes standing on the 0.60 m crate with its torso at 0.83 m.
+The Barkour CAD model stops against the near face with its torso at 0.59 m.
 
 ![Unitree Go2](assets/a1_go2_crate.html)
 ![Barkour CAD](assets/a1_cad_crate.html)
@@ -52,7 +53,8 @@ date: 2026-09-17
 ---
 <!-- id: e0-status -->
 
-Status on 2026-09-17, after the GPU replay. The median spread is $5\times10^{-7}$ rad.
+Status on 2026-09-17, after the GPU replay.
+The median spread is $5\times10^{-7}$ rad.
 
 $$W_{\text{net}}=\sum_{\text{substeps}}\ \sum_{j=1}^{12}\tau_j\,\Delta q_j$$
 
@@ -95,7 +97,10 @@ def by_id(slide_id: str) -> Slide:
 
 def test_the_frontmatter_becomes_the_deck_settings() -> None:
     deck = parse_markdown(DECK, source=SOURCE)
-    assert deck.title == "Barkour vault: model mismatch, lean formulation, open problems"
+    assert (
+        deck.title
+        == "Barkour vault: model mismatch, lean formulation, open problems"
+    )
     assert deck.date == "2026-09-16"
     assert deck.theme == "minimal"
     assert deck.title_slide is True
@@ -109,7 +114,9 @@ def test_a_file_without_frontmatter_is_all_body() -> None:
 
 def test_an_unclosed_frontmatter_block_is_an_error() -> None:
     with pytest.raises(DeckError, match="never closed"):
-        split_frontmatter("---\ntitle: Barkour vault\n\n# Barkour vault\n", source=SOURCE)
+        split_frontmatter(
+            "---\ntitle: Barkour vault\n\n# Barkour vault\n", source=SOURCE
+        )
 
 
 def test_frontmatter_that_is_not_settings_is_an_error() -> None:
@@ -136,7 +143,9 @@ def test_two_images_become_two_iframe_embeds() -> None:
     slide = by_id("a1-crate")
     assert resolve_layout(slide) == "figures"
     assert slide.sentence is not None
-    assert slide.sentence.startswith("The Go2 finishes standing on the 0.60 m crate")
+    assert slide.sentence.startswith(
+        "The Go2 finishes standing on the 0.60 m crate"
+    )
     assert "\n" in slide.sentence  # the source line break is kept
     assert [(embed.src, embed.label, embed.kind) for embed in slide.embeds] == [
         ("assets/a1_go2_crate.html", "Unitree Go2", "iframe"),
@@ -170,24 +179,39 @@ def test_a_gfm_table_becomes_a_table() -> None:
 def test_bullets_math_and_inline_math() -> None:
     slide = by_id("e0-status")
     assert slide.sentence is not None
-    assert r"$5\times10^{-7}$" in slide.sentence  # inline math reaches the renderer raw
-    assert slide.math == [r"W_{\text{net}}=\sum_{\text{substeps}}\ \sum_{j=1}^{12}\tau_j\,\Delta q_j"]
+    assert (
+        r"$5\times10^{-7}$" in slide.sentence
+    )  # inline math reaches the renderer raw
+    assert slide.math == [
+        r"W_{\text{net}}=\sum_{\text{substeps}}\ \sum_{j=1}^{12}\tau_j\,\Delta "
+        r"q_j"
+    ]
     assert slide.bullets == [
-        "Source: one DIAL-MPC rollout, 250 controls of 20 ms, four 5 ms substeps each.",
+        "Source: one DIAL-MPC rollout, 250 controls of 20 ms, four 5 ms "
+        "substeps each.",
         "Replay: MJX on the GPU reproduces every saved state bit for bit.",
     ]
     assert resolve_layout(slide) == "statement"
 
 
 def test_notes_come_from_a_comment_and_from_a_container() -> None:
-    assert by_id("e0-status").notes == "the 42 J difference is the 5 ms integrator, not a loss"
-    wall = "Say that the cap changes how the wall is crossed, not whether it is crossed."
+    assert (
+        by_id("e0-status").notes
+        == "the 42 J difference is the 5 ms integrator, not a loss"
+    )
+    wall = (
+        "Say that the cap changes how the wall is crossed, not whether it "
+        "is crossed."
+    )
     assert by_id("g3-paired").notes == wall
 
 
 def test_an_ordered_list_also_becomes_bullets() -> None:
     slides = parse("1. Raise the cap to 22 N m.\n2. Keep the wall at 0.65 m.\n")
-    assert slides[0].bullets == ["Raise the cap to 22 N m.", "Keep the wall at 0.65 m."]
+    assert slides[0].bullets == [
+        "Raise the cap to 22 N m.",
+        "Keep the wall at 0.65 m.",
+    ]
 
 
 def test_a_definition_list_becomes_bullets() -> None:
@@ -202,7 +226,10 @@ def test_a_mermaid_fence_becomes_a_deck_mermaid_element() -> None:
 
 def test_another_fence_becomes_a_code_block() -> None:
     slides = parse("```python\nprint(1 < 2)\n```\n")
-    assert slides[0].html == '<pre><code class="language-python">print(1 &lt; 2)</code></pre>'
+    assert (
+        slides[0].html
+        == '<pre><code class="language-python">print(1 &lt; 2)</code></pre>'
+    )
 
 
 def test_a_raw_html_block_is_carried_through() -> None:
@@ -211,7 +238,10 @@ def test_a_raw_html_block_is_carried_through() -> None:
 
 
 def test_a_separator_inside_a_fence_does_not_cut_the_slide() -> None:
-    slides = parse("The deck file looks like this.\n\n```markdown\n---\nid: a1-crate\n---\n```\n")
+    slides = parse(
+        "The deck file looks like this.\n\n```markdown\n---\nid: "
+        "a1-crate\n---\n```\n"
+    )
     assert len(slides) == 1
     assert slides[0].sentence == "The deck file looks like this."
 
@@ -223,12 +253,23 @@ def test_empty_pieces_are_not_slides_and_do_not_shift_the_numbering() -> None:
 
 
 def test_options_may_carry_the_whole_slide() -> None:
-    slides = parse("<!--\nid: f0-title\nlayout: title\ntitle: Refining the motion\ndate: 2026-09-17\n-->\n")
-    assert slides[0] == Slide(id="f0-title", layout="title", title="Refining the motion", date="2026-09-17")
+    slides = parse(
+        "<!--\nid: f0-title\nlayout: title\ntitle: Refining the motion\ndate: "
+        "2026-09-17\n-->\n"
+    )
+    assert slides[0] == Slide(
+        id="f0-title",
+        layout="title",
+        title="Refining the motion",
+        date="2026-09-17",
+    )
 
 
 def test_a_plain_comment_is_not_read_as_options() -> None:
-    slides = parse("<!-- the playback page is regenerated by build_compare_plots.py -->\n\nFive seeds cross.\n")
+    slides = parse(
+        "<!-- the playback page is regenerated by build_compare_plots.py "
+        "-->\n\nFive seeds cross.\n"
+    )
     assert slides[0].sentence == "Five seeds cross."
     assert slides[0].html is None
 
@@ -238,7 +279,8 @@ def test_an_unknown_option_names_the_slide_and_suggests_the_key() -> None:
         parse("<!--\nid: a1-crate\nlayot: figures\n-->\n\nFive seeds cross.\n")
     message = str(caught.value)
     assert message.startswith(
-        f'{Path("slides/deck.md")}: slide 1 "a1-crate": This slide has the unknown option "layot".'
+        f'{Path("slides/deck.md")}: slide 1 "a1-crate": This slide has the '
+        f'unknown option "layot".'
     )
     assert 'Did you mean "layout"?' in message
 
@@ -255,18 +297,25 @@ def test_a_body_field_cannot_be_set_in_the_options() -> None:
 
 def test_an_option_that_repeats_the_body_is_an_error() -> None:
     with pytest.raises(DeckError, match="keep one of the two"):
-        parse("<!--\nsentence: Five seeds cross the wall.\n-->\n\nSix seeds cross the wall.\n")
+        parse(
+            "<!--\nsentence: Five seeds cross the wall.\n-->\n\nSix seeds "
+            "cross the wall.\n"
+        )
 
 
 def test_an_option_that_agrees_with_the_body_is_accepted() -> None:
-    slides = parse("<!--\nsentence: Five seeds cross the wall.\n-->\n\nFive seeds cross the wall.\n")
+    slides = parse(
+        "<!--\nsentence: Five seeds cross the wall.\n-->\n\nFive seeds cross "
+        "the wall.\n"
+    )
     assert slides[0].sentence == "Five seeds cross the wall."
 
 
 def test_three_embeds_are_rejected_with_the_slide_named() -> None:
     text = (
         "<!-- id: g3-paired -->\n\n"
-        "![18 N m](assets/g3_18.html)\n![22 N m](assets/g3_22.html)\n![26 N m](assets/g3_26.html)\n"
+        "![18 N m](assets/g3_18.html)\n![22 N m](assets/g3_22.html)\n![26 N "
+        "m](assets/g3_26.html)\n"
     )
     with pytest.raises(DeckError) as caught:
         parse(text)
@@ -291,30 +340,48 @@ def test_a_construct_with_no_home_on_a_slide_is_an_error() -> None:
 def test_unreadable_options_name_the_slide() -> None:
     with pytest.raises(DeckError) as caught:
         parse("# One\n\n---\n<!--\nid: [unclosed\n-->\n\nFive seeds cross.\n")
-    assert str(caught.value).startswith(f"{Path('slides/deck.md')}: slide 2: The options comment is not valid.")
+    assert str(caught.value).startswith(
+        f"{Path('slides/deck.md')}: slide 2: The options comment is not valid."
+    )
 
 
 def test_duplicate_slide_ids_are_rejected() -> None:
     with pytest.raises(DeckError, match="repeats the id of slide 1"):
-        parse("<!-- id: a1-crate -->\n\nOne.\n\n---\n<!-- id: a1-crate -->\n\nTwo.\n")
+        parse(
+            "<!-- id: a1-crate -->\n\nOne.\n\n---\n<!-- id: a1-crate "
+            "-->\n\nTwo.\n"
+        )
 
 
-def test_a_deck_with_windows_line_endings_splits_and_reads_like_any_other() -> None:
+def test_a_deck_with_windows_line_endings_splits_and_reads_like_any_other() -> (
+    None
+):
     text = DECK.replace("\n", "\r\n")
     deck = parse_markdown(text, source=SOURCE)
     assert len(deck.slides) == 7
     assert deck.title.startswith("Barkour vault")
     assert all("\r" not in (slide.sentence or "") for slide in deck.slides)
-    assert [slide.id for slide in deck.slides][1:3] == ["a1-crate", "c1-model-table"]
+    assert [slide.id for slide in deck.slides][1:3] == [
+        "a1-crate",
+        "c1-model-table",
+    ]
 
 
 def test_a_separator_directly_under_a_paragraph_still_cuts_the_slide() -> None:
     slides = parse("First sentence.\n---\nSecond sentence.\n")
-    assert [slide.sentence for slide in slides] == ["First sentence.", "Second sentence."]
+    assert [slide.sentence for slide in slides] == [
+        "First sentence.",
+        "Second sentence.",
+    ]
 
 
-def test_a_separator_inside_a_comment_or_a_display_formula_does_not_cut_the_slide() -> None:
-    text = "Five seeds cross.\n\n<!--\nold notes\n---\nmore\n-->\n\n$$\na = b\n---\nc = d\n$$\n"
+def test_a_separator_inside_a_comment_or_a_display_formula_does_not_cut_the_slide() -> (  # noqa: E501
+    None
+):
+    text = (
+        "Five seeds cross.\n\n<!--\nold notes\n---\nmore\n-->\n\n$$\na = "
+        "b\n---\nc = d\n$$\n"
+    )
     slides = parse(text)
     assert len(slides) == 1
     assert slides[0].sentence == "Five seeds cross."
@@ -330,7 +397,10 @@ def test_a_rule_nested_in_a_container_is_not_a_separator() -> None:
 
 def test_a_file_that_opens_with_a_separator_gets_a_specific_error() -> None:
     with pytest.raises(DeckError, match='opens with "---"') as caught:
-        parse("---\n\n# Barkour vault\n\nFive seeds cross.\n\n---\n\nSecond slide.\n")
+        parse(
+            "---\n\n# Barkour vault\n\nFive seeds cross.\n\n---\n\nSecond "
+            "slide.\n"
+        )
     assert "slide separator" in str(caught.value)
     with pytest.raises(DeckError, match="does not hold deck settings"):
         parse("---\n# Barkour vault\n---\n\nFive seeds cross.\n")
@@ -344,15 +414,28 @@ def test_a_todo_comment_is_an_ordinary_comment() -> None:
     slides = parse("<!-- TODO: fix this slide -->\n\nFive seeds cross.\n")
     assert slides[0].sentence == "Five seeds cross."
     assert slides[0].id is None
-    assert parse("<!-- see the paper: section 3 -->\n\nFive seeds cross.\n")[0].sentence == "Five seeds cross."
+    assert (
+        parse("<!-- see the paper: section 3 -->\n\nFive seeds cross.\n")[
+            0
+        ].sentence
+        == "Five seeds cross."
+    )
 
 
 def test_a_slide_that_holds_only_a_plain_comment_is_not_a_slide() -> None:
-    slides = parse("Five seeds cross.\n\n---\n<!-- TODO: write this one -->\n\n---\n\nSix seeds cross.\n")
-    assert [slide.sentence for slide in slides] == ["Five seeds cross.", "Six seeds cross."]
+    slides = parse(
+        "Five seeds cross.\n\n---\n<!-- TODO: write this one -->\n\n---\n\nSix "
+        "seeds cross.\n"
+    )
+    assert [slide.sentence for slide in slides] == [
+        "Five seeds cross.",
+        "Six seeds cross.",
+    ]
 
 
-def test_a_comment_that_nearly_names_an_option_is_checked_like_options() -> None:
+def test_a_comment_that_nearly_names_an_option_is_checked_like_options() -> (
+    None
+):
     with pytest.raises(DeckError, match='unknown option "note"'):
         parse("<!-- note: say this slowly -->\n\nFive seeds cross.\n")
 
@@ -394,7 +477,9 @@ def test_a_bullet_that_holds_a_code_block_is_an_error() -> None:
 
 
 def test_a_paragraph_around_an_image_keeps_its_formatting_and_math() -> None:
-    slide = parse(r"Speed is **fast** at $v^2$, cost \$5.  ![18 N m](a.html)" + "\n")[0]
+    slide = parse(
+        r"Speed is **fast** at $v^2$, cost \$5.  ![18 N m](a.html)" + "\n"
+    )[0]
     assert slide.sentence == r"Speed is **fast** at $v^2$, cost \$5."
     assert [embed.src for embed in slide.embeds] == ["a.html"]
 
@@ -411,7 +496,10 @@ def test_an_image_label_keeps_its_math() -> None:
 
 def test_a_code_block_keeps_the_indentation_of_its_first_line() -> None:
     slide = parse("```python\n    indented()\nx = 1\n```\n")[0]
-    assert slide.html == '<pre><code class="language-python">    indented()\nx = 1</code></pre>'
+    assert (
+        slide.html == '<pre><code class="language-python">    indented()\nx = '
+        "1</code></pre>"
+    )
 
 
 def test_an_embed_source_with_a_query_is_kept_whole() -> None:
@@ -428,10 +516,20 @@ def test_a_dollar_amount_is_not_math_to_the_parser() -> None:
 
 @pytest.mark.parametrize(
     "note",
-    ["Remember: pause", "fix # later", "yes", "- a", "no, really: 1.10 stays as written"],
+    [
+        "Remember: pause",
+        "fix # later",
+        "yes",
+        "- a",
+        "no, really: 1.10 stays as written",
+    ],
 )
-def test_a_comment_that_starts_with_notes_is_raw_text_wherever_it_sits(note: str) -> None:
-    """A notes comment first on a slide used to be read as YAML, so a colon or `yes` broke it."""
+def test_a_comment_that_starts_with_notes_is_raw_text_wherever_it_sits(
+    note: str,
+) -> None:
+    """A notes comment first on a slide used to be read as YAML, so a colon
+    or `yes` broke it.
+    """
     first = parse(f"<!-- notes: {note} -->\n\nFive seeds cross.\n")[0]
     after = parse(f"Five seeds cross.\n\n<!-- notes: {note} -->\n")[0]
     assert first.notes == after.notes == note
@@ -439,39 +537,62 @@ def test_a_comment_that_starts_with_notes_is_raw_text_wherever_it_sits(note: str
 
 
 def test_a_multiline_notes_comment_first_on_a_slide_is_all_notes() -> None:
-    slide = parse("<!--\nnotes: Open with the wall.\nThen: the cap.\n-->\n\nFive seeds cross.\n")[0]
+    slide = parse(
+        "<!--\nnotes: Open with the wall.\nThen: the cap.\n-->\n\nFive seeds "
+        "cross.\n"
+    )[0]
     assert slide.notes == "Open with the wall.\nThen: the cap."
 
 
 def test_notes_can_still_be_an_option_when_other_options_come_first() -> None:
-    slide = parse('<!--\nid: a1\nnotes: "Say: pause"\n-->\n\nFive seeds cross.\n')[0]
+    slide = parse(
+        '<!--\nid: a1\nnotes: "Say: pause"\n-->\n\nFive seeds cross.\n'
+    )[0]
     assert (slide.id, slide.notes) == ("a1", "Say: pause")
 
 
 def test_an_image_takes_its_link_or_emphasis_with_it() -> None:
-    """`[![Run](a.png)](url)` and `*![Run](a.png)*` used to leave an empty link or a stray `**`."""
-    for text in ("[![Run](assets/a.png)](https://example.org)", "*![Run](assets/a.png)*", "**![Run](assets/a.png)**"):
+    """`[![Run](a.png)](url)` and `*![Run](a.png)*` used to leave an empty
+    link or a stray `**`.
+    """
+    for text in (
+        "[![Run](assets/a.png)](https://example.org)",
+        "*![Run](assets/a.png)*",
+        "**![Run](assets/a.png)**",
+    ):
         slide = parse(text)[0]
         assert slide.sentence is None, text
         assert [embed.src for embed in slide.embeds] == ["assets/a.png"]
 
 
-def test_the_words_around_an_image_and_a_link_that_holds_more_than_it_stay() -> None:
-    slide = parse("*Run 3* ![Run](assets/a.png) and [see ![Run](assets/b.png) here](https://example.org)\n")[0]
+def test_the_words_around_an_image_and_a_link_that_holds_more_than_it_stay() -> (  # noqa: E501
+    None
+):
+    slide = parse(
+        "*Run 3* ![Run](assets/a.png) and [see ![Run](assets/b.png) "
+        "here](https://example.org)\n"
+    )[0]
     assert slide.sentence == "*Run 3*  and [see  here](https://example.org)"
-    assert [embed.src for embed in slide.embeds] == ["assets/a.png", "assets/b.png"]
+    assert [embed.src for embed in slide.embeds] == [
+        "assets/a.png",
+        "assets/b.png",
+    ]
 
 
 def test_a_deck_with_no_title_gets_no_generated_title_slide() -> None:
     deck = parse_markdown("# My Talk\n\n---\n\nHello.\n", source=SOURCE)
     assert deck.title_slide is False
-    assert deck.title == "My Talk"  # the browser tab is named after the first heading
+    assert (
+        deck.title == "My Talk"
+    )  # the browser tab is named after the first heading
     assert [slide.title for slide in deck.slides] == ["My Talk", None]
     assert parse_markdown("Hello.\n", source=SOURCE).title == "Slide Deck"
 
 
 def test_a_deck_with_a_title_keeps_its_generated_title_slide() -> None:
-    deck = parse_markdown("---\ntitle: Talk\n---\n\n# My Talk\n\n---\n\nHello.\n", source=SOURCE)
+    deck = parse_markdown(
+        "---\ntitle: Talk\n---\n\n# My Talk\n\n---\n\nHello.\n", source=SOURCE
+    )
     assert deck.title == "Talk"
     assert deck.title_slide is True
 
@@ -480,4 +601,6 @@ def test_a_deck_with_nothing_in_it_is_an_error() -> None:
     for text in ("", "---\n---\n", "<!-- just a comment -->\n"):
         with pytest.raises(DeckError, match="no slides"):
             parse_markdown(text, source=SOURCE)
-    assert parse_markdown("---\ntitle: Talk\n---\n", source=SOURCE).slides == []  # the title slide is the deck
+    assert (
+        parse_markdown("---\ntitle: Talk\n---\n", source=SOURCE).slides == []
+    )  # the title slide is the deck

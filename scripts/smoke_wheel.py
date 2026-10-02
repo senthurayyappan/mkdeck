@@ -10,8 +10,8 @@ answers four questions:
    every license file?
 2. Does the wheel install into an empty virtualenv outside the checkout, so
    nothing can be imported from ``src/``?
-3. Do ``mkdeck new`` and ``mkdeck build`` work from that installation?
-4. Does the source distribution carry the tests and everything they load, such
+3. Do ``mkdeck new`` and ``mkdeck build`` work from that installation? 4. Does
+the source distribution carry the tests and everything they load, such
    as ``scripts/vendor_assets.py``, so its tests can be collected?
 
 Usage::
@@ -85,8 +85,8 @@ SDIST_FILES = (
 )
 """Paths the source distribution has to hold, relative to its root folder.
 
-``tests/test_vendor_assets.py`` loads ``scripts/vendor_assets.py``, so a
-source distribution without the script cannot even collect its tests.
+``tests/test_vendor_assets.py`` loads ``scripts/vendor_assets.py``, so a source
+distribution without the script cannot even collect its tests.
 """
 
 BUILT_FILES = (
@@ -133,7 +133,9 @@ def check_contents(wheel: Path) -> None:
     """
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
-    marker = next((name for name in names if name.endswith(".dist-info/WHEEL")), None)
+    marker = next(
+        (name for name in names if name.endswith(".dist-info/WHEEL")), None
+    )
     if marker is None:
         fail("the wheel has no .dist-info folder")
     licenses_dir = marker.removesuffix("WHEEL")
@@ -143,10 +145,20 @@ def check_contents(wheel: Path) -> None:
     missing += [path for path in licensed if path not in names]
     if missing:
         fail("the wheel is missing:\n  " + "\n  ".join(missing))
-    stray = sorted(name for name in names if "__pycache__" in name or name.startswith(("tests/", ".github/")))
+    stray = sorted(
+        name
+        for name in names
+        if "__pycache__" in name or name.startswith(("tests/", ".github/"))
+    )
     if stray:
-        fail("the wheel holds files that do not belong in it:\n  " + "\n  ".join(stray))
-    print(f"ok: {wheel.name} holds {len(names)} entries, including the vendored assets and license files")
+        fail(
+            "the wheel holds files that do not belong in it:\n  "
+            + "\n  ".join(stray)
+        )
+    print(
+        f"ok: {wheel.name} holds {len(names)} entries, including the vendored "
+        f"assets and license files"
+    )
 
 
 def find_sdist(dist: Path) -> Path:
@@ -177,7 +189,10 @@ def check_sdist(sdist: Path) -> None:
     if missing:
         fail("the source distribution is missing:\n  " + "\n  ".join(missing))
     tests = [name for name in names if name.startswith(f"{root}/tests/test_")]
-    print(f"ok: {sdist.name} holds {len(names)} entries, including {len(tests)} test modules and the scripts they load")
+    print(
+        f"ok: {sdist.name} holds {len(names)} entries, including "
+        f"{len(tests)} test modules and the scripts they load"
+    )
 
 
 def run(command: list[str], *, cwd: Path) -> str:
@@ -191,9 +206,14 @@ def run(command: list[str], *, cwd: Path) -> str:
         What the command printed on standard output.
     """
     print(f"$ {' '.join(command)}")
-    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        command, cwd=cwd, capture_output=True, text=True, check=False
+    )
     if result.returncode != 0:
-        fail(f"{' '.join(command)} exited with {result.returncode}\n{result.stdout}{result.stderr}")
+        fail(
+            f"{' '.join(command)} exited with "
+            f"{result.returncode}\n{result.stdout}{result.stderr}"
+        )
     return result.stdout
 
 
@@ -210,29 +230,52 @@ def check_installation(wheel: Path) -> None:
         work.mkdir()
         run(["uv", "venv", "--python", sys.executable, str(venv)], cwd=work)
         bindir = venv / ("Scripts" if sys.platform == "win32" else "bin")
-        python = bindir / ("python.exe" if sys.platform == "win32" else "python")
-        run(["uv", "pip", "install", "--python", str(python), str(wheel)], cwd=work)
+        python = bindir / (
+            "python.exe" if sys.platform == "win32" else "python"
+        )
+        run(
+            ["uv", "pip", "install", "--python", str(python), str(wheel)],
+            cwd=work,
+        )
 
-        located = run([str(python), "-c", "import mkdeck; print(mkdeck.__file__)"], cwd=work).strip()
+        located = run(
+            [str(python), "-c", "import mkdeck; print(mkdeck.__file__)"],
+            cwd=work,
+        ).strip()
         if str(venv) not in located:
-            fail(f"mkdeck was imported from {located}, not from the installed wheel")
+            fail(
+                f"mkdeck was imported from {located}, not from the installed "
+                f"wheel"
+            )
         print(f"ok: mkdeck imports from {located}")
 
-        mkdeck = str(bindir / ("mkdeck.exe" if sys.platform == "win32" else "mkdeck"))
+        mkdeck = str(
+            bindir / ("mkdeck.exe" if sys.platform == "win32" else "mkdeck")
+        )
         print(run([mkdeck, "--version"], cwd=work).strip())
         run([mkdeck, "new", "talk"], cwd=work)
         run([mkdeck, "build", "talk", "--out", "site"], cwd=work)
-        absent = [name for name in BUILT_FILES if not (work / "site" / name).is_file()]
+        absent = [
+            name for name in BUILT_FILES if not (work / "site" / name).is_file()
+        ]
         if absent:
             fail("the folder build did not write:\n  " + "\n  ".join(absent))
-        run([mkdeck, "build", "talk", "--single-file", "--out", "talk.html"], cwd=work)
+        run(
+            [mkdeck, "build", "talk", "--single-file", "--out", "talk.html"],
+            cwd=work,
+        )
         if not (work / "talk.html").is_file():
             fail("the single-file build did not write talk.html")
-        print("ok: mkdeck new, build and build --single-file work from the installed wheel")
+        print(
+            "ok: mkdeck new, build and build --single-file work from the "
+            "installed wheel"
+        )
 
 
 def main(args: list[str]) -> None:
-    """Run every check against the wheel and the source distribution in a build folder.
+    """Run every check against the wheel and the source distribution.
+
+    The checks run in a build folder.
 
     Args:
         args: The command line, holding the build folder (``dist`` by default).

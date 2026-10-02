@@ -1,4 +1,6 @@
-"""``scripts/vendor_assets.py``: it must not vendor a tarball npm did not publish."""
+"""``scripts/vendor_assets.py``: it must not vendor a tarball npm did not
+publish.
+"""
 
 import base64
 import hashlib
@@ -29,7 +31,9 @@ def tarball(files: dict[str, bytes]) -> bytes:
 
 
 def integrity(payload: bytes) -> str:
-    return "sha512-" + base64.b64encode(hashlib.sha512(payload).digest()).decode()
+    return (
+        "sha512-" + base64.b64encode(hashlib.sha512(payload).digest()).decode()
+    )
 
 
 LIBRARY = vendor_assets.Library(
@@ -50,7 +54,9 @@ def registry(monkeypatch):
         return served[url]
 
     def publish(payload: bytes, dist: dict) -> None:
-        served[f"{vendor_assets.REGISTRY}/thing/1.0.0"] = json.dumps({"dist": dist}).encode()
+        served[f"{vendor_assets.REGISTRY}/thing/1.0.0"] = json.dumps(
+            {"dist": dist}
+        ).encode()
         served[LIBRARY.url] = payload
 
     monkeypatch.setattr(vendor_assets, "_get", get)
@@ -59,19 +65,25 @@ def registry(monkeypatch):
 
 def test_a_matching_integrity_passes() -> None:
     payload = tarball({"package.json": b"{}"})
-    vendor_assets.verify(payload, {"integrity": integrity(payload)}, "thing@1.0.0")
+    vendor_assets.verify(
+        payload, {"integrity": integrity(payload)}, "thing@1.0.0"
+    )
 
 
 def test_a_matching_sha1_is_accepted_when_there_is_no_integrity() -> None:
     payload = tarball({"package.json": b"{}"})
-    vendor_assets.verify(payload, {"shasum": hashlib.sha1(payload).hexdigest()}, "thing@1.0.0")
+    vendor_assets.verify(
+        payload, {"shasum": hashlib.sha1(payload).hexdigest()}, "thing@1.0.0"
+    )
 
 
 def test_a_tarball_that_is_not_the_published_one_is_refused() -> None:
     payload = tarball({"package.json": b"{}"})
     forged = tarball({"package.json": b'{"evil": true}'})
     with pytest.raises(SystemExit, match="does not match"):
-        vendor_assets.verify(forged, {"integrity": integrity(payload)}, "thing@1.0.0")
+        vendor_assets.verify(
+            forged, {"integrity": integrity(payload)}, "thing@1.0.0"
+        )
 
 
 def test_a_version_with_no_published_checksum_is_refused() -> None:
@@ -79,16 +91,30 @@ def test_a_version_with_no_published_checksum_is_refused() -> None:
         vendor_assets.verify(b"anything", {}, "thing@1.0.0")
 
 
-def test_vendoring_stops_before_writing_when_the_checksum_fails(registry, tmp_path) -> None:
+def test_vendoring_stops_before_writing_when_the_checksum_fails(
+    registry, tmp_path
+) -> None:
     good = tarball({"package.json": b"{}", "dist/a.js": b"a"})
-    registry(tarball({"package.json": b"{}", "dist/a.js": b"tampered"}), {"integrity": integrity(good)})
+    registry(
+        tarball({"package.json": b"{}", "dist/a.js": b"tampered"}),
+        {"integrity": integrity(good)},
+    )
     with pytest.raises(SystemExit, match="does not match"):
         vendor_assets.vendor(LIBRARY, root=tmp_path)
     assert not (tmp_path / "thing").exists()
 
 
-def test_vendoring_writes_the_pinned_files_and_removes_the_stale_ones(registry, tmp_path, capsys) -> None:
-    payload = tarball({"package.json": b'{"v": 1}', "dist/a.js": b"a", "dist/b.js": b"b", "other.txt": b"x"})
+def test_vendoring_writes_the_pinned_files_and_removes_the_stale_ones(
+    registry, tmp_path, capsys
+) -> None:
+    payload = tarball(
+        {
+            "package.json": b'{"v": 1}',
+            "dist/a.js": b"a",
+            "dist/b.js": b"b",
+            "other.txt": b"x",
+        }
+    )
     registry(payload, {"integrity": integrity(payload)})
     folder = tmp_path / "thing"
     (folder / "dist").mkdir(parents=True)
@@ -97,7 +123,11 @@ def test_vendoring_writes_the_pinned_files_and_removes_the_stale_ones(registry, 
     (folder / "gone" / "deep" / "x.txt").write_text("stale")
     (folder / "mine.css").write_text("kept: mkdeck maintains it")
     assert vendor_assets.vendor(LIBRARY, root=tmp_path) == 3
-    assert sorted(path.relative_to(folder).as_posix() for path in folder.rglob("*") if path.is_file()) == [
+    assert sorted(
+        path.relative_to(folder).as_posix()
+        for path in folder.rglob("*")
+        if path.is_file()
+    ) == [
         "dist/a.js",
         "dist/b.js",
         "mine.css",

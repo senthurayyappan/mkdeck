@@ -1,4 +1,6 @@
-"""``mkdeck check``: the pure parts, and the browser itself when there is one."""
+"""``mkdeck check``: the pure parts, and the browser itself when there is
+one.
+"""
 
 import json
 from pathlib import Path
@@ -36,12 +38,27 @@ def test_every_kind_of_finding_becomes_a_flag() -> None:
             "overflow_top": 3,
             "overflow_bottom": 12,
             "into_chrome": True,
-            "scrollers": [{"tag": "div", "cls": "box", "sw": 900, "cw": 800, "sh": 50, "ch": 40}],
+            "scrollers": [
+                {
+                    "tag": "div",
+                    "cls": "box",
+                    "sw": 900,
+                    "cw": 800,
+                    "sh": 50,
+                    "ch": 40,
+                }
+            ],
             "overlaps": [{"i": 0, "j": 1, "ox": 30, "oy": 9}],
             "katex_errors": 2,
             "mermaid_errors": 1,
             "math_unrendered": 1,
-            "rollout_errors": [{"src": "assets/run.rollout", "state": "error", "message": "no meshes"}],
+            "rollout_errors": [
+                {
+                    "src": "assets/run.rollout",
+                    "state": "error",
+                    "message": "no meshes",
+                }
+            ],
         }
     )
     assert flags == [
@@ -57,7 +74,13 @@ def test_every_kind_of_finding_becomes_a_flag() -> None:
 
 
 def test_a_rollout_that_never_finished_loading_is_still_a_flag() -> None:
-    flags = slide_flags({"rollout_errors": [{"src": "a.rollout", "state": "loading", "message": ""}]})
+    flags = slide_flags(
+        {
+            "rollout_errors": [
+                {"src": "a.rollout", "state": "loading", "message": ""}
+            ]
+        }
+    )
     assert flags == ["ROLLOUT-ERROR a.rollout: still loading"]
 
 
@@ -78,13 +101,23 @@ def test_a_row_says_what_the_slide_holds() -> None:
         }
     )
     assert row.startswith("  4 numbers")
-    for part in ("figures", "sent   42", "bul 2/10+20", "fig 1 table 3x2 640px", "fb 1", "h 100-900", "ok"):
+    for part in (
+        "figures",
+        "sent   42",
+        "bul 2/10+20",
+        "fig 1 table 3x2 640px",
+        "fb 1",
+        "h 100-900",
+        "ok",
+    ):
         assert part in row
 
 
 def test_a_row_carries_its_flags_and_a_probe_error_replaces_it() -> None:
     assert _format_row({"n": 1, "into_chrome": True}).endswith("INTO-CHROME")
-    assert _format_row({"n": 2, "id": "x", "error": "no visible slide"}).endswith("no visible slide")
+    assert _format_row(
+        {"n": 2, "id": "x", "error": "no visible slide"}
+    ).endswith("no visible slide")
 
 
 def test_the_report_text_has_a_header_and_a_row_per_slide() -> None:
@@ -133,7 +166,9 @@ def test_a_light_page_in_a_frame_loads(tmp_path) -> None:
 
 
 def test_a_path_with_spaces_and_accents_is_measured_too(tmp_path) -> None:
-    page = sized(tmp_path / "mes figures" / "tracé 1.html", EMBED_BLOCK_BYTES + 1)
+    page = sized(
+        tmp_path / "mes figures" / "tracé 1.html", EMBED_BLOCK_BYTES + 1
+    )
     assert blocks_embed(page.as_uri(), subframe=True)
 
 
@@ -149,7 +184,9 @@ def test_only_html_files_and_only_file_urls_are_stubbed(tmp_path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_a_deck_is_built_as_one_file_so_a_rollout_can_be_read(rollout_deck, tmp_path) -> None:
+def test_a_deck_is_built_as_one_file_so_a_rollout_can_be_read(
+    rollout_deck, tmp_path
+) -> None:
     document = _prepare(rollout_deck, tmp_path / "work")
     html = document.read_text(encoding="utf-8")
     assert document.name == "deck.html"
@@ -173,54 +210,79 @@ def test_a_path_that_holds_no_deck_is_a_deck_error(tmp_path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_a_check_reads_every_slide_and_a_rollout_on_one(chromium, rollout_deck, tmp_path) -> None:
+def test_a_check_reads_every_slide_and_a_rollout_on_one(
+    chromium, rollout_deck, tmp_path
+) -> None:
     out = tmp_path / "report"
     records = check_deck(rollout_deck, out=out, size=(1280, 720))
     assert [record["n"] for record in records] == [1, 2, 3, 4]
-    assert all(record["flags"] == [] for record in records), [record["flags"] for record in records]
+    assert all(record["flags"] == [] for record in records), [
+        record["flags"] for record in records
+    ]
     assert records[2]["figures"] == 1
-    assert sorted(path.name for path in out.glob("slide_*.png")) == [f"slide_0{n}.png" for n in (1, 2, 3, 4)]
+    assert sorted(path.name for path in out.glob("slide_*.png")) == [
+        f"slide_0{n}.png" for n in (1, 2, 3, 4)
+    ]
     written = json.loads((out / "report.json").read_text(encoding="utf-8"))
     assert [row["flags"] for row in written] == [[]] * 4
-    assert (out / "report.txt").read_text(encoding="utf-8").startswith("viewport 1280x720, deck ")
+    assert (
+        (out / "report.txt")
+        .read_text(encoding="utf-8")
+        .startswith("viewport 1280x720, deck ")
+    )
 
 
-def test_a_deck_larger_than_the_embed_limit_is_still_checked(chromium, rollout_deck, tmp_path) -> None:
+def test_a_deck_larger_than_the_embed_limit_is_still_checked(
+    chromium, rollout_deck, tmp_path
+) -> None:
     built = _prepare(rollout_deck, tmp_path / "work")
     with built.open("a", encoding="utf-8") as handle:
         handle.write("<!--" + "x" * (EMBED_BLOCK_BYTES + 1) + "-->")
-    records = check_deck(built, out=tmp_path / "report", size=(1280, 720), shots=False)
+    records = check_deck(
+        built, out=tmp_path / "report", size=(1280, 720), shots=False
+    )
     assert len(records) == 4
     assert records[2]["flags"] == []
 
 
-def test_a_rollout_a_folder_build_cannot_read_is_flagged_with_the_reason(chromium, rollout_deck, tmp_path) -> None:
+def test_a_rollout_a_folder_build_cannot_read_is_flagged_with_the_reason(
+    chromium, rollout_deck, tmp_path
+) -> None:
     from mkdeck import load_source
 
     index = load_source(rollout_deck).build(tmp_path / "site")
-    records = check_deck(index, out=tmp_path / "report", size=(1280, 720), shots=False)
+    records = check_deck(
+        index, out=tmp_path / "report", size=(1280, 720), shots=False
+    )
     (flag,) = records[2]["flags"]
     assert flag.startswith("ROLLOUT-ERROR assets/run.rollout:")
     assert "--single-file" in flag
 
 
 @pytest.mark.filterwarnings("ignore::mkdeck.errors.DeckWarning")
-def test_a_heavy_iframe_is_stubbed_but_the_deck_around_it_is_not(chromium, tmp_path) -> None:
+def test_a_heavy_iframe_is_stubbed_but_the_deck_around_it_is_not(
+    chromium, tmp_path
+) -> None:
     folder = tmp_path / "un dossier"
     (folder / "assets").mkdir(parents=True)
     (folder / "assets" / "tracé lourd.html").write_text(
         "<html><body>REAL" + "x" * (EMBED_BLOCK_BYTES + 1) + "</body></html>"
     )
-    (folder / "assets" / "light.html").write_text("<html><body>LIGHTREAL</body></html>")
+    (folder / "assets" / "light.html").write_text(
+        "<html><body>LIGHTREAL</body></html>"
+    )
     (folder / "deck.md").write_text(
-        "---\ntitle: E\n---\n\nSay it.\n\n![a](<assets/tracé lourd.html>)\n![b](assets/light.html)\n"
+        "---\ntitle: E\n---\n\nSay it.\n\n![a](<assets/tracé "
+        "lourd.html>)\n![b](assets/light.html)\n"
     )
     document = _prepare(folder, tmp_path / "work")
     with browser_page((1280, 720)) as page:
         page.route("**/*", _route)
         page.goto(document.as_uri())
         page.wait_for_function("window.Reveal && Reveal.isReady()")
-        page.wait_for_function("document.querySelectorAll('iframe[src]').length > 0")
+        page.wait_for_function(
+            "document.querySelectorAll('iframe[src]').length > 0"
+        )
         page.wait_for_timeout(500)
         texts = [frame.content() for frame in page.frames[1:]]
     assert any("blocked in the checker" in text for text in texts)
@@ -229,55 +291,82 @@ def test_a_heavy_iframe_is_stubbed_but_the_deck_around_it_is_not(chromium, tmp_p
 
 
 def test_a_browser_timeout_is_a_deck_error(chromium) -> None:
-    with pytest.raises(DeckError, match="timed out"), browser_page((200, 200)) as page:
+    with (
+        pytest.raises(DeckError, match="timed out"),
+        browser_page((200, 200)) as page,
+    ):
         page.wait_for_function("false", timeout=50)
 
 
-FAKE_MERMAID = "window.mermaid = { initialize() {}, render: async () => ({ svg: '<svg></svg>' }) };"
+FAKE_MERMAID = (
+    "window.mermaid = { initialize() {}, render: async () => ({ "
+    "svg: '<svg></svg>' }) };"
+)
 
 
-@pytest.mark.parametrize(("script", "flags"), [("mermaid.min.js", []), ("gone.js", ["MERMAID-ERROR x1"])])
-def test_a_diagram_that_did_not_draw_is_flagged(chromium, tmp_path, script, flags) -> None:
+@pytest.mark.parametrize(
+    ("script", "flags"),
+    [("mermaid.min.js", []), ("gone.js", ["MERMAID-ERROR x1"])],
+)
+def test_a_diagram_that_did_not_draw_is_flagged(
+    chromium, tmp_path, script, flags
+) -> None:
     folder = tmp_path / "diagrams"
     (folder / "assets").mkdir(parents=True)
     (folder / "assets" / "mermaid.min.js").write_text(FAKE_MERMAID)
     (folder / "deck.md").write_text(
         "---\ntitle: D\ntitle_slide: false\n---\n\n"
-        f'<deck-mermaid data-src="assets/{script}">flowchart LR\n  A --> B</deck-mermaid>\n'
+        f'<deck-mermaid data-src="assets/{script}">flowchart LR\n  A --> '
+        f"B</deck-mermaid>\n"
     )
-    (record,) = check_deck(folder, out=tmp_path / "report", size=(1280, 720), shots=False)
+    (record,) = check_deck(
+        folder, out=tmp_path / "report", size=(1280, 720), shots=False
+    )
     assert record["flags"] == flags
 
 
 def hostile_deck(tmp_path: Path) -> tuple[Path, Path]:
-    """A deck whose raw HTML frames a file outside it, as well as one of its own."""
+    """A deck whose raw HTML frames a file outside it, as well as one of its
+    own.
+    """
     secret = tmp_path / "secret.html"
     secret.write_text("<html><body>SECRETTEXT</body></html>")
     folder = tmp_path / "deck"
     (folder / "assets").mkdir(parents=True)
-    (folder / "assets" / "own.html").write_text("<html><body>OWNTEXT</body></html>")
+    (folder / "assets" / "own.html").write_text(
+        "<html><body>OWNTEXT</body></html>"
+    )
     (folder / "deck.md").write_text(
-        f'---\ntitle: T\ntitle_slide: false\n---\n\n<iframe src="{secret.as_uri()}"></iframe>\n\n'
+        f"---\ntitle: T\ntitle_slide: false\n---\n\n<iframe "
+        f'src="{secret.as_uri()}"></iframe>\n\n'
         '<iframe src="assets/own.html"></iframe>\n'
     )
     return folder, secret
 
 
-def test_a_page_in_the_browser_cannot_read_a_local_file_outside_its_deck(chromium, tmp_path) -> None:
-    """Raw HTML such as an iframe of `file:///etc/hosts` was drawn into check screenshots and the PDF."""
+def test_a_page_in_the_browser_cannot_read_a_local_file_outside_its_deck(
+    chromium, tmp_path
+) -> None:
+    """Raw HTML such as an iframe of `file:///etc/hosts` was drawn into check
+    screenshots and the PDF.
+    """
     folder, _ = hostile_deck(tmp_path)
     document = _prepare(folder, tmp_path / "work")
     with browser_page((1280, 720), folder=document.parent) as page:
         page.goto(document.as_uri())
         page.wait_for_function("window.Reveal && Reveal.isReady()")
-        page.wait_for_function("Array.from(document.querySelectorAll('iframe')).length === 2")
+        page.wait_for_function(
+            "Array.from(document.querySelectorAll('iframe')).length === 2"
+        )
         page.wait_for_timeout(500)
         texts = [frame.content() for frame in page.frames[1:]]
     assert any("OWNTEXT" in text for text in texts)
     assert not any("SECRETTEXT" in text for text in texts)
 
 
-def test_check_and_export_both_keep_the_page_to_the_folder_of_its_deck(chromium, tmp_path, monkeypatch) -> None:
+def test_check_and_export_both_keep_the_page_to_the_folder_of_its_deck(
+    chromium, tmp_path, monkeypatch
+) -> None:
     from mkdeck import export as export_module
 
     folder, _ = hostile_deck(tmp_path)
@@ -295,30 +384,45 @@ def test_check_and_export_both_keep_the_page_to_the_folder_of_its_deck(chromium,
     assert all(isinstance(path, Path) for path in folders)
 
 
-def test_a_check_clears_the_screenshots_of_an_earlier_longer_run(chromium, rollout_deck, tmp_path) -> None:
+def test_a_check_clears_the_screenshots_of_an_earlier_longer_run(
+    chromium, rollout_deck, tmp_path
+) -> None:
     out = tmp_path / "report"
     out.mkdir()
     for number in (5, 6, 7):
         (out / f"slide_{number:02d}.png").write_bytes(b"old")
     (out / "notes.txt").write_text("mine")
     check_deck(rollout_deck, out=out, size=(640, 360))
-    assert sorted(path.name for path in out.glob("slide_*.png")) == [f"slide_0{n}.png" for n in (1, 2, 3, 4)]
+    assert sorted(path.name for path in out.glob("slide_*.png")) == [
+        f"slide_0{n}.png" for n in (1, 2, 3, 4)
+    ]
     assert (out / "notes.txt").read_text() == "mine"
     check_deck(rollout_deck, out=out, size=(640, 360), shots=False)
     assert not list(out.glob("slide_*.png"))
 
 
-def test_strict_check_exits_with_an_error_on_a_deck_that_overflows(chromium, tmp_path) -> None:
+def test_strict_check_exits_with_an_error_on_a_deck_that_overflows(
+    chromium, tmp_path
+) -> None:
     from typer.testing import CliRunner
 
     from mkdeck.cli import app
 
     deck = tmp_path / "deck.md"
     deck.write_text(
-        "---\ntitle: T\ntitle_slide: false\n---\n\nToo much.\n\n" + "\n".join(f"- point {n}" for n in range(60))
+        "---\ntitle: T\ntitle_slide: false\n---\n\nToo much.\n\n"
+        + "\n".join(f"- point {n}" for n in range(60))
     )
     runner = CliRunner()
-    args = ["check", str(deck), "--size", "640x360", "--no-shots", "--out", str(tmp_path / "report")]
+    args = [
+        "check",
+        str(deck),
+        "--size",
+        "640x360",
+        "--no-shots",
+        "--out",
+        str(tmp_path / "report"),
+    ]
     lenient = runner.invoke(app, args)
     assert lenient.exit_code == 0, lenient.output
     assert "OVERFLOW" in lenient.output

@@ -1,7 +1,8 @@
 """Headless Chromium, for `mkdeck check` and `mkdeck export`.
 
-Playwright is an optional extra, so it is imported only when a command actually runs.
-Importing :mod:`mkdeck`, serving a deck and building one all work without it.
+Playwright is an optional extra, so it is imported only when a command actually
+runs. Importing :mod:`mkdeck`, serving a deck and building one all work without
+it.
 """
 
 import contextlib
@@ -31,25 +32,33 @@ __all__ = [
 DEFAULT_SIZE = (1920, 1080)
 
 INSTALL_HINT = (
-    "This command needs Playwright and a Chromium for it, which mkdeck does not install by default.\n"
+    "This command needs Playwright and a Chromium for it, which mkdeck does "
+    "not install by default.\n"
     "  uv add 'mkdeck[check]'   (or: pip install 'mkdeck[check]')\n"
     "  uv run playwright install chromium   (or: playwright install chromium)\n"
-    "If you installed the command with `uv tool install mkdeck`, install it again with the extra,\n"
-    "  uv tool install 'mkdeck[check]'   (or run it once: uvx --from 'mkdeck[check]' mkdeck check talk)\n"
+    "If you installed the command with `uv tool install mkdeck`, install it "
+    "again with the extra,\n"
+    "  uv tool install 'mkdeck[check]'   (or run it once: uvx --from "
+    "'mkdeck[check]' mkdeck check talk)\n"
     "and download the browser with `uvx playwright install chromium`.\n"
     "Both `mkdeck check` and `mkdeck export` need them."
 )
 
 NETWORK_IDLE_MS = 4_000
-"""How long a slide gets to stop fetching before its screenshot is taken anyway."""
+"""How long a slide gets to stop fetching.
+
+Its screenshot is taken anyway after that.
+"""
 
 EMBED_SETTLE_MS = 300
-"""A figure is an iframe of another origin, so its own paint cannot be waited on."""
+"""A figure is an iframe of another origin.
+
+Its own paint cannot be waited on.
+"""
 
 SETTLE_JS = """
-() => document.fonts.ready.then(
-  () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-)
+() => document.fonts.ready.then(() => new Promise((resolve) =>
+  requestAnimationFrame(() => requestAnimationFrame(resolve))))
 """
 """Resolves once fonts are in and two frames have been drawn."""
 
@@ -71,7 +80,10 @@ def require_playwright() -> Any:
 
 
 def _first_line(exc: Exception) -> str:
-    """Take the headline of a Playwright error, which follows it with a call log."""
+    """Take the headline of a Playwright error.
+
+    The rest of the error is a call log.
+    """
     return (str(exc).splitlines() or [type(exc).__name__])[0]
 
 
@@ -90,9 +102,9 @@ def file_path(url: str) -> Path:
 def _keep_inside(folder: Path) -> Callable[["Route"], None]:
     """Build the request handler that keeps a page to the files of its own deck.
 
-    A deck may hold raw HTML, such as an iframe of `file:///etc/hosts`, and the browser would
-    draw that file into a screenshot or a PDF. Only a `file:` request outside `folder` is
-    refused; a request to the network goes through.
+    A deck may hold raw HTML, such as an iframe of `file:///etc/hosts`, and the
+    browser would draw that file into a screenshot or a PDF. Only a `file:`
+    request outside `folder` is refused; a request to the network goes through.
 
     Args:
         folder: The folder that holds the document and the files it names.
@@ -103,7 +115,9 @@ def _keep_inside(folder: Path) -> Callable[["Route"], None]:
 
     def handle(route: "Route") -> None:
         url = route.request.url
-        if urlparse(url).scheme == "file" and not stays_inside(file_path(url), folder):
+        if urlparse(url).scheme == "file" and not stays_inside(
+            file_path(url), folder
+        ):
             route.abort("blockedbyclient")
         else:
             route.continue_()
@@ -112,22 +126,24 @@ def _keep_inside(folder: Path) -> Callable[["Route"], None]:
 
 
 @contextmanager
-def browser_page(size: tuple[int, int], *, folder: Path | None = None) -> Iterator["Page"]:
+def browser_page(
+    size: tuple[int, int], *, folder: Path | None = None
+) -> Iterator["Page"]:
     """Open a page in headless Chromium and close the browser afterwards.
 
     Args:
         size: The viewport, as ``(width, height)`` in pixels.
-        folder: The folder of the deck being opened. When given, the page cannot read a
-            local file outside it, whatever the deck's own HTML asks for. A handler the
-            caller adds to the page with ``page.route`` runs first and may call
-            ``route.fallback()`` to hand a request on to this rule.
+        folder: The folder of the deck being opened. When given, the page cannot
+            read a local file outside it, whatever the deck's own HTML asks for.
+            A handler the caller adds to the page with ``page.route`` runs first
+            and may call ``route.fallback()`` to hand a request on to this rule.
 
     Yields:
         The page.
 
     Raises:
-        DeckError: If Playwright is missing, Chromium cannot start, or
-            Chromium fails or times out while the body runs.
+        DeckError: If Playwright is missing, Chromium cannot start, or Chromium
+            fails or times out while the body runs.
     """
     api = require_playwright()
     with api.sync_playwright() as playwright:
@@ -136,18 +152,27 @@ def browser_page(size: tuple[int, int], *, folder: Path | None = None) -> Iterat
         except api.Error as exc:  # pragma: no cover - depends on the machine
             raise DeckError(
                 f"Could not start headless Chromium: {_first_line(exc)}\n"
-                "Install it with: uv run playwright install chromium (or: playwright install chromium;\n"
-                "for a command installed with `uv tool`: uvx playwright install chromium).\n"
-                "On a bare Linux machine, `playwright install-deps chromium` adds the system libraries it needs."
+                "Install it with: uv run playwright install chromium (or: "
+                "playwright install chromium;\n"
+                "for a command installed with `uv tool`: uvx playwright "
+                "install chromium).\n"
+                "On a bare Linux machine, `playwright install-deps chromium` "
+                "adds the system libraries it needs."
             ) from exc
         try:
-            page = browser.new_page(viewport={"width": size[0], "height": size[1]})
+            page = browser.new_page(
+                viewport={"width": size[0], "height": size[1]}
+            )
             if folder is not None:
                 page.route("**/*", _keep_inside(folder))
             yield page
         except api.Error as exc:
-            what = "timed out" if isinstance(exc, api.TimeoutError) else "failed"
-            raise DeckError(f"Chromium {what} while opening the deck: {_first_line(exc)}") from exc
+            what = (
+                "timed out" if isinstance(exc, api.TimeoutError) else "failed"
+            )
+            raise DeckError(
+                f"Chromium {what} while opening the deck: {_first_line(exc)}"
+            ) from exc
         finally:
             with contextlib.suppress(api.Error):
                 browser.close()

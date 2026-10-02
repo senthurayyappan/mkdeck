@@ -23,7 +23,9 @@ from mkdeck import Slide, Table
 Slide(
     id="torque-cap",
     sentence="The higher cap raises the crossing rate.",
-    table=Table(columns=["Cap", "Crossings"], rows=[["18 N m", "2"], ["22 N m", "5"]]),
+    table=Table(
+        columns=["Cap", "Crossings"], rows=[["18 N m", "2"], ["22 N m", "5"]]
+    ),
     notes="The 18 N m runs stall against the wall.",
 )
 ```

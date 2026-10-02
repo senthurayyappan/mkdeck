@@ -23,16 +23,25 @@ from mkdeck.source import load_source
 __all__ = ["export_deck"]
 
 PRINT_READY_JS = """
-() => window.Reveal && Reveal.isReady() && document.querySelectorAll('.reveal .slides .pdf-page').length > 0
+() => window.Reveal && Reveal.isReady()
+  && document.querySelectorAll('.reveal .slides .pdf-page').length > 0
   && document.documentElement.dataset.mkdPrint === 'ready'
 """
-"""True once reveal has laid the slides out as printed pages and mkdeck.js has filled them."""
+"""True once reveal has laid the slides out as printed pages.
+
+mkdeck.js has filled them.
+"""
 
 PRINT_WAIT_MS = 120_000
-"""How long the pages get to become ready; a rollout is read and drawn one at a time."""
+"""How long the pages get to become ready.
+
+A rollout is read and drawn one at a time.
+"""
 
 
-def _print_document(path: Path, workdir: Path, *, size: tuple[int, int]) -> Path:
+def _print_document(
+    path: Path, workdir: Path, *, size: tuple[int, int]
+) -> Path:
     """Get an HTML document to print, building the deck when needed.
 
     The deck is rebuilt with reveal's dimensions pinned to the page size, which
@@ -58,9 +67,18 @@ def _print_document(path: Path, workdir: Path, *, size: tuple[int, int]) -> Path
     width, height = size
     printable = dataclasses.replace(
         loaded.deck,
-        reveal={**loaded.deck.reveal, "width": width, "height": height, "minScale": 1, "maxScale": 1, "margin": 0},
+        reveal={
+            **loaded.deck.reveal,
+            "width": width,
+            "height": height,
+            "minScale": 1,
+            "maxScale": 1,
+            "margin": 0,
+        },
     )
-    return printable.build(workdir / "deck.html", source=loaded.directory, single_file=True)
+    return printable.build(
+        workdir / "deck.html", source=loaded.directory, single_file=True
+    )
 
 
 def export_deck(
@@ -80,21 +98,24 @@ def export_deck(
         The path of the written PDF.
 
     Raises:
-        DeckError: If Playwright is missing, Chromium cannot start or fails,
-            or the path holds no deck.
+        DeckError: If Playwright is missing, Chromium cannot start or fails, or
+            the path holds no deck.
     """
     timed_out = require_playwright().TimeoutError
     width, height = size
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="mkdeck-export-", ignore_cleanup_errors=True) as workdir:
+    with tempfile.TemporaryDirectory(
+        prefix="mkdeck-export-", ignore_cleanup_errors=True
+    ) as workdir:
         document = _print_document(Path(path), Path(workdir), size=size)
         with browser_page(size, folder=document.parent) as page:
             page.goto(f"{document.resolve().as_uri()}?print-pdf")
             page.wait_for_function(PRINT_READY_JS, timeout=PRINT_WAIT_MS)
             with contextlib.suppress(timed_out):
                 page.wait_for_load_state("networkidle", timeout=NETWORK_IDLE_MS)
-            # A figure is an iframe of another origin, so its own paint cannot be waited on.
+            # A figure is an iframe of another origin, so its own paint cannot
+            # be waited on.
             page.wait_for_timeout(EMBED_SETTLE_MS)
             page.evaluate(SETTLE_JS)
             page.emulate_media(media="screen")

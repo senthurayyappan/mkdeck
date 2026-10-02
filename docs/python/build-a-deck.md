@@ -5,7 +5,10 @@ Generate slides from data that you already compute, so that nobody retypes a num
 ```python
 from mkdeck import Deck, Embed, Slide
 
-runs = [("run3", "Run 3", 5, 22), ("run4", "Run 4", 4, 20)]  # name, label, crossings, cap
+runs = [
+    ("run3", "Run 3", 5, 22),
+    ("run4", "Run 4", 4, 20),
+]  # name, label, crossings, cap
 
 deck = Deck(title="Vault runs", date="2026-09-18")
 
