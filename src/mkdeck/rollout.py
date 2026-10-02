@@ -43,7 +43,14 @@ from typing import Any
 
 from mkdeck.errors import DeckError
 
-__all__ = ["MESHES_SUFFIX", "ROLLOUT_SUFFIX", "Converted", "NotBraxPage", "convert_brax_html", "meshes_of"]
+__all__ = [
+    "MESHES_SUFFIX",
+    "ROLLOUT_SUFFIX",
+    "Converted",
+    "NotBraxPage",
+    "convert_brax_html",
+    "meshes_of",
+]
 
 _MAGIC = b"RSPL"
 """The four bytes a ``.rollout`` starts with."""
@@ -58,13 +65,21 @@ ROLLOUT_SUFFIX = ".rollout"
 """The suffix of the per-run file."""
 
 _MAX_SCENE_BYTES = 512 * 1024 * 1024
-"""The most a page's scene may inflate to; a real 100k-triangle model is a tenth of it."""
+"""The most a page's scene may inflate to.
+
+A real 100k-triangle model is a tenth of it.
+"""
 
 _SCENE = re.compile(r'var system = "([A-Za-z0-9+/=]+)"')
 """The assignment a Brax page holds its zlib-compressed scene in."""
 
-_GEOM_TYPES = frozenset({"plane", "box", "sphere", "capsule", "cylinder", "ellipsoid", "mesh"})
-"""Brax names its geoms after their class; the viewer wants the lowercase form."""
+_GEOM_TYPES = frozenset(
+    {"plane", "box", "sphere", "capsule", "cylinder", "ellipsoid", "mesh"}
+)
+"""Brax names its geoms after their class.
+
+The viewer wants the lowercase form.
+"""
 
 _IDENTITY_QUAT = (1.0, 0.0, 0.0, 0.0)
 """The world body never moves, so every frame repeats this rotation."""
@@ -105,8 +120,8 @@ class Converted:
     Attributes:
         rollout: The written ``.rollout``.
         meshes: The shared ``.meshes`` the rollout points at.
-        shared: True when the mesh file was already there, written by an
-            earlier run of the same model.
+        shared: True when the mesh file was already there, written by an earlier
+            run of the same model.
     """
 
     rollout: Path
@@ -131,7 +146,10 @@ def _pack(typecode: str, rows: Iterable[Iterable[Any]]) -> bytes:
 
 
 def _is_number(value: Any) -> bool:
-    """Say whether a JSON value is a finite number (a bool is not one, and neither is NaN)."""
+    """Say whether a JSON value is a finite number.
+
+    A bool is not one, and neither is NaN.
+    """
     if isinstance(value, bool) or not isinstance(value, int | float):
         return False
     return isinstance(value, int) or math.isfinite(value)
@@ -151,12 +169,20 @@ def _vector(value: Any, length: int, what: str) -> list[float]:
     Raises:
         DeckError: If it is not exactly ``length`` numbers.
     """
-    if not isinstance(value, list | tuple) or len(value) != length or not all(_is_number(item) for item in value):
-        raise DeckError(f"the Brax scene's {what} is not a list of {length} finite numbers.")
+    if (
+        not isinstance(value, list | tuple)
+        or len(value) != length
+        or not all(_is_number(item) for item in value)
+    ):
+        raise DeckError(
+            f"the Brax scene's {what} is not a list of {length} finite numbers."
+        )
     return list(value)
 
 
-def _rows(value: Any, width: int, what: str, *, count: int | None = None) -> list[list[float]]:
+def _rows(
+    value: Any, width: int, what: str, *, count: int | None = None
+) -> list[list[float]]:
     """Check that a JSON value is a list of ``width``-number rows.
 
     Args:
@@ -171,13 +197,20 @@ def _rows(value: Any, width: int, what: str, *, count: int | None = None) -> lis
     Raises:
         DeckError: If the shape is wrong.
     """
-    if not isinstance(value, list) or (count is not None and len(value) != count):
-        raise DeckError(f"the Brax scene's {what} is not a list of {count if count is not None else 'some'} rows.")
+    if not isinstance(value, list) or (
+        count is not None and len(value) != count
+    ):
+        raise DeckError(
+            f"the Brax scene's {what} is not a list of "
+            f"{count if count is not None else 'some'} rows."
+        )
     return [_vector(row, width, what) for row in value]
 
 
 def _faces(value: Any, vertex_count: int, what: str) -> list[list[int]]:
-    """Check that a JSON value is a list of triangles over ``vertex_count`` vertices.
+    """Check that a JSON value is a list of triangles.
+
+    The triangles refer to ``vertex_count`` vertices.
 
     Args:
         value: The value the scene holds.
@@ -196,9 +229,17 @@ def _faces(value: Any, vertex_count: int, what: str) -> list[list[int]]:
         if (
             not isinstance(face, list)
             or len(face) != 3
-            or not all(isinstance(i, int) and not isinstance(i, bool) and 0 <= i < vertex_count for i in face)
+            or not all(
+                isinstance(i, int)
+                and not isinstance(i, bool)
+                and 0 <= i < vertex_count
+                for i in face
+            )
         ):
-            raise DeckError(f"the Brax scene's {what} holds {face!r}, which is not a triangle over its vertices.")
+            raise DeckError(
+                f"the Brax scene's {what} holds {face!r}, which is not a "
+                f"triangle over its vertices."
+            )
     return value
 
 
@@ -209,12 +250,16 @@ def _write_atomic(path: Path, data: bytes) -> None:
         path: The file to write.
         data: Its bytes.
     """
-    handle, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    handle, name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
     try:
         with os.fdopen(handle, "wb") as out:
             out.write(data)
-        # mkstemp makes a file only its owner can read, which a web server, another user or a
-        # container would then refuse to serve; a new file takes the umask like any other.
+        # mkstemp makes a file only its owner can read, which a web server,
+        # another user or a
+        # container would then refuse to serve; a new file takes the umask like
+        # any other.
         umask = os.umask(0)
         os.umask(umask)
         os.chmod(name, 0o666 & ~umask)
@@ -244,17 +289,30 @@ def read_brax_scene(path: Path | str) -> dict[str, Any]:
         raise DeckError(f"Cannot read {path}: {exc}") from exc
     found = _SCENE.search(page)
     if found is None:
-        raise NotBraxPage(f"{path} holds no Brax scene; it has no 'var system = \"...\"' line.")
+        raise NotBraxPage(
+            f"{path} holds no Brax scene; it has no 'var system = \"...\"' "
+            f"line."
+        )
     try:
         inflater = zlib.decompressobj()
-        raw = inflater.decompress(base64.b64decode(found.group(1)), _MAX_SCENE_BYTES + 1)
+        raw = inflater.decompress(
+            base64.b64decode(found.group(1)), _MAX_SCENE_BYTES + 1
+        )
         if len(raw) > _MAX_SCENE_BYTES:
-            raise DeckError(f"{path} holds a Brax scene that inflates past {_MAX_SCENE_BYTES:,} bytes.")
+            raise DeckError(
+                f"{path} holds a Brax scene that inflates past "
+                f"{_MAX_SCENE_BYTES:,} bytes."
+            )
         scene = json.loads(raw)
     except (ValueError, zlib.error, RecursionError) as exc:
-        raise DeckError(f"{path} holds a Brax scene that will not decode: {exc}") from exc
+        raise DeckError(
+            f"{path} holds a Brax scene that will not decode: {exc}"
+        ) from exc
     if not isinstance(scene, dict):
-        raise DeckError(f"{path} holds a Brax scene that will not decode: it is not a JSON object.")
+        raise DeckError(
+            f"{path} holds a Brax scene that will not decode: it is not a JSON "
+            f"object."
+        )
     return scene
 
 
@@ -330,20 +388,34 @@ def to_rollout(scene: dict[str, Any], *, name: str = "") -> Rollout:
     for geom in _geoms(scene):
         kind = str(geom.get("name", "")).lower()
         if kind not in _GEOM_TYPES:
-            raise DeckError(f"the Brax scene holds a {geom.get('name')!r} geom, which the viewer cannot draw.")
+            raise DeckError(
+                f"the Brax scene holds a {geom.get('name')!r} geom, which the "
+                f"viewer cannot draw."
+            )
         body = int(geom.get("link_idx", -1)) + 1
         if not 0 <= body < bodies:
-            raise DeckError(f"a {geom['name']!r} geom sits on link {body - 1}, but the scene has {len(links)} links.")
+            raise DeckError(
+                f"a {geom['name']!r} geom sits on link {body - 1}, but the "
+                f"scene has {len(links)} links."
+            )
         entry: dict[str, Any] = {
             "name": str(geom["name"]),
             "body": body,
             "type": kind,
-            "size": _vector(geom.get("size", [0.0, 0.0, 0.0]), 3, f"{kind} size"),
-            "rgba": _vector(geom.get("rgba", [0.8, 0.8, 0.8, 1.0]), 4, f"{kind} rgba"),
+            "size": _vector(
+                geom.get("size", [0.0, 0.0, 0.0]), 3, f"{kind} size"
+            ),
+            "rgba": _vector(
+                geom.get("rgba", [0.8, 0.8, 0.8, 1.0]), 4, f"{kind} rgba"
+            ),
             "group": 0,
             "is_collision": False,
-            "local_pos": _vector(geom.get("pos", [0.0, 0.0, 0.0]), 3, f"{kind} pos"),
-            "local_quat": _vector(geom.get("rot", _IDENTITY_QUAT), 4, f"{kind} rot"),
+            "local_pos": _vector(
+                geom.get("pos", [0.0, 0.0, 0.0]), 3, f"{kind} pos"
+            ),
+            "local_quat": _vector(
+                geom.get("rot", _IDENTITY_QUAT), 4, f"{kind} rot"
+            ),
         }
         if kind == "mesh":
             vertices = _rows(geom["vert"], 3, "mesh vert")
@@ -364,8 +436,15 @@ def to_rollout(scene: dict[str, Any], *, name: str = "") -> Rollout:
     base = len(mesh_tail)
     half = frames * bodies * 3 * 4
     timestep = float(scene.get("opt", {}).get("timestep", 0.0)) or 1 / 30
-    if not math.isfinite(timestep) or timestep < 0 or not math.isfinite(1 / timestep):
-        raise DeckError(f"the Brax scene's timestep {timestep} is not a usable number of seconds.")
+    if (
+        not math.isfinite(timestep)
+        or timestep < 0
+        or not math.isfinite(1 / timestep)
+    ):
+        raise DeckError(
+            f"the Brax scene's timestep {timestep} is not a usable number of "
+            f"seconds."
+        )
     header = {
         "version": _FORMAT_VERSION,
         "meta": {
@@ -376,7 +455,12 @@ def to_rollout(scene: dict[str, Any], *, name: str = "") -> Rollout:
         },
         "meshes": {"bytes": len(mesh_tail)},
         "buffers": {
-            "body_pos": {"off": base, "count": frames * bodies * 3, "shape": [frames, bodies, 3], "dtype": "f32"},
+            "body_pos": {
+                "off": base,
+                "count": frames * bodies * 3,
+                "shape": [frames, bodies, 3],
+                "dtype": "f32",
+            },
             "body_quat": {
                 "off": base + half,
                 "count": frames * bodies * 4,
@@ -395,17 +479,25 @@ def dump_rollout(rollout: Rollout, *, meshes_name: str) -> bytes:
 
     Args:
         rollout: The rollout to write.
-        meshes_name: The file name of the shared meshes, recorded in the
-            header so the reader knows what to fetch.
+        meshes_name: The file name of the shared meshes, recorded in the header
+            so the reader knows what to fetch.
 
     Returns:
         The complete file, ready to write.
     """
-    header = {**rollout.header, "meshes": {**rollout.header["meshes"], "file": meshes_name}}
+    header = {
+        **rollout.header,
+        "meshes": {**rollout.header["meshes"], "file": meshes_name},
+    }
     encoded = json.dumps(header, separators=(",", ":")).encode("utf-8")
     padding = -(len(encoded) + 12) % 8
     encoded += b" " * padding
-    return _MAGIC + struct.pack("<Q", len(encoded)) + encoded + gzip.compress(rollout.poses, 6, mtime=0)
+    return (
+        _MAGIC
+        + struct.pack("<Q", len(encoded))
+        + encoded
+        + gzip.compress(rollout.poses, 6, mtime=0)
+    )
 
 
 def meshes_of(path: Path | str) -> str | None:
@@ -428,7 +520,9 @@ def meshes_of(path: Path | str) -> str | None:
             head = handle.read(12)
             if head[:4] != _MAGIC:
                 return None
-            length = struct.unpack("<Q", head[4:12])[0] if len(head) == 12 else 0
+            length = (
+                struct.unpack("<Q", head[4:12])[0] if len(head) == 12 else 0
+            )
             raw = handle.read(
                 min(length, os.fstat(handle.fileno()).st_size)
             )  # a length past the file is damage, not a size to allocate
@@ -439,14 +533,20 @@ def meshes_of(path: Path | str) -> str | None:
     try:
         name = json.loads(raw)["meshes"]["file"]
     except (ValueError, KeyError, TypeError) as exc:
-        raise DeckError(f"{path} is a damaged rollout; its header does not name a meshes file.") from exc
+        raise DeckError(
+            f"{path} is a damaged rollout; its header does not name a meshes "
+            f"file."
+        ) from exc
     if (
         not isinstance(name, str)
         or name in {"", ".", ".."}
         or "\0" in name
         or not (PurePosixPath(name).name == PureWindowsPath(name).name == name)
     ):
-        raise DeckError(f"{path} names {name!r} as its meshes, which is not a plain file name beside it.")
+        raise DeckError(
+            f"{path} names {name!r} as its meshes, which is not a plain file "
+            f"name beside it."
+        )
     return name
 
 
@@ -474,9 +574,17 @@ def convert_brax_html(src: Path | str, out: Path | str) -> Converted:
         rollout = to_rollout(scene, name=src.stem)
     except DeckError as exc:
         raise DeckError(exc.message, source=src) from exc
-    except (KeyError, TypeError, ValueError, AttributeError, OverflowError) as exc:
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        AttributeError,
+        OverflowError,
+    ) as exc:
         raise DeckError(
-            f"holds a Brax scene this version cannot read ({type(exc).__name__}: {exc}).", source=src
+            f"holds a Brax scene this version cannot read "
+            f"({type(exc).__name__}: {exc}).",
+            source=src,
         ) from exc
     out.mkdir(parents=True, exist_ok=True)
     meshes = out / f"{rollout.meshes_hash}{MESHES_SUFFIX}"

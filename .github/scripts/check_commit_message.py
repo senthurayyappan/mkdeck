@@ -5,7 +5,10 @@ import re
 import sys
 from pathlib import Path
 
-HEADER = re.compile(r"(?:feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\([^()\r\n]+\))?!?: \S.*")
+HEADER = re.compile(
+    r"(?:feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)"
+    r"(?:\([^()\r\n]+\))?!?: \S.*"
+)
 
 
 def valid_header(message: str) -> bool:
@@ -16,9 +19,17 @@ def valid_header(message: str) -> bool:
 
 def main() -> None:
     """Check a commit message file, or read PR_TITLE if no file is given."""
-    message = Path(sys.argv[1]).read_text(encoding="utf-8") if len(sys.argv) > 1 else os.environ["PR_TITLE"]
+    message = (
+        Path(sys.argv[1]).read_text(encoding="utf-8")
+        if len(sys.argv) > 1
+        else os.environ["PR_TITLE"]
+    )
     if not valid_header(message):
-        print("Use a Conventional Commit header, e.g. feat(cli): add export command", file=sys.stderr)
+        print(
+            "Use a Conventional Commit header, e.g. feat(cli): add export "
+            "command",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
 
 

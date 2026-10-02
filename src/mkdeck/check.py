@@ -33,23 +33,35 @@ EMBED_BLOCK_BYTES = 2_000_000
 """Embeds larger than this are replaced with a stub so the check stays fast."""
 
 BLOCKED_BODY = (
-    '<html><body style="margin:0;background:#f4f4f4;font:14px Roboto,sans-serif;color:#999">'
-    '<div style="padding:12px">embed (blocked in the checker)</div></body></html>'
+    '<html><body style="margin:0;background:#f4f4f4;font:14px '
+    'Roboto,sans-serif;color:#999">'
+    '<div style="padding:12px">embed (blocked in the '
+    "checker)</div></body></html>"
 )
 
 ROLLOUT_WAIT_MS = 20_000
-"""How long a slide's rollouts and diagrams get to load before the check reports them as failed."""
+"""How long a slide's rollouts and diagrams get to load.
+
+After that the check reports them as failed.
+"""
 
 FIGURES_DONE_JS = """
 () => {
   const slide = document.querySelector('.reveal .slides section.present');
   const settled = (host, states) => states.includes(host.dataset.mkdState);
+  const rollouts = slide.querySelectorAll('deck-rollout[src]');
+  const diagrams = slide.querySelectorAll('deck-mermaid');
+  const ready = (host) => settled(host, ['ready', 'error']);
+  const done = (host) => settled(host, ['done', 'error']);
   return !slide
-    || (Array.from(slide.querySelectorAll('deck-rollout[src]')).every((host) => settled(host, ['ready', 'error']))
-      && Array.from(slide.querySelectorAll('deck-mermaid')).every((host) => settled(host, ['done', 'error'])));
+    || (Array.from(rollouts).every(ready)
+      && Array.from(diagrams).every(done));
 }
 """
-"""True once every rollout and diagram on the slide on screen has loaded or failed."""
+"""True once the slide on screen has finished loading.
+
+Every rollout and diagram has loaded or failed.
+"""
 
 
 class Scroller(TypedDict):
@@ -64,7 +76,10 @@ class Scroller(TypedDict):
 
 
 class Overlap(TypedDict):
-    """Two blocks of a slide that cover each other by ``ox`` by ``oy`` pixels."""
+    """Two blocks of a slide that cover each other.
+
+    The overlap is ``ox`` by ``oy`` pixels.
+    """
 
     i: int
     j: int
@@ -124,7 +139,10 @@ class Probe(TypedDict, total=False):
 
 @cache
 def probe_script() -> str:
-    """Read the JavaScript that measures the slide on screen; it lives beside this module."""
+    """Read the JavaScript that measures the slide on screen.
+
+    It lives beside this module.
+    """
     return Path(__file__).with_name("probe.js").read_text(encoding="utf-8")
 
 
@@ -136,13 +154,18 @@ def blocks_embed(url: str, *, subframe: bool) -> bool:
 
     Args:
         url: The URL the browser is about to fetch.
-        subframe: True when the request navigates an iframe rather than the page.
+        subframe: True when the request navigates an iframe rather than the
+            page.
 
     Returns:
         True when the request should get a stub in place of the page.
     """
     parts = urlparse(url)
-    if not subframe or parts.scheme != "file" or not parts.path.lower().endswith((".html", ".htm")):
+    if (
+        not subframe
+        or parts.scheme != "file"
+        or not parts.path.lower().endswith((".html", ".htm"))
+    ):
         return False
     try:
         return file_path(url).stat().st_size > EMBED_BLOCK_BYTES
@@ -153,11 +176,15 @@ def blocks_embed(url: str, *, subframe: bool) -> bool:
 def _route(route: "Route") -> None:
     """Stub a heavy iframe, and let every other request through."""
     request = route.request
-    subframe = request.is_navigation_request() and request.frame.parent_frame is not None
+    subframe = (
+        request.is_navigation_request()
+        and request.frame.parent_frame is not None
+    )
     if blocks_embed(request.url, subframe=subframe):
         route.fulfill(status=200, content_type="text/html", body=BLOCKED_BODY)
     else:
-        route.fallback()  # on to the rule that keeps the page to the files of its deck
+        # on to the rule that keeps the page to the files of its deck
+        route.fallback()
 
 
 def _prepare(path: Path, workdir: Path) -> Path:
@@ -185,8 +212,9 @@ def _prepare(path: Path, workdir: Path) -> Path:
 def slide_flags(record: Probe) -> list[str]:
     """List everything wrong with one slide.
 
-    The same list is written into ``report.json`` and printed in ``report.txt``, so a
-    program reading the JSON sees exactly what a person reading the text sees.
+    The same list is written into ``report.json`` and printed in ``report.txt``,
+    so a program reading the JSON sees exactly what a person reading the text
+    sees.
 
     Args:
         record: The probe result for a slide.
@@ -195,13 +223,20 @@ def slide_flags(record: Probe) -> list[str]:
         One string per finding, empty when the slide is clean.
     """
     flags: list[str] = []
-    if record.get("overflow_top", 0) > 0 or record.get("overflow_bottom", 0) > 0:
-        flags.append(f"OVERFLOW top {record.get('overflow_top', 0)}px bottom {record.get('overflow_bottom', 0)}px")
+    if (
+        record.get("overflow_top", 0) > 0
+        or record.get("overflow_bottom", 0) > 0
+    ):
+        flags.append(
+            f"OVERFLOW top {record.get('overflow_top', 0)}px bottom "
+            f"{record.get('overflow_bottom', 0)}px"
+        )
     if record.get("into_chrome"):
         flags.append("INTO-CHROME")
     if record.get("scrollers"):
         details = ", ".join(
-            f"{s['tag']}.{s['cls']} {s['sw']}>{s['cw']}w {s['sh']}>{s['ch']}h" for s in record["scrollers"]
+            f"{s['tag']}.{s['cls']} {s['sw']}>{s['cw']}w {s['sh']}>{s['ch']}h"
+            for s in record["scrollers"]
         )
         flags.append(f"SCROLLBAR {details}")
     if record.get("overlaps"):
@@ -213,7 +248,10 @@ def slide_flags(record: Probe) -> list[str]:
     if record.get("math_unrendered"):
         flags.append(f"MATH-UNRENDERED x{record['math_unrendered']}")
     for rollout in record.get("rollout_errors", []):
-        flags.append(f"ROLLOUT-ERROR {rollout['src']}: {rollout['message'] or 'still ' + rollout['state']}")
+        flags.append(
+            f"ROLLOUT-ERROR {rollout['src']}: "
+            f"{rollout['message'] or 'still ' + rollout['state']}"
+        )
     return flags
 
 
@@ -232,9 +270,17 @@ def _format_row(record: Probe) -> str:
         return f"{number:3d} {slide_id:26s} {record['error']}"
     flags = slide_flags(record)
     table = record.get("table")
-    table_text = f" table {table['rows']}x{table['cols']} {table['width']}px" if table else ""
+    table_text = (
+        f" table {table['rows']}x{table['cols']} {table['width']}px"
+        if table
+        else ""
+    )
     bullets = record.get("bullets", 0)
-    bullet_text = "/" + "+".join(str(n) for n in record.get("bullet_chars", [])) if bullets else ""
+    bullet_text = (
+        "/" + "+".join(str(n) for n in record.get("bullet_chars", []))
+        if bullets
+        else ""
+    )
     return (
         f"{number:3d} {slide_id:26s} {record.get('layout', ''):9s}"
         f" sent {record.get('sentence_chars', 0):4d}"
@@ -246,7 +292,9 @@ def _format_row(record: Probe) -> str:
     )
 
 
-def report_text(records: list[Probe], *, size: tuple[int, int], path: Path | str) -> str:
+def report_text(
+    records: list[Probe], *, size: tuple[int, int], path: Path | str
+) -> str:
     """Lay the findings out as ``report.txt`` does.
 
     Args:
@@ -258,7 +306,12 @@ def report_text(records: list[Probe], *, size: tuple[int, int], path: Path | str
         A header line and one line per slide, ending in a newline.
     """
     header = f"viewport {size[0]}x{size[1]}, deck {path}"
-    return header + "\n" + "\n".join(_format_row(record) for record in records) + "\n"
+    return (
+        header
+        + "\n"
+        + "\n".join(_format_row(record) for record in records)
+        + "\n"
+    )
 
 
 def _probe_slide(page: "Page", number: int, *, shots: bool) -> Probe:
@@ -282,7 +335,10 @@ def _probe_slide(page: "Page", number: int, *, shots: bool) -> Probe:
     if shots:
         with contextlib.suppress(timed_out):
             page.wait_for_load_state("networkidle", timeout=NETWORK_IDLE_MS)
-        if page.evaluate("!!document.querySelector('.reveal .slides section.present deck-embed')"):
+        if page.evaluate(
+            "!!document.querySelector('.reveal .slides section.present "
+            "deck-embed')"
+        ):
             page.wait_for_timeout(EMBED_SETTLE_MS)
     page.evaluate(SETTLE_JS)
     record: Probe = page.evaluate(probe_script())
@@ -301,9 +357,9 @@ def check_deck(
 
     Every slide is measured for content overflow past the viewport, elements
     that would show a scrollbar, elements overlapping the chrome, KaTeX
-    failures, diagrams that did not draw and rollouts that did not load. A screenshot is written for each
-    slide unless ``shots`` is off, and the findings go to ``report.json`` and
-    ``report.txt`` in ``out``.
+    failures, diagrams that did not draw and rollouts that did not load. A
+    screenshot is written for each slide unless ``shots`` is off, and the
+    findings go to ``report.json`` and ``report.txt`` in ``out``.
 
     Args:
         path: A built ``.html`` file, a Markdown file, or a deck folder.
@@ -315,28 +371,38 @@ def check_deck(
         One record per slide, the same data as ``report.json``.
 
     Raises:
-        DeckError: If Playwright is missing, Chromium cannot start or fails,
-            or the path holds no deck.
+        DeckError: If Playwright is missing, Chromium cannot start or fails, or
+            the path holds no deck.
     """
     require_playwright()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    for stale in out.glob("slide_*.png"):  # from an earlier run, maybe of a longer deck
+    for stale in out.glob(
+        "slide_*.png"
+    ):  # from an earlier run, maybe of a longer deck
         stale.unlink()
     records: list[Probe] = []
-    with tempfile.TemporaryDirectory(prefix="mkdeck-check-", ignore_cleanup_errors=True) as workdir:
+    with tempfile.TemporaryDirectory(
+        prefix="mkdeck-check-", ignore_cleanup_errors=True
+    ) as workdir:
         document = _prepare(Path(path), Path(workdir))
         with browser_page(size, folder=document.parent) as page:
             page.route("**/*", _route)
             page.goto(document.resolve().as_uri())
             page.wait_for_function("window.Reveal && Reveal.isReady()")
-            total = page.evaluate("document.querySelectorAll('.reveal .slides section').length")
+            total = page.evaluate(
+                "document.querySelectorAll('.reveal .slides section').length"
+            )
             for number in range(1, total + 1):
                 records.append(_probe_slide(page, number, shots=shots))
                 if shots:
                     page.screenshot(path=str(out / f"slide_{number:02d}.png"))
     for record in records:
         record["flags"] = slide_flags(record)
-    (out / "report.json").write_text(json.dumps(records, indent=1), encoding="utf-8")
-    (out / "report.txt").write_text(report_text(records, size=size, path=path), encoding="utf-8")
+    (out / "report.json").write_text(
+        json.dumps(records, indent=1), encoding="utf-8"
+    )
+    (out / "report.txt").write_text(
+        report_text(records, size=size, path=path), encoding="utf-8"
+    )
     return records

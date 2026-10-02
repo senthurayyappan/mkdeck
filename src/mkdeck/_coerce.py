@@ -1,7 +1,9 @@
-"""Read YAML and coerce its values, for the frontmatter, `deck.yml` and slide options.
+"""Read YAML and coerce its values.
 
-Every failure is a `DeckError` whose message says which key held what, so the author sees
-the mistake in their own words rather than a YAML or type error.
+The values come from the frontmatter, `deck.yml` and slide options.
+
+Every failure is a `DeckError` whose message says which key held what, so the
+author sees the mistake in their own words rather than a YAML or type error.
 """
 
 import datetime as dt
@@ -13,10 +15,21 @@ import yaml
 
 from mkdeck.errors import DeckError
 
-__all__ = ["Fail", "coerce_bool", "coerce_mapping", "coerce_text", "coerce_text_list", "describe", "parse_yaml"]
+__all__ = [
+    "Fail",
+    "coerce_bool",
+    "coerce_mapping",
+    "coerce_text",
+    "coerce_text_list",
+    "describe",
+    "parse_yaml",
+]
 
 Fail = Callable[[str], DeckError]
-"""Turns a message into the `DeckError` to raise, with the file and slide already filled in."""
+"""Turns a message into the `DeckError` to raise.
+
+The file and the slide are already filled in.
+"""
 
 
 def parse_yaml(text: str, *, origin: Path | str) -> Any:
@@ -36,16 +49,19 @@ def parse_yaml(text: str, *, origin: Path | str) -> Any:
         return yaml.safe_load(text)
     except yaml.YAMLError as error:
         detail = str(error).replace("\n", " ").strip()
-        raise DeckError(f"The YAML could not be read: {detail}", source=origin) from error
+        raise DeckError(
+            f"The YAML could not be read: {detail}", source=origin
+        ) from error
 
 
 def coerce_text(value: Any, *, key: str, fail: Fail) -> str:
     """Coerce a YAML scalar to text.
 
-    A bare YAML date such as `2026-09-18` arrives as a `datetime.date`, so it is written
-    back out in ISO form rather than rejected. A whole number is kept as written. A
-    decimal is refused, because YAML has already turned `1.10` into `1.1`, and so is a
-    bare `no`, `yes` or `on`, which YAML reads as true or false.
+    A bare YAML date such as `2026-09-18` arrives as a `datetime.date`, so it is
+    written back out in ISO form rather than rejected. A whole number is kept as
+    written. A decimal is refused, because YAML has already turned `1.10` into
+    `1.1`, and so is a bare `no`, `yes` or `on`, which YAML reads as true or
+    false.
 
     Args:
         value: The value to coerce.
@@ -66,10 +82,14 @@ def coerce_text(value: Any, *, key: str, fail: Fail) -> str:
         hint = ""
         if isinstance(value, bool | float):
             hint = (
-                " YAML reads a bare no, yes or on as true or false and 1.10 as the number 1.1; "
+                " YAML reads a bare no, yes or on as true or false and 1.10 as "
+                "the number 1.1; "
                 "put the value in quotes to keep it as written."
             )
-        raise fail(f'The key "{key}" holds {describe(value)}, but a piece of text was expected.{hint}')
+        raise fail(
+            f'The key "{key}" holds {describe(value)}, but a piece of text was '
+            f"expected.{hint}"
+        )
     return str(value)
 
 
@@ -88,7 +108,9 @@ def coerce_text_list(value: Any, *, key: str, fail: Fail) -> list[str]:
         DeckError: If the value, or one of its items, is not a scalar.
     """
     if isinstance(value, Mapping):
-        raise fail(f'The key "{key}" holds a mapping, but a list of text was expected.')
+        raise fail(
+            f'The key "{key}" holds a mapping, but a list of text was expected.'
+        )
     if isinstance(value, str | bytes) or not isinstance(value, Iterable):
         return [coerce_text(value, key=key, fail=fail)]
     return [coerce_text(item, key=key, fail=fail) for item in value]
@@ -110,7 +132,10 @@ def coerce_bool(value: Any, *, key: str, fail: Fail) -> bool:
     """
     if isinstance(value, bool):
         return value
-    raise fail(f'The key "{key}" holds {describe(value)}, but true or false was expected.')
+    raise fail(
+        f'The key "{key}" holds {describe(value)}, but true or false was '
+        f"expected."
+    )
 
 
 def coerce_mapping(value: Any, *, key: str, fail: Fail) -> dict[str, Any]:
@@ -129,7 +154,9 @@ def coerce_mapping(value: Any, *, key: str, fail: Fail) -> dict[str, Any]:
     """
     if isinstance(value, Mapping):
         return {str(name): item for name, item in value.items()}
-    raise fail(f'The key "{key}" holds {describe(value)}, but a mapping was expected.')
+    raise fail(
+        f'The key "{key}" holds {describe(value)}, but a mapping was expected.'
+    )
 
 
 def describe(value: Any) -> str:

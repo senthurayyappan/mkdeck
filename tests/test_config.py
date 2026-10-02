@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from mkdeck.config import CONFIG_KEYS, find_config_file, merge_settings, normalize_settings, read_config_file
+from mkdeck.config import (
+    CONFIG_KEYS,
+    find_config_file,
+    merge_settings,
+    normalize_settings,
+    read_config_file,
+)
 from mkdeck.errors import DeckError
 from mkdeck.markdown import parse_markdown
 from mkdeck.model import DEFAULT_UNITS, Deck
@@ -35,7 +41,9 @@ def write(folder: Path, name: str, text: str) -> Path:
 
 
 def test_the_settings_are_exactly_the_deck_fields_that_are_not_slides() -> None:
-    assert set(CONFIG_KEYS) == {field.name for field in dataclasses.fields(Deck)} - {"slides"}
+    assert set(CONFIG_KEYS) == {
+        field.name for field in dataclasses.fields(Deck)
+    } - {"slides"}
 
 
 def test_a_deck_starts_from_the_default_settings() -> None:
@@ -59,19 +67,28 @@ def test_the_barkour_settings_are_read(tmp_path: Path) -> None:
 
 
 def test_a_bare_yaml_date_becomes_iso_text() -> None:
-    assert normalize_settings({"date": dt.date(2026, 9, 18)}, origin="deck.md") == {"date": "2026-09-18"}
+    assert normalize_settings(
+        {"date": dt.date(2026, 9, 18)}, origin="deck.md"
+    ) == {"date": "2026-09-18"}
 
 
 def test_a_lone_extra_stylesheet_becomes_a_list() -> None:
-    assert normalize_settings({"extra_css": "assets/lab.css"}, origin="deck.yml") == {"extra_css": ["assets/lab.css"]}
+    assert normalize_settings(
+        {"extra_css": "assets/lab.css"}, origin="deck.yml"
+    ) == {"extra_css": ["assets/lab.css"]}
 
 
 def test_a_null_value_is_left_out_so_the_default_stands() -> None:
-    assert normalize_settings({"date": None, "theme": None}, origin="deck.yml") == {}
+    assert (
+        normalize_settings({"date": None, "theme": None}, origin="deck.yml")
+        == {}
+    )
 
 
 def test_a_remote_stylesheet_is_allowed() -> None:
-    settings = normalize_settings({"extra_css": "https://example.com/a.css"}, origin="deck.yml")
+    settings = normalize_settings(
+        {"extra_css": "https://example.com/a.css"}, origin="deck.yml"
+    )
     assert settings == {"extra_css": ["https://example.com/a.css"]}
 
 
@@ -105,13 +122,17 @@ def test_a_value_of_the_wrong_shape_is_an_error() -> None:
         normalize_settings({"title": ["a", "b"]}, origin="deck.yml")
 
 
-def test_a_deck_without_a_config_file_has_no_settings_from_it(tmp_path: Path) -> None:
+def test_a_deck_without_a_config_file_has_no_settings_from_it(
+    tmp_path: Path,
+) -> None:
     source = write(tmp_path, "deck.md", "# Quadruped Vault Runs\n")
     assert find_config_file(source) is None
     assert read_config_file(source) == {}
 
 
-def test_the_config_file_is_found_beside_the_markdown_and_by_the_folder(tmp_path: Path) -> None:
+def test_the_config_file_is_found_beside_the_markdown_and_by_the_folder(
+    tmp_path: Path,
+) -> None:
     write(tmp_path, "deck.yml", DECK_YML)
     source = write(tmp_path, "deck.md", "# Quadruped Vault Runs\n")
     assert find_config_file(source) == tmp_path / "deck.yml"
@@ -126,8 +147,16 @@ def test_the_yaml_suffix_is_accepted_too(tmp_path: Path) -> None:
 
 def test_the_frontmatter_wins_over_the_config_file(tmp_path: Path) -> None:
     write(tmp_path, "deck.yml", DECK_YML)
-    source = write(tmp_path, "deck.md", "---\ndate: 2026-09-18\ntitle_slide: false\n---\n\nOne slide.\n")
-    deck = parse_markdown(source.read_text(encoding="utf-8"), source=source, defaults=read_config_file(source))
+    source = write(
+        tmp_path,
+        "deck.md",
+        "---\ndate: 2026-09-18\ntitle_slide: false\n---\n\nOne slide.\n",
+    )
+    deck = parse_markdown(
+        source.read_text(encoding="utf-8"),
+        source=source,
+        defaults=read_config_file(source),
+    )
     assert deck.date == "2026-09-18"
     assert deck.title_slide is False
     assert deck.title.startswith("Barkour vault")
@@ -135,9 +164,15 @@ def test_the_frontmatter_wins_over_the_config_file(tmp_path: Path) -> None:
 
 
 def test_the_two_reveal_mappings_are_merged_option_by_option() -> None:
-    merged = merge_settings({"reveal": {"hash": True, "transition": "none"}}, {"reveal": {"transition": "fade"}})
+    merged = merge_settings(
+        {"reveal": {"hash": True, "transition": "none"}},
+        {"reveal": {"transition": "fade"}},
+    )
     assert merged == {"reveal": {"hash": True, "transition": "fade"}}
-    assert merge_settings({"reveal": {"hash": True}}, {"title": "x"}) == {"reveal": {"hash": True}, "title": "x"}
+    assert merge_settings({"reveal": {"hash": True}}, {"title": "x"}) == {
+        "reveal": {"hash": True},
+        "title": "x",
+    }
 
 
 def test_a_bad_key_names_the_file_it_came_from(tmp_path: Path) -> None:
@@ -148,7 +183,9 @@ def test_a_bad_key_names_the_file_it_came_from(tmp_path: Path) -> None:
     other = tmp_path / "other"
     other.mkdir()
     with pytest.raises(DeckError, match=r"other\.md"):
-        parse_markdown("---\ntitel: x\n---\n", source=write(other, "other.md", ""))
+        parse_markdown(
+            "---\ntitel: x\n---\n", source=write(other, "other.md", "")
+        )
 
 
 def test_unreadable_yaml_is_an_error(tmp_path: Path) -> None:
@@ -158,9 +195,13 @@ def test_unreadable_yaml_is_an_error(tmp_path: Path) -> None:
         read_config_file(source)
 
 
-def test_a_config_file_that_is_not_a_mapping_is_an_error(tmp_path: Path) -> None:
+def test_a_config_file_that_is_not_a_mapping_is_an_error(
+    tmp_path: Path,
+) -> None:
     write(tmp_path, "deck.yml", "- Quadruped Vault Runs\n")
-    with pytest.raises(DeckError, match="but a mapping of deck settings was expected"):
+    with pytest.raises(
+        DeckError, match="but a mapping of deck settings was expected"
+    ):
         read_config_file(tmp_path)
 
 
@@ -172,7 +213,9 @@ def test_an_empty_config_file_sets_nothing(tmp_path: Path) -> None:
 def test_an_unknown_theme_is_an_error_that_suggests_the_right_one() -> None:
     with pytest.raises(DeckError) as caught:
         normalize_settings({"theme": "nope"}, origin="deck.yml")
-    assert str(caught.value).startswith('deck.yml: The theme "nope" does not exist.')
+    assert str(caught.value).startswith(
+        'deck.yml: The theme "nope" does not exist.'
+    )
     assert "The themes are: dark, minimal." in str(caught.value)
     with pytest.raises(DeckError, match='Did you mean "minimal"'):
         normalize_settings({"theme": "minimla"}, origin="deck.yml")
@@ -185,19 +228,29 @@ def test_a_theme_cannot_climb_out_of_the_theme_folder() -> None:
 
 def test_every_shipped_theme_is_accepted() -> None:
     for theme in ("minimal", "dark"):
-        assert normalize_settings({"theme": theme}, origin="deck.yml") == {"theme": theme}
+        assert normalize_settings({"theme": theme}, origin="deck.yml") == {
+            "theme": theme
+        }
 
 
 def test_a_bare_no_is_refused_with_a_hint_to_quote_it() -> None:
-    with pytest.raises(DeckError, match='The key "title" holds the value false') as caught:
-        normalize_settings({"title": False}, origin="deck.yml")  # what YAML makes of a bare `no`
+    with pytest.raises(
+        DeckError, match='The key "title" holds the value false'
+    ) as caught:
+        normalize_settings(
+            {"title": False}, origin="deck.yml"
+        )  # what YAML makes of a bare `no`
     assert "put the value in quotes" in str(caught.value)
 
 
 def test_a_decimal_is_refused_because_yaml_has_already_rewritten_it() -> None:
     with pytest.raises(DeckError, match="put the value in quotes"):
-        normalize_settings({"title": 1.1}, origin="deck.yml")  # what YAML makes of `1.10`
-    assert normalize_settings({"title": 2026}, origin="deck.yml") == {"title": "2026"}
+        normalize_settings(
+            {"title": 1.1}, origin="deck.yml"
+        )  # what YAML makes of `1.10`
+    assert normalize_settings({"title": 2026}, origin="deck.yml") == {
+        "title": "2026"
+    }
 
 
 def test_a_config_file_that_is_not_utf8_names_the_file(tmp_path: Path) -> None:

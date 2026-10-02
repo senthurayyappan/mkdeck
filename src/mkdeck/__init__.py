@@ -1,7 +1,8 @@
 """Minimal HTML slide decks from Markdown or from Python.
 
-The public API is the slide model and the two ways to get a deck: build one in Python, or
-load one from a Markdown file. Either way, `build` writes it and `serve` shows it::
+The public API is the slide model and the two ways to get a deck: build one in
+Python, or load one from a Markdown file. Either way, `build` writes it and
+`serve` shows it::
 
     from mkdeck import Deck, Slide, Embed, load_source
 
@@ -9,15 +10,18 @@ load one from a Markdown file. Either way, `build` writes it and `serve` shows i
     deck.slides.append(
         Slide(
             sentence="Five seeds cross the wall.",
-            embeds=[Embed("assets/g1.html", label="18 N m"), Embed("assets/g2.html", label="22 N m")],
+            embeds=[
+                Embed("assets/g1.html", label="18 N m"),
+                Embed("assets/g2.html", label="22 N m"),
+            ],
         )
     )
     deck.build("site/")  # or deck.serve(port=5020)
 
     load_source("talk").build("site/")  # a deck.md and its assets/ folder
 
-The public modules are `mkdeck`, `mkdeck.errors` and `mkdeck.rollout`. Every other module
-is an implementation detail and can change between releases.
+The public modules are `mkdeck`, `mkdeck.errors` and `mkdeck.rollout`. Every
+other module is an implementation detail and can change between releases.
 """
 
 from importlib.metadata import PackageNotFoundError, version

@@ -1,4 +1,6 @@
-"""Vendor the front-end libraries a built deck carries into ``src/mkdeck/assets/``.
+"""Vendor the front-end libraries a built deck carries.
+
+They are written into ``src/mkdeck/assets/``.
 
 reveal.js, KaTeX, Roboto and three.js would normally load from a CDN at view
 time. A deck is meant to be built once and opened anywhere — on a plane, from a
@@ -15,8 +17,8 @@ itself, listed per library), so the folder ends up exactly as the pins describe
 it. Re-run to bump a pin; the result should be reviewed as a diff like any other
 change. It needs network access and nothing but the standard library::
 
-    uv run scripts/vendor_assets.py            # every library
-    uv run scripts/vendor_assets.py three      # just one, by folder or package name
+    uv run scripts/vendor_assets.py        # every library
+    uv run scripts/vendor_assets.py three  # one library, by folder or name
 
 three.js is pinned at r150 on purpose. The rollout viewer builds an
 ``OrbitControls`` that reads ``camera.up`` once, in its constructor, and never
@@ -61,12 +63,12 @@ class Library:
         version: The pinned version.
         into: The folder under ``assets/`` the files land in.
         files: Pairs of source path inside the tarball and destination path
-            under ``into``. A source may hold a ``*``, and then the
-            destination is the folder its matches land in.
+            under ``into``. A source may hold a ``*``, and then the destination
+            is the folder its matches land in.
         keep: Paths under ``into`` that mkdeck maintains itself, which a run
             leaves alone when it removes files the pins no longer name.
-        after: Run over the destination folder once the files are written, for
-            a library that needs the released copy adjusted.
+        after: Run over the destination folder once the files are written, for a
+            library that needs the released copy adjusted.
     """
 
     package: str
@@ -79,13 +81,16 @@ class Library:
     @property
     def url(self) -> str:
         """Where npm serves this version's tarball."""
-        return f"{REGISTRY}/{self.package}/-/{self.package.rsplit('/', 1)[-1]}-{self.version}.tgz"
+        filename = self.package.rsplit("/", 1)[-1]
+        return f"{REGISTRY}/{self.package}/-/{filename}-{self.version}.tgz"
 
 
 COMMON = (("package.json", "package.json"), ("LICENSE", "LICENSE"))
 """Files every library keeps, so the pin and the licence stay with the code."""
 
-_LEGACY_FONT_SRC = re.compile(r',url\(fonts/[^)]+\) format\("(?:woff|truetype)"\)')
+_LEGACY_FONT_SRC = re.compile(
+    r',url\(fonts/[^)]+\) format\("(?:woff|truetype)"\)'
+)
 """The ``.woff`` and ``.ttf`` sources KaTeX lists beside each ``.woff2``."""
 
 
@@ -100,7 +105,10 @@ def _woff2_only(folder: Path) -> None:
         folder: The vendored ``katex`` folder.
     """
     stylesheet = folder / "dist" / "katex.min.css"
-    stylesheet.write_text(_LEGACY_FONT_SRC.sub("", stylesheet.read_text(encoding="utf-8")), encoding="utf-8")
+    stylesheet.write_text(
+        _LEGACY_FONT_SRC.sub("", stylesheet.read_text(encoding="utf-8")),
+        encoding="utf-8",
+    )
 
 
 LIBRARIES = (
@@ -118,7 +126,8 @@ LIBRARIES = (
         ),
     ),
     # The npm tarball's LICENSE covers the code. The fonts are SIL OFL, and
-    # dist/fonts/OFL.txt is kept in the tree because the tarball does not ship it.
+    # dist/fonts/OFL.txt is kept in the tree because the tarball does not ship
+    # it.
     Library(
         package="katex",
         version="0.18.7",
@@ -136,13 +145,23 @@ LIBRARIES = (
         package="@fontsource/roboto",
         version="5.3.0",
         into="roboto",
-        # roboto.css is mkdeck's own: three weights of the latin subset, no more.
+        # roboto.css is mkdeck's own: three weights of the latin subset, no
+        # more.
         keep=("roboto.css",),
         files=(
             ("LICENSE", "LICENSE"),
-            ("files/roboto-latin-300-normal.woff2", "fonts/roboto-latin-300-normal.woff2"),
-            ("files/roboto-latin-400-normal.woff2", "fonts/roboto-latin-400-normal.woff2"),
-            ("files/roboto-latin-500-normal.woff2", "fonts/roboto-latin-500-normal.woff2"),
+            (
+                "files/roboto-latin-300-normal.woff2",
+                "fonts/roboto-latin-300-normal.woff2",
+            ),
+            (
+                "files/roboto-latin-400-normal.woff2",
+                "fonts/roboto-latin-400-normal.woff2",
+            ),
+            (
+                "files/roboto-latin-500-normal.woff2",
+                "fonts/roboto-latin-500-normal.woff2",
+            ),
         ),
     ),
     # The rollout viewer's renderer. The pin is r150 because the viewer works
@@ -155,7 +174,10 @@ LIBRARIES = (
         files=(
             *COMMON,
             ("build/three.module.js", "three.module.js"),
-            ("examples/jsm/controls/OrbitControls.js", "addons/controls/OrbitControls.js"),
+            (
+                "examples/jsm/controls/OrbitControls.js",
+                "addons/controls/OrbitControls.js",
+            ),
         ),
     ),
 )
@@ -195,19 +217,33 @@ def verify(payload: bytes, dist: dict[str, str], label: str) -> None:
     """
     if dist.get("integrity"):
         # An SRI string: one or more "<algorithm>-<base64 digest>" entries.
-        expected = {entry.partition("-")[::2] for entry in dist["integrity"].split()}
+        expected = {
+            entry.partition("-")[::2] for entry in dist["integrity"].split()
+        }
         actual = {
-            (algorithm, base64.b64encode(hashlib.new(algorithm, payload).digest()).decode())
+            (
+                algorithm,
+                base64.b64encode(
+                    hashlib.new(algorithm, payload).digest()
+                ).decode(),
+            )
             for algorithm, _ in expected
             if algorithm in hashlib.algorithms_available
         }
     elif dist.get("shasum"):
-        expected, actual = {("sha1", dist["shasum"])}, {("sha1", hashlib.sha1(payload).hexdigest())}
+        expected, actual = (
+            {("sha1", dist["shasum"])},
+            {("sha1", hashlib.sha1(payload).hexdigest())},
+        )
     else:
-        raise SystemExit(f"{label}: the registry publishes no checksum for it, so it cannot be verified.")
+        raise SystemExit(
+            f"{label}: the registry publishes no checksum for it, so it cannot "
+            f"be verified."
+        )
     if not expected & actual:
         raise SystemExit(
-            f"{label}: the downloaded tarball does not match the checksum npm published; not vendoring it."
+            f"{label}: the downloaded tarball does not match the checksum npm "
+            f"published; not vendoring it."
         )
 
 
@@ -225,13 +261,17 @@ def fetch(library: Library) -> tarfile.TarFile:
             serves a tarball that does not match its published checksum.
     """
     label = f"{library.package}@{library.version}"
-    document = json.loads(_get(f"{REGISTRY}/{library.package}/{library.version}"))
+    document = json.loads(
+        _get(f"{REGISTRY}/{library.package}/{library.version}")
+    )
     payload = _get(library.url)
     verify(payload, document.get("dist", {}), label)
     return tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz")
 
 
-def _remove_stale(target: Path, written: set[Path], keep: tuple[str, ...]) -> list[Path]:
+def _remove_stale(
+    target: Path, written: set[Path], keep: tuple[str, ...]
+) -> list[Path]:
     """Delete the files under a library's folder that no pin writes.
 
     Args:
@@ -243,10 +283,16 @@ def _remove_stale(target: Path, written: set[Path], keep: tuple[str, ...]) -> li
         The files removed.
     """
     kept = written | {target / name for name in keep}
-    stale = sorted(path for path in target.rglob("*") if path.is_file() and path not in kept)
+    stale = sorted(
+        path
+        for path in target.rglob("*")
+        if path.is_file() and path not in kept
+    )
     for path in stale:
         path.unlink()
-    for folder in sorted((p for p in target.rglob("*") if p.is_dir()), reverse=True):
+    for folder in sorted(
+        (p for p in target.rglob("*") if p.is_dir()), reverse=True
+    ):
         if not any(folder.iterdir()):
             folder.rmdir()
     return stale
@@ -271,16 +317,31 @@ def vendor(library: Library, *, root: Path = ASSETS) -> int:
     with fetch(library) as tar:
         # npm puts everything under "package/"; members are matched against the
         # path below it so the pins read like the library's own layout.
-        members = {name[len("package/") :]: name for name in tar.getnames() if name.startswith("package/")}
+        members = {
+            name[len("package/") :]: name
+            for name in tar.getnames()
+            if name.startswith("package/")
+        }
         for source, destination in library.files:
-            matches = sorted(name for name in members if fnmatch.fnmatch(name, source))
+            matches = sorted(
+                name for name in members if fnmatch.fnmatch(name, source)
+            )
             if not matches:
-                raise SystemExit(f"{library.package}@{library.version} holds no {source}")
+                raise SystemExit(
+                    f"{library.package}@{library.version} holds no {source}"
+                )
             for match in matches:
-                out = target / destination / Path(match).name if "*" in source else target / destination
+                out = (
+                    target / destination / Path(match).name
+                    if "*" in source
+                    else target / destination
+                )
                 extracted = tar.extractfile(members[match])
                 if extracted is None:
-                    raise SystemExit(f"{library.package}@{library.version} holds no readable {match}")
+                    raise SystemExit(
+                        f"{library.package}@{library.version} holds no "
+                        f"readable {match}"
+                    )
                 out.parent.mkdir(parents=True, exist_ok=True)
                 with extracted, out.open("wb") as handle:
                     shutil.copyfileobj(extracted, handle)
@@ -301,14 +362,27 @@ def main(names: list[str]) -> None:
     Raises:
         SystemExit: If a name matches no library.
     """
-    chosen = [lib for lib in LIBRARIES if not names or lib.into in names or lib.package in names]
-    unknown = set(names) - {lib.into for lib in chosen} - {lib.package for lib in chosen}
+    chosen = [
+        lib
+        for lib in LIBRARIES
+        if not names or lib.into in names or lib.package in names
+    ]
+    unknown = (
+        set(names)
+        - {lib.into for lib in chosen}
+        - {lib.package for lib in chosen}
+    )
     if unknown:
         known = ", ".join(lib.into for lib in LIBRARIES)
-        raise SystemExit(f"no such library: {', '.join(sorted(unknown))}. Known: {known}")
+        raise SystemExit(
+            f"no such library: {', '.join(sorted(unknown))}. Known: {known}"
+        )
     for library in chosen:
         count = vendor(library)
-        print(f"{library.package}@{library.version} -> assets/{library.into} ({count} files)")
+        print(
+            f"{library.package}@{library.version} -> "
+            f"assets/{library.into} ({count} files)"
+        )
 
 
 if __name__ == "__main__":

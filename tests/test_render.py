@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from mkdeck import Deck, DeckError, DeckWarning, Embed, Slide, Table
-from mkdeck.inline import PAYLOAD_MARKER, SLIDES_CLOSE, SLIDES_OPEN, VIEWER_MODULES
+from mkdeck.inline import (
+    PAYLOAD_MARKER,
+    SLIDES_CLOSE,
+    SLIDES_OPEN,
+    VIEWER_MODULES,
+)
 from mkdeck.markdown import parse_markdown
 from mkdeck.paths import ASSET_BASE, ASSET_ROOT
 from mkdeck.render import (
@@ -19,9 +24,11 @@ from mkdeck.render import (
 )
 
 STATEMENT = (
-    '<section class="mkd-slide" data-layout="statement" data-id="g8b-recommendation">'
+    '<section class="mkd-slide" data-layout="statement" '
+    'data-id="g8b-recommendation">'
     '<div class="mkd-body">'
-    '<p class="mkd-sentence">Raising the cap changes how the wall is crossed, not whether it is crossed.</p>'
+    '<p class="mkd-sentence">Raising the cap changes how the wall is crossed, '
+    "not whether it is crossed.</p>"
     '<ul class="mkd-bullets"><li>five seeds cross</li><li>the peak stays under '
     '<span class="mkd-num">22 N m</span></li></ul>'
     "</div></section>"
@@ -30,12 +37,15 @@ STATEMENT = (
 FIGURES = (
     '<section class="mkd-slide" data-layout="figures" data-id="g3-paired">'
     '<div class="mkd-body">'
-    '<p class="mkd-sentence">Body load falls from <span class="mkd-num">134</span> to '
+    '<p class="mkd-sentence">Body load falls from <span '
+    'class="mkd-num">134</span> to '
     '<span class="mkd-num">86</span> N s.</p>'
     '<div class="mkd-figures" data-count="2">'
-    '<figure class="mkd-figure"><figcaption class="mkd-label">18 N m</figcaption>'
+    '<figure class="mkd-figure"><figcaption class="mkd-label">18 N '
+    "m</figcaption>"
     '<deck-embed src="assets/g3_18.html"></deck-embed></figure>'
-    '<figure class="mkd-figure"><figcaption class="mkd-label">22 N m</figcaption>'
+    '<figure class="mkd-figure"><figcaption class="mkd-label">22 N '
+    "m</figcaption>"
     '<deck-embed src="assets/g3_22.html"></deck-embed></figure>'
     "</div></div></section>"
 )
@@ -48,7 +58,10 @@ TITLE = (
 
 
 def test_a_bare_number_is_highlighted() -> None:
-    assert str(highlight_numbers("five of 5 runs")) == 'five of <span class="mkd-num">5</span> runs'
+    assert (
+        str(highlight_numbers("five of 5 runs"))
+        == 'five of <span class="mkd-num">5</span> runs'
+    )
 
 
 def test_a_number_glued_to_letters_stays_grey() -> None:
@@ -56,46 +69,77 @@ def test_a_number_glued_to_letters_stays_grey() -> None:
 
 
 def test_a_number_takes_its_unit_with_it() -> None:
-    assert str(highlight_numbers("under 22 N m")) == 'under <span class="mkd-num">22 N m</span>'
+    assert (
+        str(highlight_numbers("under 22 N m"))
+        == 'under <span class="mkd-num">22 N m</span>'
+    )
 
 
 def test_the_longest_unit_wins() -> None:
-    assert str(highlight_numbers("a gap of 5 mm")) == 'a gap of <span class="mkd-num">5 mm</span>'
+    assert (
+        str(highlight_numbers("a gap of 5 mm"))
+        == 'a gap of <span class="mkd-num">5 mm</span>'
+    )
 
 
 def test_signs_and_decimals_are_part_of_the_number() -> None:
-    assert str(highlight_numbers("-0.65 m")) == '<span class="mkd-num">-0.65 m</span>'
+    assert (
+        str(highlight_numbers("-0.65 m"))
+        == '<span class="mkd-num">-0.65 m</span>'
+    )
 
 
 def test_a_speed_and_a_percentage_keep_their_whole_unit() -> None:
     """`m/s` was cut after `m`, and `%` was no unit at all."""
-    assert str(highlight_numbers("at 2.10 m/s")) == 'at <span class="mkd-num">2.10 m/s</span>'
+    assert (
+        str(highlight_numbers("at 2.10 m/s"))
+        == 'at <span class="mkd-num">2.10 m/s</span>'
+    )
     assert str(highlight_numbers("up 50% or 50 %")) == (
-        'up <span class="mkd-num">50%</span> or <span class="mkd-num">50 %</span>'
+        'up <span class="mkd-num">50%</span> or <span class="mkd-num">50 '
+        "%</span>"
     )
     assert str(highlight_numbers("2 rad/s and 3 m")) == (
-        '<span class="mkd-num">2 rad/s</span> and <span class="mkd-num">3 m</span>'
+        '<span class="mkd-num">2 rad/s</span> and <span class="mkd-num">3 '
+        "m</span>"
     )
 
 
 def test_the_unit_list_is_configurable() -> None:
-    assert str(highlight_numbers("7 apples", units=["apples"])) == '<span class="mkd-num">7 apples</span>'
-    assert str(highlight_numbers("7 apples", units=[])) == '<span class="mkd-num">7</span> apples'
+    assert (
+        str(highlight_numbers("7 apples", units=["apples"]))
+        == '<span class="mkd-num">7 apples</span>'
+    )
+    assert (
+        str(highlight_numbers("7 apples", units=[]))
+        == '<span class="mkd-num">7</span> apples'
+    )
 
 
 def test_text_is_escaped_around_the_numbers() -> None:
-    assert str(highlight_numbers("<b> & 3")) == '&lt;b&gt; &amp; <span class="mkd-num">3</span>'
+    assert (
+        str(highlight_numbers("<b> & 3"))
+        == '&lt;b&gt; &amp; <span class="mkd-num">3</span>'
+    )
 
 
 def test_an_element_in_the_sentence_is_kept_as_written() -> None:
-    rendered = str(render_text('Departure speed reaches <deck-mark type="circle">2.10 m/s</deck-mark> at 22 N m.'))
+    rendered = str(
+        render_text(
+            'Departure speed reaches <deck-mark type="circle">2.10 '
+            "m/s</deck-mark> at 22 N m."
+        )
+    )
     assert '<deck-mark type="circle">2.10 m/s</deck-mark>' in rendered
     assert '<span class="mkd-num">22 N m</span>' in rendered
     assert "&lt;" not in rendered
 
 
 def test_an_unclosed_tag_is_escaped() -> None:
-    assert str(render_text("<b> & 3")) == '&lt;b&gt; &amp; <span class="mkd-num">3</span>'
+    assert (
+        str(render_text("<b> & 3"))
+        == '&lt;b&gt; &amp; <span class="mkd-num">3</span>'
+    )
 
 
 def test_a_less_than_sign_is_escaped() -> None:
@@ -104,7 +148,8 @@ def test_a_less_than_sign_is_escaped() -> None:
 
 def test_markdown_keeps_an_inline_element(tmp_path) -> None:
     deck = parse_markdown(
-        '---\ntitle: T\n---\n\nDeparture speed reaches <deck-mark type="circle">2.10 m/s</deck-mark> at 22 N m.\n',
+        "---\ntitle: T\n---\n\nDeparture speed reaches <deck-mark "
+        'type="circle">2.10 m/s</deck-mark> at 22 N m.\n',
         source=tmp_path / "deck.md",
     )
     html = str(render_slide(deck.slides[0]))
@@ -113,18 +158,24 @@ def test_markdown_keeps_an_inline_element(tmp_path) -> None:
 
 def test_inline_math_becomes_a_placeholder() -> None:
     rendered = str(render_text("spread $5\\times10^{-7}$ rad"))
-    assert '<span class="mkd-math" data-tex="5\\times10^{-7}"></span>' in rendered
+    assert (
+        '<span class="mkd-math" data-tex="5\\times10^{-7}"></span>' in rendered
+    )
     assert rendered.startswith("spread ")
 
 
 def test_an_odd_number_of_dollar_signs_is_plain_text() -> None:
-    assert str(render_text("costs $5 today")) == 'costs $<span class="mkd-num">5</span> today'
+    assert (
+        str(render_text("costs $5 today"))
+        == 'costs $<span class="mkd-num">5</span> today'
+    )
 
 
 def test_a_statement_slide_matches_the_contract() -> None:
     slide = Slide(
         id="g8b-recommendation",
-        sentence="Raising the cap changes how the wall is crossed, not whether it is crossed.",
+        sentence="Raising the cap changes how the wall is crossed, not whether "
+        "it is crossed.",
         bullets=["five seeds cross", "the peak stays under 22 N m"],
     )
     assert str(render_slide(slide)) == STATEMENT
@@ -134,20 +185,32 @@ def test_a_figure_slide_matches_the_contract() -> None:
     slide = Slide(
         id="g3-paired",
         sentence="Body load falls from 134 to 86 N s.",
-        embeds=[Embed("assets/g3_18.html", label="18 N m"), Embed("assets/g3_22.html", label="22 N m")],
+        embeds=[
+            Embed("assets/g3_18.html", label="18 N m"),
+            Embed("assets/g3_22.html", label="22 N m"),
+        ],
     )
     assert str(render_slide(slide)) == FIGURES
 
 
 def test_a_label_keeps_one_weight() -> None:
-    rendered = str(render_slide(Slide(embeds=[Embed("a.html", label="18 N m")])))
+    rendered = str(
+        render_slide(Slide(embeds=[Embed("a.html", label="18 N m")]))
+    )
     assert '<figcaption class="mkd-label">18 N m</figcaption>' in rendered
 
 
 def test_an_image_embed_uses_an_img_in_the_same_wrapper() -> None:
-    rendered = str(render_slide(Slide(embeds=[Embed("assets/clip.gif", label="climb")])))
-    assert '<figure class="mkd-figure"><figcaption class="mkd-label">climb</figcaption>' in rendered
-    assert '<img class="mkd-image" src="assets/clip.gif" alt="climb">' in rendered
+    rendered = str(
+        render_slide(Slide(embeds=[Embed("assets/clip.gif", label="climb")]))
+    )
+    assert (
+        '<figure class="mkd-figure"><figcaption '
+        'class="mkd-label">climb</figcaption>' in rendered
+    )
+    assert (
+        '<img class="mkd-image" src="assets/clip.gif" alt="climb">' in rendered
+    )
     assert 'data-count="1"' in rendered
 
 
@@ -156,7 +219,10 @@ def test_a_table_highlights_the_body_cells_only() -> None:
     rendered = str(render_slide(Slide(table=table)))
     assert '<div class="mkd-table-wrap"><table class="mkd-table">' in rendered
     assert "<thead><tr><th>Run</th><th>18 N m</th></tr></thead>" in rendered
-    assert '<tbody><tr><td>baseline</td><td><span class="mkd-num">2</span></td></tr></tbody>' in rendered
+    assert (
+        "<tbody><tr><td>baseline</td><td><span "
+        'class="mkd-num">2</span></td></tr></tbody>' in rendered
+    )
 
 
 def test_a_title_slide_matches_the_contract() -> None:
@@ -166,7 +232,9 @@ def test_a_title_slide_matches_the_contract() -> None:
 
 def test_display_math_comes_before_the_sentence() -> None:
     rendered = str(render_slide(Slide(math=["a = b"], sentence="Why.")))
-    assert rendered.index('class="mkd-math mkd-math-block" data-tex="a = b"') < rendered.index("mkd-sentence")
+    assert rendered.index(
+        'class="mkd-math mkd-math-block" data-tex="a = b"'
+    ) < rendered.index("mkd-sentence")
 
 
 def test_two_paragraphs_become_two_sentences() -> None:
@@ -175,43 +243,67 @@ def test_two_paragraphs_become_two_sentences() -> None:
 
 
 def test_speaker_notes_use_reveals_own_element() -> None:
-    rendered = str(render_slide(Slide(sentence="Hi.", notes="Say this out loud.")))
+    rendered = str(
+        render_slide(Slide(sentence="Hi.", notes="Say this out loud."))
+    )
     assert '<aside class="notes"><p>Say this out loud.</p></aside>' in rendered
 
 
 def test_extra_classes_and_the_id_reach_the_section() -> None:
-    rendered = str(render_slide(Slide(id="a1", classes=["wide"], sentence="Hi.")))
-    assert rendered.startswith('<section class="mkd-slide wide" data-layout="statement" data-id="a1">')
+    rendered = str(
+        render_slide(Slide(id="a1", classes=["wide"], sentence="Hi."))
+    )
+    assert rendered.startswith(
+        '<section class="mkd-slide wide" data-layout="statement" data-id="a1">'
+    )
 
 
 def test_raw_html_is_kept_beside_the_rest() -> None:
-    rendered = str(render_slide(Slide(sentence="Hi.", html="<deck-mermaid>graph TD</deck-mermaid>")))
+    rendered = str(
+        render_slide(
+            Slide(sentence="Hi.", html="<deck-mermaid>graph TD</deck-mermaid>")
+        )
+    )
     assert "<deck-mermaid>graph TD</deck-mermaid>" in rendered
     assert "Hi." in rendered
 
 
 def test_a_deck_opens_with_a_generated_title_slide() -> None:
-    html = render_deck(Deck(title="Runs", date="2026-09-18", slides=[Slide(sentence="Hi.")]))
+    html = render_deck(
+        Deck(title="Runs", date="2026-09-18", slides=[Slide(sentence="Hi.")])
+    )
     assert html.count("<section") == 2
     assert '<h1 class="mkd-title">Runs</h1>' in html
 
 
 def test_a_deck_that_writes_its_own_title_slide_is_not_doubled() -> None:
-    deck = Deck(title="Runs", slides=[Slide(layout="title", title="Runs"), Slide(sentence="Hi.")])
+    deck = Deck(
+        title="Runs",
+        slides=[Slide(layout="title", title="Runs"), Slide(sentence="Hi.")],
+    )
     assert render_deck(deck).count("<section") == 2
 
 
-def test_a_title_slide_the_author_wrote_is_the_opening_slide_whatever_it_says() -> None:
+def test_a_title_slide_the_author_wrote_is_the_opening_slide_whatever_it_says() -> (  # noqa: E501
+    None
+):
     """A deck titled "Talk" that opens with `# My Talk` used to show both."""
-    deck = Deck(title="Talk", slides=[Slide(layout="title", title="My Talk"), Slide(sentence="Hi.")])
+    deck = Deck(
+        title="Talk",
+        slides=[Slide(layout="title", title="My Talk"), Slide(sentence="Hi.")],
+    )
     html = render_deck(deck)
     assert html.count("<section") == 2
     assert '<h1 class="mkd-title">Talk</h1>' not in html
     assert "<title>Talk</title>" in html
 
 
-def test_a_markdown_deck_without_a_title_opens_with_its_own_first_slide() -> None:
-    html = render_deck(parse_markdown("# My Talk\n\n---\n\nHello.\n", source="deck.md"))
+def test_a_markdown_deck_without_a_title_opens_with_its_own_first_slide() -> (
+    None
+):
+    html = render_deck(
+        parse_markdown("# My Talk\n\n---\n\nHello.\n", source="deck.md")
+    )
     assert html.count("<section") == 2
     assert "Slide Deck" not in html
     assert "<title>My Talk</title>" in html
@@ -253,29 +345,56 @@ def test_the_document_links_its_assets_in_order() -> None:
 
 def test_the_chrome_sits_outside_the_slides() -> None:
     html = render_deck(Deck(title="Runs", slides=[Slide(sentence="Hi.")]))
-    assert html.rindex("</section>") < html.index(SLIDES_CLOSE) < html.index('class="mkd-chrome mkd-chrome-left"')
-    assert html.index('class="mkd-chrome mkd-chrome-left"') < html.index('class="mkd-chrome mkd-chrome-right"')
+    assert (
+        html.rindex("</section>")
+        < html.index(SLIDES_CLOSE)
+        < html.index('class="mkd-chrome mkd-chrome-left"')
+    )
+    assert html.index('class="mkd-chrome mkd-chrome-left"') < html.index(
+        'class="mkd-chrome mkd-chrome-right"'
+    )
 
 
 def test_reveal_scaling_is_off() -> None:
     html = render_deck(Deck(title="Runs"))
-    for line in ('width: "100%"', 'height: "100%"', "margin: 0", "minScale: 1", "maxScale: 1"):
+    for line in (
+        'width: "100%"',
+        'height: "100%"',
+        "margin: 0",
+        "minScale: 1",
+        "maxScale: 1",
+    ):
         assert line in html
 
 
 def test_the_reveal_options_of_the_deck_are_merged_over_the_defaults() -> None:
-    html = render_deck(Deck(title="Runs", reveal={"transition": "fade", "note": "</script>"}))
-    assert 'var overrides = {"note": "\\u003c/script\\u003e", "transition": "fade"};' in html
+    html = render_deck(
+        Deck(title="Runs", reveal={"transition": "fade", "note": "</script>"})
+    )
+    assert (
+        'var overrides = {"note": "\\u003c/script\\u003e", "transition": '
+        '"fade"};' in html
+    )
 
 
 def test_the_deck_supplies_the_unit_list() -> None:
-    deck = Deck(title="Runs", title_slide=False, units=["apples"], slides=[Slide(sentence="7 apples")])
+    deck = Deck(
+        title="Runs",
+        title_slide=False,
+        units=["apples"],
+        slides=[Slide(sentence="7 apples")],
+    )
     html = render_deck(deck)
     assert '<span class="mkd-num">7 apples</span>' in html
 
 
 def test_an_empty_unit_list_drops_the_unit_spellings() -> None:
-    deck = Deck(title="Runs", title_slide=False, units=[], slides=[Slide(sentence="under 22 N m")])
+    deck = Deck(
+        title="Runs",
+        title_slide=False,
+        units=[],
+        slides=[Slide(sentence="under 22 N m")],
+    )
     html = render_deck(deck)
     assert '<span class="mkd-num">22</span> N m' in html
     assert '<span class="mkd-num">22 N m</span>' not in html
@@ -308,16 +427,28 @@ def test_a_python_deck_and_the_same_markdown_render_alike(tmp_path) -> None:
 
 
 def test_inline_markdown_is_rendered_in_text() -> None:
-    rendered = str(render_text("**bold**, *em*, `code 5` and [a link](https://example.org/a?b=1&c=2)."))
+    rendered = str(
+        render_text(
+            "**bold**, *em*, `code 5` and [a "
+            "link](https://example.org/a?b=1&c=2)."
+        )
+    )
     assert "<strong>bold</strong>" in rendered
     assert "<em>em</em>" in rendered
-    assert "<code>code 5</code>" in rendered  # no number highlighting inside code
+    assert (
+        "<code>code 5</code>" in rendered
+    )  # no number highlighting inside code
     assert '<a href="https://example.org/a?b=1&amp;c=2">a link</a>' in rendered
 
 
 def test_numbers_are_highlighted_inside_emphasis_but_not_labels() -> None:
-    assert '<strong><span class="mkd-num">22 N m</span></strong>' in str(render_text("**22 N m**"))
-    assert str(render_text("**22 N m**", numbers=False)) == "<strong>22 N m</strong>"
+    assert '<strong><span class="mkd-num">22 N m</span></strong>' in str(
+        render_text("**22 N m**")
+    )
+    assert (
+        str(render_text("**22 N m**", numbers=False))
+        == "<strong>22 N m</strong>"
+    )
 
 
 def test_a_script_link_cannot_be_written_in_markdown() -> None:
@@ -325,7 +456,10 @@ def test_a_script_link_cannot_be_written_in_markdown() -> None:
 
 
 def test_markdown_spans_can_wrap_math() -> None:
-    assert '<strong>a <span class="mkd-math" data-tex="x^2"></span></strong>' in str(render_text("**a $x^2$**"))
+    assert (
+        '<strong>a <span class="mkd-math" data-tex="x^2"></span></strong>'
+        in str(render_text("**a $x^2$**"))
+    )
 
 
 def test_dollar_amounts_are_text_and_an_escaped_dollar_is_a_dollar() -> None:
@@ -368,27 +502,45 @@ def test_an_html_comment_in_text_is_kept() -> None:
 
 def test_units_may_be_listed_in_any_order() -> None:
     for units in (["m", "N m", "N m s/rad"], ["N m s/rad", "N m", "m"]):
-        assert str(highlight_numbers("0.65 N m s/rad", units=units)) == '<span class="mkd-num">0.65 N m s/rad</span>'
-        assert str(highlight_numbers("under 22 N m", units=units)) == 'under <span class="mkd-num">22 N m</span>'
+        assert (
+            str(highlight_numbers("0.65 N m s/rad", units=units))
+            == '<span class="mkd-num">0.65 N m s/rad</span>'
+        )
+        assert (
+            str(highlight_numbers("under 22 N m", units=units))
+            == 'under <span class="mkd-num">22 N m</span>'
+        )
 
 
 def test_quotes_are_escaped_in_the_label_the_src_and_the_id() -> None:
-    slide = Slide(id='a"b', embeds=[Embed('x".html', label='say "hi"'), Embed("i'm.png", label="it's")])
+    slide = Slide(
+        id='a"b',
+        embeds=[
+            Embed('x".html', label='say "hi"'),
+            Embed("i'm.png", label="it's"),
+        ],
+    )
     rendered = str(render_slide(slide))
     assert 'data-id="a&#34;b"' in rendered
     assert '<deck-embed src="x&#34;.html">' in rendered
-    assert '<img class="mkd-image" src="i&#39;m.png" alt="it&#39;s">' in rendered
+    assert (
+        '<img class="mkd-image" src="i&#39;m.png" alt="it&#39;s">' in rendered
+    )
     assert "say &#34;hi&#34;" in rendered
     assert '"hi"' not in rendered
 
 
 def test_a_class_name_cannot_break_out_of_the_attribute() -> None:
-    rendered = str(render_slide(Slide(sentence="Hi.", classes=['x" onclick="alert(1)'])))
+    rendered = str(
+        render_slide(Slide(sentence="Hi.", classes=['x" onclick="alert(1)']))
+    )
     assert 'onclick="' not in rendered
 
 
 def test_a_heading_with_a_body_is_drawn_above_the_body() -> None:
-    slide = parse_markdown("# Big Title\n\nSome sentence.\n", source=Path("deck.md")).slides[0]
+    slide = parse_markdown(
+        "# Big Title\n\nSome sentence.\n", source=Path("deck.md")
+    ).slides[0]
     rendered = str(render_slide(slide))
     assert '<h1 class="mkd-title">Big Title</h1>' in rendered
     assert rendered.index("mkd-title") < rendered.index("mkd-sentence")
@@ -396,25 +548,37 @@ def test_a_heading_with_a_body_is_drawn_above_the_body() -> None:
 
 
 def test_a_heading_is_drawn_above_figures_and_a_table_too() -> None:
-    figures = str(render_slide(Slide(title="Heading", embeds=[Embed("a.html")])))
-    table = str(render_slide(Slide(title="Heading", table=Table(columns=["a"], rows=[["1"]]))))
+    figures = str(
+        render_slide(Slide(title="Heading", embeds=[Embed("a.html")]))
+    )
+    table = str(
+        render_slide(
+            Slide(title="Heading", table=Table(columns=["a"], rows=[["1"]]))
+        )
+    )
     assert figures.index("mkd-title") < figures.index("mkd-figures")
     assert table.index("mkd-title") < table.index("mkd-table")
 
 
 def test_the_heading_takes_inline_math_and_markdown() -> None:
-    rendered = str(render_slide(Slide(title="Gain $k_p$ is *tuned*", sentence="Hi.")))
+    rendered = str(
+        render_slide(Slide(title="Gain $k_p$ is *tuned*", sentence="Hi."))
+    )
     assert 'data-tex="k_p"' in rendered
     assert "<em>tuned</em>" in rendered
 
 
-def test_a_slide_of_the_wrong_type_is_a_deck_error_not_an_attribute_error() -> None:
+def test_a_slide_of_the_wrong_type_is_a_deck_error_not_an_attribute_error() -> (
+    None
+):
     with pytest.raises(DeckError, match='The field "sentence" has to be text'):
         render_deck(Deck(title="Runs", slides=[Slide(sentence=5)]))  # ty: ignore[invalid-argument-type]
 
 
 def test_an_unknown_theme_is_refused_before_it_is_linked() -> None:
-    with pytest.raises(DeckError, match=r'The theme "\.\./\.\./x" does not exist'):
+    with pytest.raises(
+        DeckError, match=r'The theme "\.\./\.\./x" does not exist'
+    ):
         render_deck(Deck(title="Runs", theme="../../x"))
     assert 'themes/dark.css"' in render_deck(Deck(title="Runs", theme="dark"))
 
@@ -429,13 +593,17 @@ def test_the_units_of_a_deck_have_to_be_text() -> None:
         render_deck(Deck(title="Runs", units=[3]))  # ty: ignore[invalid-argument-type]
 
 
-def test_a_file_name_with_a_colon_is_written_so_a_browser_reads_it_as_a_path() -> None:
+def test_a_file_name_with_a_colon_is_written_so_a_browser_reads_it_as_a_path() -> (  # noqa: E501
+    None
+):
     rendered = str(render_slide(Slide(embeds=[Embed("run:3.html")])))
     assert '<deck-embed src="./run:3.html">' in rendered
 
 
 def test_a_query_stays_in_the_document() -> None:
-    rendered = str(render_slide(Slide(embeds=[Embed("figs/g3_18.html?seed=2")])))
+    rendered = str(
+        render_slide(Slide(embeds=[Embed("figs/g3_18.html?seed=2")]))
+    )
     assert '<deck-embed src="figs/g3_18.html?seed=2">' in rendered
 
 
@@ -449,10 +617,16 @@ def test_the_live_reload_client_is_only_there_when_asked_for() -> None:
     assert live.rindex("EventSource") < live.rindex("</body>")
 
 
-def test_the_template_carries_the_markers_the_single_file_build_looks_for() -> None:
+def test_the_template_carries_the_markers_the_single_file_build_looks_for() -> (
+    None
+):
     html = render_deck(Deck(title="Runs", slides=[Slide(sentence="Hi.")]))
     assert html.count(PAYLOAD_MARKER) == 1
-    assert html.index(SLIDES_OPEN) < html.index("<section") < html.index(SLIDES_CLOSE)
+    assert (
+        html.index(SLIDES_OPEN)
+        < html.index("<section")
+        < html.index(SLIDES_CLOSE)
+    )
 
 
 def test_every_asset_the_document_names_is_on_disk() -> None:
@@ -464,29 +638,54 @@ def test_every_asset_the_document_names_is_on_disk() -> None:
         assert (ASSET_ROOT / url.removeprefix(f"{ASSET_BASE}/")).is_file(), url
 
 
-def test_the_viewer_modules_are_on_disk_and_match_the_ones_the_browser_loads() -> None:
+def test_the_viewer_modules_are_on_disk_and_match_the_ones_the_browser_loads() -> (  # noqa: E501
+    None
+):
     for _, path in VIEWER_MODULES:
         assert (ASSET_ROOT / path).is_file(), path
     script = (ASSET_ROOT / "mkdeck-rollout.js").read_text(encoding="utf-8")
     block = script[script.index("var MODULES = [") :].split("];", 1)[0]
-    assert re.findall(r'\["([^"]+)", "([^"]+)"\]', block) == list(VIEWER_MODULES)
+    assert re.findall(r'\["([^"]+)", "([^"]+)"\]', block) == list(
+        VIEWER_MODULES
+    )
 
 
-def test_an_image_inside_a_bullet_or_a_cell_is_called_out_when_the_build_would_not_copy_it() -> None:
+def test_an_image_inside_a_bullet_or_a_cell_is_called_out_when_the_build_would_not_copy_it() -> (  # noqa: E501
+    None
+):
     with pytest.warns(DeckWarning, match=r'"figs/icon.png".*under assets/'):
-        html = str(render_slide(Slide(bullets=["a ![icon](figs/icon.png) bullet"])))
-    assert '<img src="figs/icon.png" alt="icon" />' in html  # the text is still drawn as written
+        html = str(
+            render_slide(Slide(bullets=["a ![icon](figs/icon.png) bullet"]))
+        )
+    assert (
+        '<img src="figs/icon.png" alt="icon" />' in html
+    )  # the text is still drawn as written
     with pytest.warns(DeckWarning, match="assets/../cell.png"):
-        render_slide(Slide(table=Table(columns=["Run"], rows=[["![](assets/../cell.png)"]])))
+        render_slide(
+            Slide(
+                table=Table(columns=["Run"], rows=[["![](assets/../cell.png)"]])
+            )
+        )
 
 
-def test_an_image_under_assets_inside_a_bullet_is_copied_by_the_build_so_it_is_not_called_out() -> None:
+def test_an_image_under_assets_inside_a_bullet_is_copied_by_the_build_so_it_is_not_called_out() -> (  # noqa: E501
+    None
+):
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
-        render_slide(Slide(bullets=["a ![icon](assets/icon.png) bullet", "![](./assets/deep/x%20y.png)"]))
+        render_slide(
+            Slide(
+                bullets=[
+                    "a ![icon](assets/icon.png) bullet",
+                    "![](./assets/deep/x%20y.png)",
+                ]
+            )
+        )
 
 
-def test_a_remote_image_inside_a_bullet_needs_no_copy_and_is_not_called_out() -> None:
+def test_a_remote_image_inside_a_bullet_needs_no_copy_and_is_not_called_out() -> (  # noqa: E501
+    None
+):
     with warnings.catch_warnings():
         warnings.simplefilter("error", DeckWarning)
         render_slide(Slide(bullets=["![logo](https://example.org/logo.png)"]))

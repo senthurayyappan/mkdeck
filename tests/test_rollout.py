@@ -100,8 +100,12 @@ def scene(*, frames=FRAMES, geoms=None):
 
 def page(payload):
     """The Brax playback page that carries a scene."""
-    blob = base64.b64encode(zlib.compress(json.dumps(payload).encode())).decode()
-    return f'<!DOCTYPE html><html><script>var system = "{blob}";</script></html>'
+    blob = base64.b64encode(
+        zlib.compress(json.dumps(payload).encode())
+    ).decode()
+    return (
+        f'<!DOCTYPE html><html><script>var system = "{blob}";</script></html>'
+    )
 
 
 @pytest.fixture
@@ -109,8 +113,12 @@ def deck_folder(tmp_path):
     """A deck whose one figure is an ordinary page, for the negative case."""
     folder = tmp_path / "plain"
     (folder / "assets").mkdir(parents=True)
-    (folder / "assets" / "plot.html").write_text("<!doctype html><title>plot</title>")
-    (folder / "deck.md").write_text("---\ntitle: Plots\n---\n\nA plot.\n\n![p](assets/plot.html)\n")
+    (folder / "assets" / "plot.html").write_text(
+        "<!doctype html><title>plot</title>"
+    )
+    (folder / "deck.md").write_text(
+        "---\ntitle: Plots\n---\n\nA plot.\n\n![p](assets/plot.html)\n"
+    )
     return folder
 
 
@@ -126,7 +134,9 @@ def load_rollout(path):
     raw = Path(path).read_bytes()
     assert raw[:4] == b"RSPL", f"{path} is not a rollout"
     length = struct.unpack("<Q", raw[4:12])[0]
-    return json.loads(raw[12 : 12 + length]), gzip.decompress(raw[12 + length :])
+    return json.loads(raw[12 : 12 + length]), gzip.decompress(
+        raw[12 + length :]
+    )
 
 
 def f32(blob, off, count):
@@ -153,14 +163,18 @@ def test_a_second_run_of_the_same_model_reuses_the_meshes(brax, tmp_path):
 
 
 def test_the_world_body_is_added_in_front_of_the_links(brax, tmp_path):
-    header, poses = load_rollout(convert_brax_html(brax, tmp_path / "out").rollout)
+    header, poses = load_rollout(
+        convert_brax_html(brax, tmp_path / "out").rollout
+    )
     assert header["meta"]["body_names"] == ["world", "torso", "leg"]
     assert header["buffers"]["body_pos"]["shape"] == [FRAMES, 3, 3]
     # The pose tail starts where the shared mesh tail ends, and the world body
     # sits at the origin in front of every frame's links.
     base = header["meshes"]["bytes"]
     assert header["buffers"]["body_pos"]["off"] == base
-    assert f32(poses, 0, 9) == pytest.approx([0, 0, 0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.1])
+    assert f32(poses, 0, 9) == pytest.approx(
+        [0, 0, 0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.1]
+    )
 
 
 def test_the_offsets_index_the_shared_tail_then_this_run(brax, tmp_path):
@@ -174,13 +188,20 @@ def test_the_offsets_index_the_shared_tail_then_this_run(brax, tmp_path):
     assert mesh["mesh"]["faces_count"] == 3 * len(FACES)
     # body_quat follows body_pos in the same tail, both past the meshes.
     quat = header["buffers"]["body_quat"]
-    assert quat["off"] == header["buffers"]["body_pos"]["off"] + FRAMES * 3 * 3 * 4
+    assert (
+        quat["off"] == header["buffers"]["body_pos"]["off"] + FRAMES * 3 * 3 * 4
+    )
     assert len(poses) == FRAMES * 3 * (3 + 4) * 4
 
 
 def test_the_geom_names_become_viewer_types(brax, tmp_path):
     header, _ = load_rollout(convert_brax_html(brax, tmp_path / "out").rollout)
-    assert [geom["type"] for geom in header["geoms"]] == ["plane", "box", "mesh", "capsule"]
+    assert [geom["type"] for geom in header["geoms"]] == [
+        "plane",
+        "box",
+        "mesh",
+        "capsule",
+    ]
     assert [geom["body"] for geom in header["geoms"]] == [0, 0, 1, 2]
 
 
@@ -246,7 +267,8 @@ def rollout_deck(tmp_path, brax):
     (folder / "assets").mkdir(parents=True)
     convert_brax_html(brax, folder / "assets")
     (folder / "deck.md").write_text(
-        "---\ntitle: Runs\ndate: 2026-09-18\n---\n\nThe robot crosses.\n\n![stage 0](assets/run.rollout)\n"
+        "---\ntitle: Runs\ndate: 2026-09-18\n---\n\nThe robot "
+        "crosses.\n\n![stage 0](assets/run.rollout)\n"
     )
     return folder
 
@@ -262,13 +284,21 @@ def test_a_deck_with_a_rollout_carries_the_viewer(rollout_deck, tmp_path):
     html = index.read_text(encoding="utf-8")
     assert '<deck-rollout src="assets/run.rollout">' in html
     assert "mkdeck-rollout.js" in html
-    assert (tmp_path / "site" / "mkdeck-assets" / "three" / "three.module.js").is_file()
-    assert (tmp_path / "site" / "mkdeck-assets" / "viewer" / "rollout_viewer.js").is_file()
+    assert (
+        tmp_path / "site" / "mkdeck-assets" / "three" / "three.module.js"
+    ).is_file()
+    assert (
+        tmp_path / "site" / "mkdeck-assets" / "viewer" / "rollout_viewer.js"
+    ).is_file()
 
 
-def test_the_shared_meshes_are_copied_beside_the_rollout(rollout_deck, tmp_path):
+def test_the_shared_meshes_are_copied_beside_the_rollout(
+    rollout_deck, tmp_path
+):
     load_source(rollout_deck).build(tmp_path / "site")
-    built = sorted(path.name for path in (tmp_path / "site" / "assets").iterdir())
+    built = sorted(
+        path.name for path in (tmp_path / "site" / "assets").iterdir()
+    )
     assert "run.rollout" in built
     assert any(name.endswith(".meshes") for name in built)
 
@@ -280,10 +310,19 @@ def test_a_deck_without_a_rollout_pays_for_no_viewer(deck_folder, tmp_path):
     assert not (tmp_path / "site" / "mkdeck-assets" / "viewer").exists()
 
 
-def test_a_single_file_deck_carries_its_rollouts_inside_it(rollout_deck, tmp_path):
-    index = load_source(rollout_deck).build(tmp_path / "one" / "deck.html", single_file=True)
+def test_a_single_file_deck_carries_its_rollouts_inside_it(
+    rollout_deck, tmp_path
+):
+    index = load_source(rollout_deck).build(
+        tmp_path / "one" / "deck.html", single_file=True
+    )
     html = index.read_text(encoding="utf-8")
-    for specifier in ("three", "rollout-bundle", "mkdeck-camera", "mkdeck-viewer"):
+    for specifier in (
+        "three",
+        "rollout-bundle",
+        "mkdeck-camera",
+        "mkdeck-viewer",
+    ):
         assert f'data-mkd-module="{specifier}"' in html
     assert 'data-mkd-rollout="assets/run.rollout"' in html
     assert html.count("data-mkd-rollout=") == 2  # the run and its shared meshes
@@ -316,27 +355,49 @@ def set_frame(**fields):
 MALFORMED = {
     "a list for a scene": lambda payload: ["not", "a", "scene"],
     "a missing pos": lambda payload: payload["states"]["x"][0].pop("pos"),
-    "a mesh without vert": lambda payload: payload["geoms"]["torso"][0].pop("vert"),
-    "a mesh without face": lambda payload: payload["geoms"]["torso"][0].pop("face"),
+    "a mesh without vert": lambda payload: payload["geoms"]["torso"][0].pop(
+        "vert"
+    ),
+    "a mesh without face": lambda payload: payload["geoms"]["torso"][0].pop(
+        "face"
+    ),
     "a non-numeric pose": set_frame(pos=[["a", 0, 0], [0, 0, 0]]),
     "a string timestep": lambda payload: payload["opt"].update(timestep="fast"),
-    "a negative timestep": lambda payload: payload["opt"].update(timestep=-0.02),
-    "a string for the frames": lambda payload: payload["states"].update(x="abcdef"),
+    "a negative timestep": lambda payload: payload["opt"].update(
+        timestep=-0.02
+    ),
+    "a string for the frames": lambda payload: payload["states"].update(
+        x="abcdef"
+    ),
     "a short rotation": set_frame(rot=[[1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]),
     "too few rotations": set_frame(rot=[[1.0, 0.0, 0.0, 0.0]]),
     "too many positions": set_frame(pos=[[0, 0, 0]] * 3),
-    "a ragged face list": lambda payload: payload["geoms"]["torso"][0].update(face=[[0, 1, 2], [0, 1]]),
+    "a ragged face list": lambda payload: payload["geoms"]["torso"][0].update(
+        face=[[0, 1, 2], [0, 1]]
+    ),
     "a NaN position": set_frame(pos=[[float("nan"), 0, 0], [0, 0, 0]]),
     "an infinite vertex": lambda payload: payload["geoms"]["torso"][0].update(
         vert=[[0.0, 0.0, float("inf")], *VERTS[1:]]
     ),
-    "a timestep too small to divide by": lambda payload: payload["opt"].update(timestep=1e-320),
-    "a NaN timestep": lambda payload: payload["opt"].update(timestep=float("nan")),
-    "a face past the vertices": lambda payload: payload["geoms"]["torso"][0].update(face=[[0, 1, 9]]),
-    "a geom on a link that is not there": lambda payload: payload["geoms"]["leg"][0].update(link_idx=7),
-    "a size that is a string": lambda payload: payload["geoms"]["leg"][0].update(size="abc"),
+    "a timestep too small to divide by": lambda payload: payload["opt"].update(
+        timestep=1e-320
+    ),
+    "a NaN timestep": lambda payload: payload["opt"].update(
+        timestep=float("nan")
+    ),
+    "a face past the vertices": lambda payload: payload["geoms"]["torso"][
+        0
+    ].update(face=[[0, 1, 9]]),
+    "a geom on a link that is not there": lambda payload: payload["geoms"][
+        "leg"
+    ][0].update(link_idx=7),
+    "a size that is a string": lambda payload: payload["geoms"]["leg"][
+        0
+    ].update(size="abc"),
     "geoms as a list": lambda payload: payload.update(geoms=[]),
-    "link names as a string": lambda payload: payload.update(link_names="torso"),
+    "link names as a string": lambda payload: payload.update(
+        link_names="torso"
+    ),
 }
 
 
@@ -350,7 +411,9 @@ def test_a_malformed_page_is_a_deck_error_that_names_the_page(what, tmp_path):
         convert_brax_html(source, tmp_path / "out")
     assert not isinstance(raised.value, NotBraxPage)
     # Nothing half-made is left behind for the next run to trust.
-    assert not (tmp_path / "out").exists() or not list((tmp_path / "out").iterdir())
+    assert not (tmp_path / "out").exists() or not list(
+        (tmp_path / "out").iterdir()
+    )
 
 
 def test_a_short_rotation_is_refused_rather_than_written_truncated():
@@ -361,7 +424,13 @@ def test_a_short_rotation_is_refused_rather_than_written_truncated():
 
 def test_a_ragged_face_list_is_refused_rather_than_written_as_wrong_triangles():
     with pytest.raises(DeckError, match="triangle"):
-        to_rollout(broken(lambda payload: payload["geoms"]["torso"][0].update(face=[[0, 1, 2], [0, 1]])))
+        to_rollout(
+            broken(
+                lambda payload: payload["geoms"]["torso"][0].update(
+                    face=[[0, 1, 2], [0, 1]]
+                )
+            )
+        )
 
 
 def test_a_page_with_no_scene_is_not_a_brax_page(tmp_path):
@@ -384,7 +453,9 @@ def test_a_scene_within_the_limit_still_reads(brax):
     assert read_brax_scene(brax)["link_names"] == ["torso", "leg"]
 
 
-def test_a_crash_while_writing_leaves_no_partial_file(brax, tmp_path, monkeypatch):
+def test_a_crash_while_writing_leaves_no_partial_file(
+    brax, tmp_path, monkeypatch
+):
     out = tmp_path / "out"
 
     def crash(source, destination):
@@ -408,7 +479,9 @@ def rollout_file(tmp_path, header, *, name="x.rollout"):
     """A ``.rollout`` container around a hand-made header."""
     encoded = json.dumps(header).encode()
     path = tmp_path / name
-    path.write_bytes(b"RSPL" + struct.pack("<Q", len(encoded)) + encoded + gzip.compress(b""))
+    path.write_bytes(
+        b"RSPL" + struct.pack("<Q", len(encoded)) + encoded + gzip.compress(b"")
+    )
     return path
 
 
@@ -439,7 +512,13 @@ def test_a_rollout_names_its_meshes(brax, tmp_path):
         b"RSPL" + struct.pack("<Q", 2**63) + b"{}",
         b"RSPL" + struct.pack("<Q", 2**64 - 1) + b"{}",
     ],
-    ids=["truncated", "header runs past the end", "header is not JSON", "length past 2**63", "length of 2**64 - 1"],
+    ids=[
+        "truncated",
+        "header runs past the end",
+        "header is not JSON",
+        "length past 2**63",
+        "length of 2**64 - 1",
+    ],
 )
 def test_a_damaged_rollout_is_a_deck_error(damage, tmp_path):
     path = tmp_path / "bad.rollout"
@@ -453,7 +532,10 @@ def test_a_rollout_with_no_meshes_entry_is_damaged(tmp_path):
         meshes_of(rollout_file(tmp_path, {"version": 1}))
 
 
-@pytest.mark.parametrize("name", ["../secret", "/etc/passwd", "a/b.meshes", "..\\up", "C:evil", "..", "", 7])
+@pytest.mark.parametrize(
+    "name",
+    ["../secret", "/etc/passwd", "a/b.meshes", "..\\up", "C:evil", "..", "", 7],
+)
 def test_a_mesh_name_that_leaves_the_folder_is_refused(name, tmp_path):
     with pytest.raises(DeckError, match="plain file name"):
         meshes_of(rollout_file(tmp_path, {"meshes": {"file": name}}))
@@ -464,8 +546,13 @@ def test_a_mesh_name_that_leaves_the_folder_is_refused(name, tmp_path):
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("model", ["", "a", "ab", "abc", "abcd", "abcde", "abcdef", "abcdefg", "abcdefgh"])
-def test_the_header_is_padded_so_every_offset_lands_aligned(model, brax, tmp_path):
+@pytest.mark.parametrize(
+    "model",
+    ["", "a", "ab", "abc", "abcd", "abcde", "abcdef", "abcdefg", "abcdefgh"],
+)
+def test_the_header_is_padded_so_every_offset_lands_aligned(
+    model, brax, tmp_path
+):
     rollout = to_rollout(read_brax_scene(brax), name=model)
     raw = dump_rollout(rollout, meshes_name="0123456789abcdef.meshes")
     assert raw[:4] == b"RSPL"
@@ -480,21 +567,33 @@ def test_the_header_is_padded_so_every_offset_lands_aligned(model, brax, tmp_pat
     # Every buffer is 4-byte elements at 4-byte offsets into the combined tail,
     # the poses follow the meshes, and the counts add up to the tail's length.
     pos, quat = header["buffers"]["body_pos"], header["buffers"]["body_quat"]
-    assert pos["off"] == quat["off"] - pos["count"] * 4 == header["meshes"]["bytes"]
+    assert (
+        pos["off"]
+        == quat["off"] - pos["count"] * 4
+        == header["meshes"]["bytes"]
+    )
     assert pos["off"] % 4 == 0 and quat["off"] % 4 == 0
     assert len(poses) == (pos["count"] + quat["count"]) * 4
     for geom in header["geoms"]:
         if geom["type"] == "mesh":
             mesh = geom["mesh"]
             assert mesh["verts_off"] % 4 == 0 and mesh["faces_off"] % 4 == 0
-            assert mesh["faces_off"] == mesh["verts_off"] + mesh["verts_count"] * 4
-            assert mesh["faces_off"] + mesh["faces_count"] * 4 <= header["meshes"]["bytes"]
+            assert (
+                mesh["faces_off"] == mesh["verts_off"] + mesh["verts_count"] * 4
+            )
+            assert (
+                mesh["faces_off"] + mesh["faces_count"] * 4
+                <= header["meshes"]["bytes"]
+            )
 
 
 def test_the_header_padding_is_spaces_and_the_json_still_parses(brax):
     lengths = set()
     for model in ("", "a", "ab", "abc", "abcd", "abcde", "abcdef", "abcdefg"):
-        raw = dump_rollout(to_rollout(read_brax_scene(brax), name=model), meshes_name="m.meshes")
+        raw = dump_rollout(
+            to_rollout(read_brax_scene(brax), name=model),
+            meshes_name="m.meshes",
+        )
         (length,) = struct.unpack("<Q", raw[4:12])
         text = raw[12 : 12 + length].decode()
         assert json.loads(text) == json.loads(text.rstrip(" "))
@@ -506,7 +605,9 @@ def test_the_header_padding_is_spaces_and_the_json_still_parses(brax):
 # The JavaScript reader, against what Python wrote
 # --------------------------------------------------------------------------- #
 
-needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+needs_node = pytest.mark.skipif(
+    shutil.which("node") is None, reason="node is not installed"
+)
 
 
 def read_with_node(path, *flags):
@@ -519,7 +620,11 @@ def read_with_node(path, *flags):
 
 def bundle_bytes(rollout, *, compress):
     """The whole-``.rbundle`` form of a rollout, v1 raw or v2 gzip."""
-    header = {key: value for key, value in rollout.header.items() if key not in ("meshes", "version")}
+    header = {
+        key: value
+        for key, value in rollout.header.items()
+        if key not in ("meshes", "version")
+    }
     tail = rollout.meshes + rollout.poses
     if compress:
         header["compression"] = "gzip"
@@ -532,10 +637,19 @@ def bundle_bytes(rollout, *, compress):
 def check_playback(got):
     assert got["posShape"] == [FRAMES, 3, 3]
     assert got["quatShape"] == [FRAMES, 3, 4]
-    assert got["pos"][:9] == pytest.approx([0, 0, 0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.1])
-    assert got["pos"][9:18] == pytest.approx([0, 0, 0, 0.1, 0.0, 0.3, 0.1, 0.0, 0.1])
+    assert got["pos"][:9] == pytest.approx(
+        [0, 0, 0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.1]
+    )
+    assert got["pos"][9:18] == pytest.approx(
+        [0, 0, 0, 0.1, 0.0, 0.3, 0.1, 0.0, 0.1]
+    )
     assert got["quat"][:4] == [1, 0, 0, 0]
-    assert [geom["type"] for geom in got["geoms"]] == ["plane", "box", "mesh", "capsule"]
+    assert [geom["type"] for geom in got["geoms"]] == [
+        "plane",
+        "box",
+        "mesh",
+        "capsule",
+    ]
     mesh = got["geoms"][2]
     assert mesh["verts"] == [value for vert in VERTS for value in vert]
     assert mesh["faces"] == [index for face in FACES for index in face]
@@ -570,10 +684,18 @@ def test_the_reader_plays_a_gzip_bundle(brax, tmp_path):
     check_playback(read_with_node(path))
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no permission bits to set")
-@pytest.mark.parametrize(("umask", "mode"), [(0o022, 0o644), (0o077, 0o600), (0o002, 0o664)])
-def test_the_files_written_take_the_umask_like_any_other(umask, mode, brax, tmp_path):
-    """mkstemp made them readable by their owner alone, so another user or a container got a 403."""
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows has no permission bits to set"
+)
+@pytest.mark.parametrize(
+    ("umask", "mode"), [(0o022, 0o644), (0o077, 0o600), (0o002, 0o664)]
+)
+def test_the_files_written_take_the_umask_like_any_other(
+    umask, mode, brax, tmp_path
+):
+    """mkstemp made them readable by their owner alone, so another user or a
+    container got a 403.
+    """
     before = os.umask(umask)
     try:
         converted = convert_brax_html(brax, tmp_path / "out")

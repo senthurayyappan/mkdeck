@@ -21,7 +21,9 @@ from mkdeck.errors import DeckError
 from mkdeck.rollout import convert_brax_html
 
 REQUIRE_BROWSER = "MKDECK_REQUIRE_BROWSER"
-"""Environment variable that turns a missing browser from a skip into a failure."""
+"""Environment variable that turns a missing browser from a skip into a
+failure.
+"""
 
 SCENE = {
     "opt": {"timestep": 0.02},
@@ -38,7 +40,12 @@ SCENE = {
             }
         ]
     },
-    "states": {"x": [{"pos": [[0.0, 0.0, 0.1 * t]], "rot": [[1.0, 0.0, 0.0, 0.0]]} for t in range(10)]},
+    "states": {
+        "x": [
+            {"pos": [[0.0, 0.0, 0.1 * t]], "rot": [[1.0, 0.0, 0.0, 0.0]]}
+            for t in range(10)
+        ]
+    },
 }
 
 
@@ -52,7 +59,8 @@ def rollout_deck(tmp_path):
     page.write_text(f'<html><script>var system = "{blob}";</script></html>')
     convert_brax_html(page, folder / "assets")
     (folder / "deck.md").write_text(
-        "---\ntitle: Runs\ndate: 2026-09-18\n---\n\nHello.\n\n---\n\nThe robot.\n\n![run](assets/run.rollout)\n\n"
+        "---\ntitle: Runs\ndate: 2026-09-18\n---\n\nHello.\n\n---\n\nThe "
+        "robot.\n\n![run](assets/run.rollout)\n\n"
         "---\n\nA formula $x^2$ here.\n"
     )
     return folder
@@ -70,5 +78,9 @@ def chromium() -> None:
             pass
     except DeckError as exc:
         if os.environ.get(REQUIRE_BROWSER, "0") not in ("", "0"):
-            pytest.fail(f"{REQUIRE_BROWSER} is set, but there is no headless Chromium: {exc}", pytrace=False)
+            pytest.fail(
+                f"{REQUIRE_BROWSER} is set, but there is no headless Chromium: "
+                f"{exc}",
+                pytrace=False,
+            )
         pytest.skip(f"no headless Chromium: {exc}")

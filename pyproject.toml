@@ -87,13 +87,12 @@ docs = [
 ]
 
 [tool.ruff]
-line-length = 120
+line-length = 80
 target-version = "py311"
 src = ["src"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF", "N", "A", "T10", "PGH", "D"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF", "N", "A", "G", "T10", "PGH", "D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
