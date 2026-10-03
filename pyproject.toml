@@ -1,6 +1,6 @@
 [project]
 name = "mkdeck"
-version = "0.1.0"
+version = "0.1.1"
 description = "Minimal HTML slide decks from Markdown or Python, served like mkdocs."
 readme = "README.md"
 authors = [{ name = "Senthur Ayyappan" }]
