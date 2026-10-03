@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.1](https://github.com/senthurayyappan/mkdeck/compare/v0.1.0...v0.1.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* give a rollout's WebGL context back on unload and decode inline rollouts faster ([edf978e](https://github.com/senthurayyappan/mkdeck/commit/edf978e3e1ee65901b69ba950858c7325f80ec87))
+* give a rollout's WebGL context back when its slide unloads ([d3b5086](https://github.com/senthurayyappan/mkdeck/commit/d3b50860bb5f5dd5a14f645a64d0d9e8bb06b64e))
+
+
+### Performance Improvements
+
+* decode inline rollouts with Uint8Array.fromBase64 ([529f4ef](https://github.com/senthurayyappan/mkdeck/commit/529f4ef2e8d8799b1aa3d2f10e11cf41717889d9))
+
+
+### Documentation
+
+* rewrite the README and docs in plain English and split them into short pages ([ab92559](https://github.com/senthurayyappan/mkdeck/commit/ab92559b523fdf990a350a76d4e7dfdd13b8c06d))
+* rewrite the README and docs in plain English and split them into short pages ([f501d01](https://github.com/senthurayyappan/mkdeck/commit/f501d019f3073c248caa8d81282a6236d796e87a))
+
 ## [0.1.0](https://github.com/senthurayyappan/mkdeck/compare/v0.1.0...v0.1.0) (2026-09-29)
 
 
