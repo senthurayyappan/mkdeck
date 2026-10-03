@@ -155,9 +155,9 @@ The two jobs are separate so that the build never holds the upload credential.
 
 ### Set up the repository
 
-Enable **Allow GitHub Actions to create and approve pull requests** in Settings → Actions → General. Optionally, add a `RELEASE_PLEASE_TOKEN` secret so that CI runs on release pull requests. Use a fine-grained token with read and write access to Contents, Pull requests, and Issues.
+Enable **Allow GitHub Actions to create and approve pull requests** in Settings → Actions → General. Add a `RELEASE_PLEASE_TOKEN` secret. Use a fine-grained token with read and write access to Contents, Pull requests, and Issues.
 
-Without that secret, GitHub does not start CI on release pull requests. Run **CI** on the release branch before you merge.
+The release workflow fails if `RELEASE_PLEASE_TOKEN` is missing. That secret is required so CI can run on the release pull request. The default `GITHUB_TOKEN` opens the pull request as `github-actions[bot]`, and GitHub does not run workflows that token triggers.
 
 ### Match the PyPI publisher
 
