@@ -22,10 +22,22 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      # `github.token` must not open the release pull request. GitHub does not
+      # run workflows on events that token creates, so CI on the release pull
+      # request never starts. `RELEASE_PLEASE_TOKEN` is the credential that
+      # lets those workflows run. See CONTRIBUTING.md.
+      - name: Require RELEASE_PLEASE_TOKEN
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "${RELEASE_PLEASE_TOKEN}" ]; then
+            echo "::error::RELEASE_PLEASE_TOKEN is not set. It is required so CI can run on the release pull request. The default GITHUB_TOKEN opens that pull request as github-actions[bot], and GitHub does not run workflows that token triggers."
+            exit 1
+          fi
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
