@@ -90,9 +90,9 @@
     ".mkde-source{display:block;box-sizing:border-box;width:100%;min-height:160px;max-height:60vh;margin:0;",
     "padding:8px;resize:vertical;border:1px solid var(--mkde-border);border-radius:6px;background:var(--mkde-bg);",
     "color:var(--mkde-fg);font:400 13px/20px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;",
-    "tab-size:2;outline:none;transition:box-shadow 150ms,border-color 150ms}",
-    ".mkde-source:focus-visible,.mkde-inline:focus-visible{border-color:var(--mkde-ring);",
-    "box-shadow:0 0 0 3px color-mix(in oklab,var(--mkde-ring) 50%,transparent)}",
+    "tab-size:2;outline:none;transition:border-color 150ms}",
+    // a text box being edited gets a border in the text colour, and no glow
+    ".mkde-source:focus,.mkde-inline:focus{border-color:var(--mkde-fg)}",
     ".mkde-source:disabled{opacity:.6}",
     ".mkde-row{display:flex;align-items:center;gap:8px;min-width:0}",
     ".mkde-status{flex:1 1 auto;min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
@@ -113,7 +113,7 @@
     // the inline editor
     "[data-mkd-edit]{cursor:text}",
     ".mkde-inline{margin:0;padding:6px 8px;resize:none;overflow:hidden;border:1px solid var(--mkde-border);",
-    "outline:none;transition:box-shadow 150ms,border-color 150ms}",
+    "outline:none;box-shadow:none;transition:border-color 150ms}",
     ".mkde-hint{padding:4px 8px;display:flex;gap:12px;align-items:center;font-size:12px;line-height:16px;",
     "color:var(--mkde-muted-fg);white-space:nowrap}",
     ".mkde-hint span{display:inline-flex;gap:4px;align-items:center}",
