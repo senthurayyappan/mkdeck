@@ -14,6 +14,10 @@ mkdeck watches the deck folder. When you save a file, it rebuilds the deck, prin
 
 Sometimes a rebuild fails. In that case, mkdeck keeps the last good deck and prints the error in the terminal. The page also shows a banner at the bottom with the same message. Fix the file and save again.
 
+## Edit on the page
+
+You can change a slide on the page itself, and mkdeck writes the change into `deck.md`. See [Edit on the page](edit.md).
+
 ## Options
 
 Add `--open` to open a browser tab for you, `--port` to pick another port, or `--no-reload` to serve one fixed build. See [CLI: new, serve, build](../reference/cli.md#mkdeck-serve) for every option.
@@ -24,9 +28,11 @@ The server hands out the whole built deck, including a copy of your `assets/` fo
 
 It also answers only requests that name `localhost` or a loopback address. So a web page from another site cannot read your deck through your browser.
 
+An edit made on the page must come from a page of this server and carry a key that the server makes each time it starts. So a web page from another site cannot write to your deck.
+
 ## Limits
 
 !!! warning
     `--host 0.0.0.0` makes the server reachable from the network. Anyone on that network can then read everything in the build. mkdeck prints a warning, and the server then answers to any name.
 
-Next: [Install the browser tools](browser.md).
+Next: [Edit on the page](edit.md).

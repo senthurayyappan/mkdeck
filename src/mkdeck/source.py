@@ -65,7 +65,9 @@ class DeckSource:
     ) -> None:
         """Serve the deck until interrupted.
 
-        Read it again whenever its folder changes.
+        Read it again whenever its folder changes. While it is served from
+        this machine, the text of a slide can be edited on the page, and the
+        edit is written into the Markdown file.
 
         The first build uses `deck` as it is, but every rebuild reads the
         Markdown and `deck.yml` from disk again, so a change made to `deck` in
@@ -98,7 +100,11 @@ class DeckSource:
                 None,
             )  # the first build reuses the deck in hand
             build_deck(
-                current.deck, root, source=current.directory, live_reload=live
+                current.deck,
+                root,
+                source=current.directory,
+                live_reload=live,
+                editable=True,
             )
 
         serve(
@@ -108,6 +114,7 @@ class DeckSource:
             port=port,
             open_browser=open_browser,
             reload=reload,
+            edit_file=self.markdown,
         )
 
 

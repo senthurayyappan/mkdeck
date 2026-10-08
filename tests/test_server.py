@@ -4,6 +4,7 @@ ends.
 
 import contextlib
 import http.client
+import json
 import os
 import queue
 import signal
@@ -23,7 +24,7 @@ from watchfiles import Change
 import mkdeck.server as server_module
 import mkdeck.source as source_module
 from mkdeck import Deck, DeckError, DeckWarning, Slide, load_source
-from mkdeck.render import RELOAD_PATH
+from mkdeck.render import EDIT_PATH, EXPORT_PATH, RELOAD_PATH
 from mkdeck.server import (
     _DeckHandler,
     _DeckServer,
@@ -891,3 +892,176 @@ def test_the_address_is_printed_the_moment_the_server_is_up(
         process.kill()
         process.wait()
         output.close()
+
+
+def post_edit(
+    url: str, body: dict, *, token: str | None, origin: str | None = None
+) -> tuple[int, dict]:
+    headers = {"Content-Type": "application/json"}
+    if token is not None:
+        headers["X-Mkdeck-Token"] = token
+    if origin is not None:
+        headers["Origin"] = origin
+    request = urllib.request.Request(
+        url.rstrip("/") + EDIT_PATH,
+        data=json.dumps(body).encode(),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.status, json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read())
+
+
+@contextlib.contextmanager
+def editable(folder: Path, **kwargs):
+    deck_md = folder / "deck.md"
+    deck_md.write_text("---\ntitle: T\n---\n\n# Hello\n\nHi.\n")
+    with dev_server(
+        Builds(),
+        watch_paths=[folder],
+        port=0,
+        edit_file=deck_md,
+        **kwargs,
+    ) as url:
+        yield url, deck_md
+
+
+def test_an_edit_from_the_page_is_written_into_the_deck_file(folder) -> None:
+    with editable(folder) as (url, deck_md):
+        status, body = get(url, EDIT_PATH)
+        assert status == 200
+        token = json.loads(body)["token"]
+        edit = {"slide": 0, "key": "title", "expected": "Hello", "text": "Hey"}
+        assert post_edit(url, edit, token=token, origin=url.rstrip("/")) == (
+            200,
+            {"saved": True},
+        )
+        assert "# Hey\n" in deck_md.read_text()
+        status, body = post_edit(url, edit, token=token)
+        assert status == 409  # the page still shows "Hello"
+        assert "changed" in body["error"]
+
+
+def test_an_edit_needs_the_token_and_this_origin(folder) -> None:
+    with editable(folder) as (url, deck_md):
+        edit = {"slide": 0, "key": "title", "expected": "Hello", "text": "x"}
+        assert post_edit(url, edit, token=None)[0] == 403
+        assert post_edit(url, edit, token="guess")[0] == 403
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        assert (
+            post_edit(url, edit, token=token, origin="http://evil.test")[0]
+            == 403
+        )
+        assert "# Hello\n" in deck_md.read_text()
+
+
+def test_a_malformed_edit_is_refused(folder) -> None:
+    with editable(folder) as (url, _):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        assert post_edit(url, {"slide": "0"}, token=token)[0] == 400
+        bad = {"slide": 0, "key": "notes", "expected": "", "text": ""}
+        assert post_edit(url, bad, token=token)[0] == 422
+        bad["slide"] = 5
+        assert post_edit(url, bad, token=token)[0] == 409
+
+
+def test_a_deck_served_without_reloads_cannot_be_edited(folder) -> None:
+    with editable(folder, reload=False) as (url, _):
+        assert get(url, EDIT_PATH)[0] == 404
+        assert post_edit(url, {}, token="x")[0] == 404
+
+
+def test_a_deck_served_to_the_network_cannot_be_edited(tmp_path) -> None:
+    deck_md = tmp_path / "deck.md"
+    deck_md.write_text("# Hi\n")
+    server = _DeckServer(
+        ("0.0.0.0", 0),
+        _DeckHandler,
+        hub=_ReloadHub(),
+        root=tmp_path,
+        edit_file=deck_md,
+    )
+    try:
+        assert server.edit_file is None
+    finally:
+        server.server_close()
+
+
+def test_a_served_source_deck_carries_the_editor(folder, monkeypatch, capsys):
+    bodies: list[str] = []
+
+    def wait() -> None:
+        url = capsys.readouterr().out.split("Slide deck: ")[1].split()[0]
+        bodies.append(get(url)[1])
+        bodies.append(get(url, "/mkdeck-assets/mkdeck-edit.js")[1])
+
+    monkeypatch.setattr(server_module, "_wait_for_stop", wait)
+    load_source(folder).serve(port=0)
+    page, client = bodies
+    assert f'data-endpoint="{EDIT_PATH}"' in page
+    assert 'data-mkd-slide="0"' in page
+    assert "X-Mkdeck-Token" in client
+
+
+def test_the_page_reads_a_slide_with_the_token_and_saves_it_whole(
+    folder,
+) -> None:
+    with editable(folder) as (url, deck_md):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        assert get(url, EDIT_PATH + "?slide=0")[0] == 403  # no token
+        request = urllib.request.Request(
+            url.rstrip("/") + EDIT_PATH + "?slide=0",
+            headers={"X-Mkdeck-Token": token},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            source = json.loads(response.read())["text"]
+        assert source == "# Hello\n\nHi."
+        edit = {"slide": 0, "key": "slide", "expected": source}
+        edit["text"] = "# Hello\n\n- one\n- two"
+        assert post_edit(url, edit, token=token)[0] == 200
+        assert deck_md.read_text().endswith("# Hello\n\n- one\n- two\n")
+
+
+def test_the_deck_downloads_as_one_html_file_with_its_saved_edits(
+    folder,
+) -> None:
+    with editable(folder) as (url, deck_md):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        assert get(url, EXPORT_PATH)[0] == 403  # no token
+        deck_md.write_text("---\ntitle: T\n---\n\n# Saved edit\n\nHi.\n")
+        request = urllib.request.Request(
+            url.rstrip("/") + EXPORT_PATH, headers={"X-Mkdeck-Token": token}
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            disposition = response.headers["Content-Disposition"]
+            page = response.read().decode()
+        assert disposition == 'attachment; filename="deck.html"'
+        assert "Saved edit" in page
+        assert 'src="mkdeck-assets/' not in page  # everything is inlined
+        assert 'href="mkdeck-assets/' not in page
+        assert "data-mkd-edit" not in page and "EventSource" not in page
+
+
+def test_a_deck_that_does_not_parse_is_not_exported(folder) -> None:
+    with editable(folder) as (url, deck_md):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        deck_md.write_text("---\ntitle: [unclosed\n---\n")
+        request = urllib.request.Request(
+            url.rstrip("/") + EXPORT_PATH, headers={"X-Mkdeck-Token": token}
+        )
+        with pytest.raises(urllib.error.HTTPError) as raised:
+            urllib.request.urlopen(request, timeout=30)
+        assert raised.value.code == 422
+
+
+def test_every_file_is_checked_again_before_the_browser_reuses_it(
+    folder,
+) -> None:
+    with dev_server(Builds(), watch_paths=[folder], port=0) as url:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            assert response.headers["Cache-Control"] == "no-cache"
+        with urllib.request.urlopen(url + "only-1.txt", timeout=5) as response:
+            assert response.headers["Cache-Control"] == "no-cache"

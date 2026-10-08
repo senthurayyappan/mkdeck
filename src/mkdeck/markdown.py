@@ -45,8 +45,8 @@ survive to the renderer.
 
 import difflib
 import re
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterator, Mapping
+from dataclasses import dataclass, field, replace
 from functools import partial
 from html import escape as html_escape
 from pathlib import Path
@@ -79,6 +79,8 @@ __all__ = [
     "BODY_ONLY_KEYS",
     "MATH_RULES",
     "SLIDE_OPTION_KEYS",
+    "TextSource",
+    "locate_text",
     "parse_markdown",
     "split_frontmatter",
 ]
@@ -163,6 +165,22 @@ def _build_parser() -> MarkdownIt:
 _PARSER = _build_parser()  # building one costs more than parsing a small deck
 
 
+@dataclass(frozen=True, slots=True)
+class TextSource:
+    """Where one piece of slide text was written in the deck file.
+
+    Attributes:
+        text: The text as the slide holds it.
+        lines: The first line and the line after the last, counted from 0
+            over the whole file.
+        column: The index of the cell in its row, for a table cell only.
+    """
+
+    text: str
+    lines: tuple[int, int]
+    column: int | None = None
+
+
 @dataclass(slots=True)
 class _Draft:
     """What the Markdown body of one slide holds.
@@ -178,6 +196,8 @@ class _Draft:
     table: Table | None = None
     html: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    sources: dict[str, TextSource] = field(default_factory=dict)
+    span: tuple[int, int] = (0, 0)
 
 
 def split_frontmatter(
@@ -264,10 +284,7 @@ def parse_markdown(
             False
         )
     deck = Deck(**fields)
-    for tokens in _split_slides(_PARSER.parse(body)):
-        slide = _parse_slide(tokens, index=len(deck.slides), source=source)
-        if slide is not None:
-            deck.slides.append(slide)
+    deck.slides.extend(slide for slide, _ in _read_slides(body, source=source))
     if (
         "title" not in settings
     ):  # the browser tab still wants a name: the first heading of the deck
@@ -276,6 +293,74 @@ def parse_markdown(
         )
     validate_deck(deck, source=source)
     return deck
+
+
+def locate_text(
+    text: str, *, source: Path | str
+) -> list[dict[str, TextSource]]:
+    """Find where each piece of editable slide text sits in a deck file.
+
+    A piece is keyed the way the renderer marks it: `title`, `sentence:N`,
+    `bullet:N`, and `cell:R:C` with `R` = -1 for the header row. The key
+    `slide` holds the whole source of the slide, from its first line to its
+    last, options comment included. Text with no
+    single place of its own is left out: a title or bullets set in the
+    options comment, a sentence that shares its paragraph with a figure, a
+    bullet of more than one paragraph, and a definition-list bullet.
+
+    Args:
+        text: The whole Markdown file.
+        source: The path of the file, used in the error messages.
+
+    Returns:
+        One mapping per slide of the parsed deck, in order.
+
+    Raises:
+        DeckError: If the file does not parse as a deck.
+    """
+    _, body = split_frontmatter(text, source=source)
+    normalized = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+    offset = normalized.count("\n") - body.count("\n")
+    lines = body.split("\n")
+    slides: list[dict[str, TextSource]] = []
+    for _, draft in _read_slides(body, source=source):
+        start, end = draft.span
+        while end > start and not lines[end - 1].strip():
+            end -= 1  # a list's map runs on over the blank line after it
+        found = {
+            **draft.sources,
+            "slide": TextSource("\n".join(lines[start:end]), (start, end)),
+        }
+        slides.append(
+            {
+                key: replace(
+                    piece,
+                    lines=(piece.lines[0] + offset, piece.lines[1] + offset),
+                )
+                for key, piece in found.items()
+            }
+        )
+    return slides
+
+
+def _read_slides(
+    body: str, *, source: Path | str
+) -> Iterator[tuple[Slide, _Draft]]:
+    """Parse the slides of a deck body, skipping the empty pieces.
+
+    Args:
+        body: The deck file without its frontmatter.
+        source: The path of the deck file, used in the error messages.
+
+    Yields:
+        Each slide, with the draft its body was read into.
+    """
+    index = 0
+    for tokens in _split_slides(_PARSER.parse(body)):
+        parsed = _parse_slide(tokens, index=index, source=source)
+        if parsed is not None:
+            index += 1
+            yield parsed
 
 
 def _split_slides(tokens: list[Token]) -> list[list[Token]]:
@@ -303,7 +388,7 @@ def _split_slides(tokens: list[Token]) -> list[list[Token]]:
 
 def _parse_slide(
     tokens: list[Token], *, index: int, source: Path | str
-) -> Slide | None:
+) -> tuple[Slide, _Draft] | None:
     """Parse the tokens between two slide separators into a slide.
 
     Args:
@@ -312,18 +397,21 @@ def _parse_slide(
         source: The path of the deck file, used in the error messages.
 
     Returns:
-        The slide, or `None` when the piece holds nothing at all.
+        The slide and the draft its body was read into, or `None` when the
+        piece holds nothing at all.
 
     Raises:
         DeckError: If the slide breaks a rule of the format.
     """
+    mapped = [token.map for token in tokens if token.map is not None]
+    span = (mapped[0][0], max(end for _, end in mapped)) if mapped else (0, 0)
     options, tokens = _take_options(tokens, index=index, source=source)
     fail = partial(
         DeckError,
         slide=slide_name(Slide(id=_option_id(options)), index),
         source=source,
     )
-    draft = _Draft()
+    draft = _Draft(span=span)
     _consume(tokens, draft, fail=fail)
     slide = Slide(
         title=draft.title,
@@ -340,7 +428,7 @@ def _parse_slide(
     _apply_options(slide, options, fail=fail)
     if slide.layout == "auto" and slide.title and _is_bare_title(slide):
         slide.layout = "title"
-    return slide
+    return slide, draft
 
 
 def _option_id(options: Mapping[str, Any]) -> str | None:
@@ -566,16 +654,15 @@ def _consume(
                     "move the second onto a new slide."
                 )
             draft.title = _inline_text(tokens[index + 1 : end])
+            draft.sources["title"] = TextSource(draft.title, _lines(token))
             index = end + 1
         elif kind == "paragraph_open":
             end = _close(tokens, index)
-            _consume_paragraph(tokens[index + 1 : end], draft)
+            _consume_paragraph(tokens[index : end + 1], draft)
             index = end + 1
         elif kind in {"bullet_list_open", "ordered_list_open"}:
             end = _close(tokens, index)
-            draft.bullets.extend(
-                _list_items(tokens[index + 1 : end], fail=fail)
-            )
+            _list_items(tokens[index + 1 : end], draft, fail=fail)
             index = end + 1
         elif kind == "dl_open":
             end = _close(tokens, index)
@@ -593,7 +680,7 @@ def _consume(
                     "This slide holds two tables, but a slide takes one; move "
                     "the second onto a new slide."
                 )
-            draft.table = _parse_table(tokens[index : end + 1])
+            draft.table = _parse_table(tokens[index : end + 1], draft)
             index = end + 1
         elif kind in {"fence", "code_block"}:
             draft.html.append(_code_html(token))
@@ -641,6 +728,19 @@ def _close(tokens: list[Token], start: int) -> int:
     )  # its own parser balances every pair
 
 
+def _lines(token: Token) -> tuple[int, int]:
+    """Read the lines a block token covers.
+
+    Args:
+        token: An opening block token.
+
+    Returns:
+        The first line and the line after the last, counted from 0.
+    """
+    assert token.map is not None  # markdown-it maps every opening block token
+    return token.map[0], token.map[1]
+
+
 def _inline_text(tokens: list[Token], *, join: str = " ") -> str:
     """Collect the source text of every inline token in a run.
 
@@ -665,7 +765,7 @@ def _consume_paragraph(tokens: list[Token], draft: _Draft) -> None:
     `$...$` math reach the renderer untouched.
 
     Args:
-        tokens: The tokens between `paragraph_open` and `paragraph_close`.
+        tokens: The tokens from `paragraph_open` to `paragraph_close`.
         draft: The draft to fill.
     """
     inline = next((token for token in tokens if token.type == "inline"), None)
@@ -684,6 +784,9 @@ def _consume_paragraph(tokens: list[Token], draft: _Draft) -> None:
         text = _cut_image(text, *image.meta["span"])
     text = _BLANK_RUN.sub("\n", text).strip()
     if text:
+        if not images:  # an edit there would have to keep the figure
+            key = f"sentence:{len(draft.sentences)}"
+            draft.sources[key] = TextSource(text, _lines(tokens[0]))
         draft.sentences.append(text)
 
 
@@ -757,28 +860,29 @@ def _item_text(tokens: list[Token], *, fail: Callable[[str], DeckError]) -> str:
 
 
 def _list_items(
-    tokens: list[Token], *, fail: Callable[[str], DeckError]
-) -> list[str]:
-    """Read the items of a list.
+    tokens: list[Token], draft: _Draft, *, fail: Callable[[str], DeckError]
+) -> None:
+    """Read the items of a list into the bullets of a draft.
 
     Args:
         tokens: The tokens between the list open and close.
+        draft: The draft to fill.
         fail: Builds the `DeckError` to raise from a message.
-
-    Returns:
-        One piece of Markdown text per item.
     """
-    items: list[str] = []
     index = 0
     while index < len(tokens):
         if tokens[index].type == "list_item_open":
             end = _close(tokens, index)
-            if text := _item_text(tokens[index + 1 : end], fail=fail):
-                items.append(text)
+            item = tokens[index + 1 : end]
+            if text := _item_text(item, fail=fail):
+                paragraphs = [t for t in item if t.type == "paragraph_open"]
+                if len(paragraphs) == 1:
+                    key = f"bullet:{len(draft.bullets)}"
+                    draft.sources[key] = TextSource(text, _lines(paragraphs[0]))
+                draft.bullets.append(text)
             index = end + 1
         else:
             index += 1
-    return items
 
 
 def _definition_items(
@@ -811,11 +915,12 @@ def _definition_items(
     return items
 
 
-def _parse_table(tokens: list[Token]) -> Table:
+def _parse_table(tokens: list[Token], draft: _Draft) -> Table:
     """Read a GFM table.
 
     Args:
         tokens: The tokens from `table_open` to `table_close`.
+        draft: The draft whose sources record where each cell sits.
 
     Returns:
         The table, with the header cells as its columns.
@@ -834,10 +939,14 @@ def _parse_table(tokens: list[Token]) -> Table:
             row = None
         elif token.type == "inline":
             text = token.content.strip()
-            if section == "thead_open":
-                columns.append(text)
-            elif row is not None:
-                row.append(text)
+            cells = columns if section == "thead_open" else row
+            if cells is None:
+                continue
+            key = f"cell:{len(rows) if cells is row else -1}:{len(cells)}"
+            draft.sources[key] = TextSource(
+                text, _lines(token), column=len(cells)
+            )
+            cells.append(text)
     return Table(columns=columns, rows=rows)
 
 

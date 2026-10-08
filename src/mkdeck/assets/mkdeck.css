@@ -117,9 +117,12 @@ section.mkd-slide {
   margin-bottom: 0;
 }
 
+/* A title runs to about 32 characters before it wraps, and a longer one wraps
+   into even lines instead of leaving one word alone. */
 .mkd-title {
   margin: 0;
-  max-width: 20ch;
+  max-width: min(32ch, 92vw);
+  text-wrap: balance;
 }
 
 /* A heading above a sentence, figures or a table. On a title slide the date sets its own gap. */

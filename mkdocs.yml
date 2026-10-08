@@ -40,6 +40,7 @@ nav:
       - Build a folder: share/build.md
       - Build one file: share/single-file.md
       - Serve a deck: share/serve.md
+      - Edit on the page: share/edit.md
       - Install the browser tools: share/browser.md
       - Check your slides: share/check.md
       - Export to PDF: share/export.md
