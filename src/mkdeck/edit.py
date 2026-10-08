@@ -109,7 +109,9 @@ def _rewrite(
         assert prefix is not None  # the parser read a heading on this line
         return [prefix.group(0).rstrip() + " " + flat]
     if kind == "sentence":
-        return replacement.strip().split("\n") if replacement.strip() else []
+        # Trailing spaces would be a hard line break in Markdown, and noise.
+        lines = [line.rstrip() for line in replacement.strip().split("\n")]
+        return lines if replacement.strip() else []
     if kind == "bullet":
         marker = _MARKER.match(lines[0])
         if marker is None:

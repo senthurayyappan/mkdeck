@@ -81,6 +81,11 @@ def test_a_blank_line_splits_a_sentence_into_two_paragraphs() -> None:
     assert slide.sentence == "First sentence.\n\nSecond one."
 
 
+def test_a_sentence_loses_its_trailing_spaces() -> None:
+    edited = edit(DECK, 0, "sentence:0", "First. \n\nSecond.  ")
+    assert "\nFirst.\n\nSecond.\n" in edited
+
+
 def test_a_title_keeps_its_level_and_takes_one_line() -> None:
     edited = edit(DECK.replace("# Results", "## Results"), 0, "title", "A\nB")
     assert "\n## A B\n" in edited
