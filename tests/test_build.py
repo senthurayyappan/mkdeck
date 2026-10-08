@@ -73,6 +73,29 @@ def test_a_single_file_build_leaves_only_the_deck_assets_outside(
     assert "data:font/woff2;base64," in html
 
 
+def test_a_theme_carries_the_stylesheets_it_imports(deck_folder, tmp_path):
+    (deck_folder / "deck.yml").write_text("theme: dark\n")
+    load_source(deck_folder).build(tmp_path / "site")
+    themes = tmp_path / "site" / "mkdeck-assets" / "themes"
+    assert '@import url("minimal.css")' in (themes / "dark.css").read_text(
+        encoding="utf-8"
+    )
+    assert (themes / "minimal.css").is_file()
+
+
+def test_a_single_file_build_inlines_what_a_theme_imports(
+    deck_folder, tmp_path
+):
+    (deck_folder / "deck.yml").write_text("theme: dark\n")
+    index = load_source(deck_folder).build(
+        tmp_path / "one" / "deck.html", single_file=True
+    )
+    html = index.read_text(encoding="utf-8")
+    assert "@import" not in html
+    assert "--mkd-surface: #ffffff;" in html  # from minimal.css
+    assert "--mkd-surface: #131313;" in html  # from dark.css
+
+
 def test_a_large_embed_is_called_out(deck_folder, tmp_path):
     (deck_folder / "assets" / "g3_18.html").write_bytes(b"x" * 2_500_000)
     with pytest.warns(DeckWarning, match="2.5 MB"):
