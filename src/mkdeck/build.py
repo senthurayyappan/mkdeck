@@ -3,6 +3,7 @@
 import json
 import os
 import posixpath
+import re
 import shutil
 from pathlib import Path
 
@@ -103,6 +104,40 @@ def _relative(src: str) -> str:
     return posixpath.normpath(local_path(src))
 
 
+_IMPORT = re.compile(
+    r"""@import\s+(?:url\(\s*['"]?(?P<url>[^'")]+)['"]?\s*\)"""
+    r"""|['"](?P<bare>[^'"]+)['"])"""
+)
+
+
+def _theme_files(theme: str) -> set[Path]:
+    """Find the stylesheets a theme loads: its own and those it imports.
+
+    Args:
+        theme: The theme the deck uses.
+
+    Returns:
+        The resolved theme stylesheet and every local stylesheet its
+        `@import`s reach, in turn. A remote import, or one that leaves the
+        themes folder or is not there, is left out.
+    """
+    themes = (ASSET_ROOT / "themes").resolve()
+    found: set[Path] = set()
+    pending = [themes / f"{theme}.css"]
+    while pending:
+        path = pending.pop()
+        if path in found or not path.is_file():
+            continue
+        found.add(path)
+        for match in _IMPORT.finditer(path.read_text(encoding="utf-8")):
+            target = (match.group("url") or match.group("bare")).strip()
+            if target and not is_remote(target):
+                imported = (path.parent / local_path(target)).resolve()
+                if stays_inside(imported, themes):
+                    pending.append(imported)
+    return found
+
+
 def _copy_vendor_assets(
     out: Path,
     *,
@@ -114,8 +149,9 @@ def _copy_vendor_assets(
     """Copy the front-end files a deck loads next to `index.html`.
 
     Only what runs is copied: no template, no package metadata, no theme the
-    deck does not use, and the rollout viewer only for a deck that draws a
-    rollout. The license files of the vendored libraries go with them.
+    deck does not use (a stylesheet the theme imports is used), and the rollout
+    viewer only for a deck that draws a rollout. The license files of the
+    vendored libraries go with them.
 
     Args:
         out: The output folder.
@@ -131,6 +167,7 @@ def _copy_vendor_assets(
         | (set() if rollouts else ROLLOUT_ASSETS)
         | (set() if editable else {EDIT_ASSET})
     )
+    theme_files = _theme_files(theme)
     for entry in sorted(ASSET_ROOT.iterdir()):
         if entry.name in skip:
             continue
@@ -139,7 +176,10 @@ def _copy_vendor_assets(
             if (
                 not path.is_file()
                 or path.name in _NON_RUNTIME
-                or (rel.parts[0] == "themes" and path.stem != theme)
+                or (
+                    rel.parts[0] == "themes"
+                    and path.resolve() not in theme_files
+                )
             ):
                 continue
             _copy(path, out, f"{ASSET_BASE}/{rel.as_posix()}", written)
