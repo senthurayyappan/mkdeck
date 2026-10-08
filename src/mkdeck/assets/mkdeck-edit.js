@@ -6,12 +6,15 @@
  *
  * Two ways in:
  *
- *   the edit button (top right) or the e key
+ *   the edit button (top right, faint until you point at it) or the e key
  *       opens the Markdown of the whole slide in a popover.
  *       Cmd/Ctrl+Enter saves, Esc closes.
  *   a double-click on a title, a sentence, a bullet or a table cell
  *       edits that text in place. Enter saves, Esc cancels, Shift+Enter
  *       starts a new paragraph in a sentence and a new bullet in a bullet.
+ *
+ * The export button under it downloads the deck, with every saved edit, as one
+ * HTML file: what `mkdeck build --single-file` writes.
  *
  * An unsaved slide edit is kept in sessionStorage, so a reload (yours, or the
  * one an edit in your editor causes) reopens it with your text.
@@ -24,11 +27,15 @@
 
   var script = document.currentScript;
   var endpoint = script && script.getAttribute("data-endpoint");
+  var exportPath = script && script.getAttribute("data-export");
   var token = null;
   var inline = null; // the open inline editor: { box, hint, target }
   var panel = null; // the open slide editor: { root, box, status, save, slide, expected }
-  var button = null;
+  var button = null; // the edit button
+  var exporter = null; // the export button
   var tip = null;
+  var notice = null; // the export's progress or outcome, beside its button
+  var noticeTimer = 0;
   var tipTimer = 0;
   var DRAFT_KEY = "mkdeck-edit-draft";
   var MAC = /Mac|iPhone|iPad/.test(navigator.platform || "");
@@ -52,24 +59,34 @@
     "animation:mkde-in 100ms ease-out}",
     "@keyframes mkde-in{from{opacity:0;transform:scale(.95)}}",
     "@media (prefers-reduced-motion:reduce){.mkde-float{animation:none}}",
-    // the edit button: shadcn ghost icon button, size sm
-    ".mkde-trigger{position:fixed;top:12px;right:12px;z-index:2147483645;display:grid;place-items:center;",
-    "width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;",
-    "color:var(--mkde-muted-fg);cursor:pointer;transition:background-color 150ms,color 150ms}",
+    // the edit and export buttons: shadcn ghost icon buttons, size sm, faint at rest so an
+    // audience does not notice them
+    ".mkde-bar{position:fixed;top:12px;right:12px;z-index:2147483645;display:flex;flex-direction:column;gap:4px}",
+    ".mkde-trigger{display:grid;place-items:center;",
+    "width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;opacity:.3;",
+    "color:var(--mkde-muted-fg);cursor:pointer;transition:background-color 150ms,color 150ms,opacity 150ms}",
+    ".mkde-trigger:hover,.mkde-trigger:focus-visible,.mkde-trigger[aria-expanded=true],",
+    ".mkde-trigger[aria-busy=true]{opacity:1}",
     ".mkde-trigger:hover,.mkde-trigger[aria-expanded=true]{background:var(--mkde-muted);color:var(--mkde-fg)}",
+    ".mkde-trigger[aria-busy=true]{cursor:progress}",
+    ".mkde-trigger[aria-busy=true] svg{animation:mkde-pulse 1s ease-in-out infinite alternate}",
+    "@keyframes mkde-pulse{to{opacity:.35}}",
+    "@media (prefers-reduced-motion:reduce){.mkde-trigger[aria-busy=true] svg{animation:none}}",
     ".mkde-trigger:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in oklab,var(--mkde-ring) 50%,transparent)}",
-    ".mkde-trigger[aria-disabled=true]{opacity:.5;cursor:default;background:transparent}",
+    ".mkde-trigger[aria-disabled=true]{opacity:.3;cursor:default;background:transparent;color:var(--mkde-muted-fg)}",
     ".mkde-trigger svg{width:16px;height:16px}",
-    "@media print{.mkde-trigger{display:none}}",
+    "@media print{.mkde-bar{display:none}}",
     // tooltip
     ".mkde-tip{padding:4px 8px;font-size:12px;line-height:16px;display:flex;gap:8px;align-items:center;",
     "white-space:nowrap;pointer-events:none}",
+    ".mkde-tip[data-error]{color:var(--mkde-destructive);white-space:normal;max-width:320px}",
     // kbd
     ".mkde-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;",
     "padding:0 4px;border-radius:4px;background:var(--mkde-muted);color:var(--mkde-muted-fg);",
     "font:500 12px/1 var(--mkde-font);box-sizing:border-box}",
     // the slide editor
-    ".mkde-panel{top:48px;right:12px;width:min(560px,calc(100vw - 24px));padding:8px;display:grid;gap:8px}",
+    // beside the buttons, so the export button stays in reach
+    ".mkde-panel{top:12px;right:48px;width:min(560px,calc(100vw - 60px));padding:8px;display:grid;gap:8px}",
     ".mkde-source{display:block;box-sizing:border-box;width:100%;min-height:160px;max-height:60vh;margin:0;",
     "padding:8px;resize:vertical;border:1px solid var(--mkde-border);border-radius:6px;background:var(--mkde-bg);",
     "color:var(--mkde-fg);font:400 13px/20px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;",
@@ -107,6 +124,11 @@
     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ' +
     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M11.2 2.3a1.6 1.6 0 0 1 2.3 2.3L5.4 12.7 2.5 13.5l.8-2.9z"/><path d="M10 3.5 12.5 6"/></svg>';
+
+  var DOWNLOAD =
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M8 2.5v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/></svg>';
 
   /* ---------------------------------------------------------------- helpers */
 
@@ -172,19 +194,29 @@
 
   /* ---------------------------------------------------------------- tooltip */
 
-  function showTip() {
+  function beside(node, anchor) {
+    // to the left of a button in the bar, centred on it
+    document.body.appendChild(node);
+    var rect = anchor.getBoundingClientRect();
+    node.style.top = rect.top + (rect.height - node.offsetHeight) / 2 + "px";
+    node.style.right = window.innerWidth - rect.left + 6 + "px";
+  }
+
+  function showTip(anchor) {
     hideTip();
+    if (anchor === exporter && notice) {
+      return; // the export's own progress is already showing there
+    }
     tip = el("div", "mkde-float mkde-tip");
-    if (currentSlide() !== null) {
+    if (anchor === exporter) {
+      tip.appendChild(el("span", "", "Download as one HTML file"));
+    } else if (currentSlide() !== null) {
       tip.appendChild(el("span", "", "Edit slide"));
       tip.appendChild(kbd("E"));
     } else {
       tip.appendChild(el("span", "", "This slide comes from the deck settings; edit them in the file"));
     }
-    document.body.appendChild(tip);
-    var rect = button.getBoundingClientRect();
-    tip.style.top = rect.bottom + 6 + "px";
-    tip.style.right = window.innerWidth - rect.right + "px";
+    beside(tip, anchor);
   }
 
   function hideTip() {
@@ -509,6 +541,74 @@
     }
   }
 
+  /* ----------------------------------------------------------------- export */
+
+  function showNotice(text, error, seconds) {
+    window.clearTimeout(noticeTimer);
+    if (notice) {
+      notice.remove();
+    }
+    hideTip();
+    notice = el("div", "mkde-float mkde-tip", text);
+    notice.setAttribute("role", "status");
+    if (error) {
+      notice.setAttribute("data-error", "");
+    }
+    beside(notice, exporter);
+    if (seconds) {
+      noticeTimer = window.setTimeout(function () {
+        notice.remove();
+        notice = null;
+      }, seconds * 1000);
+    }
+  }
+
+  function exportDeck() {
+    if (exporter.getAttribute("aria-busy") === "true") {
+      return;
+    }
+    exporter.setAttribute("aria-busy", "true");
+    showNotice("Building one HTML file");
+    fetch(exportPath, { cache: "no-store", headers: { "X-Mkdeck-Token": token } })
+      .then(
+        function (response) {
+          if (!response.ok) {
+            return response.json().then(function (data) {
+              throw new Error(data.error || "The deck could not be exported.");
+            });
+          }
+          var match = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") || "");
+          var name = match ? match[1] : "deck.html";
+          return response.blob().then(function (blob) {
+            var link = el("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(function () {
+              URL.revokeObjectURL(link.href);
+            }, 1000);
+            return name;
+          });
+        },
+        function () {
+          throw new Error("The dev server did not answer; is mkdeck serve still running?");
+        }
+      )
+      .then(
+        function (name) {
+          showNotice("Downloaded " + name, false, 2.5);
+        },
+        function (error) {
+          showNotice(error.message, true, 6);
+        }
+      )
+      .then(function () {
+        exporter.setAttribute("aria-busy", "false");
+      });
+  }
+
   /* ------------------------------------------------------------------ start */
 
   function syncButton() {
@@ -520,29 +620,39 @@
     style.textContent = STYLE;
     document.head.appendChild(style);
 
+    var bar = el("div", "mkde-bar");
     button = el("button", "mkde-trigger");
-    button.type = "button";
     button.setAttribute("aria-label", "Edit slide");
     button.setAttribute("aria-haspopup", "dialog");
     button.setAttribute("aria-expanded", "false");
     button.innerHTML = PENCIL;
-    document.body.appendChild(button);
+    exporter = el("button", "mkde-trigger");
+    exporter.setAttribute("aria-label", "Download as one HTML file");
+    exporter.innerHTML = DOWNLOAD;
+    [button, exporter].forEach(function (control) {
+      control.type = "button";
+      bar.appendChild(control);
+      control.addEventListener("mouseenter", function () {
+        tipTimer = window.setTimeout(function () {
+          showTip(control);
+        }, 400);
+      });
+      control.addEventListener("mouseleave", hideTip);
+      control.addEventListener("focus", function () {
+        if (control.matches(":focus-visible")) {
+          showTip(control);
+        }
+      });
+      control.addEventListener("blur", hideTip);
+    });
+    document.body.appendChild(bar);
     button.addEventListener("click", function () {
       hideTip();
       if (button.getAttribute("aria-disabled") !== "true") {
         togglePanel();
       }
     });
-    button.addEventListener("mouseenter", function () {
-      tipTimer = window.setTimeout(showTip, 400);
-    });
-    button.addEventListener("mouseleave", hideTip);
-    button.addEventListener("focus", function () {
-      if (button.matches(":focus-visible")) {
-        showTip();
-      }
-    });
-    button.addEventListener("blur", hideTip);
+    exporter.addEventListener("click", exportDeck);
 
     document.addEventListener("dblclick", function (event) {
       var target = event.target.closest && event.target.closest("[data-mkd-edit]");

@@ -4,7 +4,7 @@ You can change a slide on the page itself, without going back to your editor. mk
 
 ## Edit the whole slide
 
-Click the pencil button in the top-right corner, or press E. A popover opens with the Markdown of the slide, including its options comment. Change it, and press Cmd+Enter (Ctrl+Enter on Windows and Linux) or click Save. Esc or Cancel closes the popover without a change.
+Click the pencil button in the top-right corner, or press E. The buttons stay faint until you point at them, so they do not distract an audience. A popover opens with the Markdown of the slide, including its options comment. Change it, and press Cmd+Enter (Ctrl+Enter on Windows and Linux) or click Save. Esc or Cancel closes the popover without a change.
 
 The popover holds plain Markdown, so you can change anything on the slide: options, figures, notes, and the layout. A `---` line that you add starts a new slide.
 
@@ -28,6 +28,10 @@ Double-click a title, a sentence, a bullet, or a table cell. A box opens with th
 - In a table cell, mkdeck escapes a `|` that you type.
 
 Some text has no single place in the file: a title or bullets set in the slide options, a sentence in the same paragraph as a figure, and a bullet with two paragraphs. Edit those in the popover.
+
+## Download the deck as one file
+
+Click the download button under the pencil. mkdeck builds the deck from `deck.md`, with every saved edit, into one HTML file, and your browser downloads it. The file is named after the deck folder, such as `talk.html`. It is the same file that `mkdeck build talk --single-file` writes, so it opens offline from a `file://` URL.
 
 ## When an edit is refused
 

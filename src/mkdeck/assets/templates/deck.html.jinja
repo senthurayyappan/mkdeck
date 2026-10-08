@@ -12,6 +12,7 @@ Variables:
   rollouts     bool         true when a slide draws a rollout, which loads the viewer
   reload_path  str | None   the dev server's event stream, which adds the live-reload client
   edit_path    str | None   the dev server's edit endpoint, which adds the editor client
+  export_path  str          the dev server's endpoint for a one-file download of the deck
 
 Every path is relative, so a built deck opens from a file:// URL and from any
 subdirectory of a site.
@@ -106,7 +107,7 @@ The <!--mkdeck-...--> comments are markers for the single-file build (inline.py)
 </script>
 {%- endif %}
 {%- if edit_path %}
-<script src="{{ assets }}mkdeck-edit.js" data-endpoint="{{ edit_path }}"></script>
+<script src="{{ assets }}mkdeck-edit.js" data-endpoint="{{ edit_path }}" data-export="{{ export_path }}"></script>
 {%- endif %}
 </body>
 </html>

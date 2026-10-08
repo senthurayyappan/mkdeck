@@ -58,6 +58,7 @@ from mkdeck.paths import (
 
 __all__ = [
     "EDIT_PATH",
+    "EXPORT_PATH",
     "RELOAD_PATH",
     "highlight_numbers",
     "render_deck",
@@ -76,6 +77,9 @@ The dev server serves it.
 
 EDIT_PATH = "/__mkdeck__/edit"
 """Endpoint the page posts a text edit to; the dev server serves it."""
+
+EXPORT_PATH = "/__mkdeck__/export"
+"""Endpoint the page downloads the deck from as one HTML file."""
 
 _PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n")
 _TAG_NAME = re.compile(r"</?(?P<name>[A-Za-z][\w-]*)")
@@ -658,6 +662,7 @@ def render_deck(
         "rollouts": deck_has_rollouts(deck),
         "reload_path": RELOAD_PATH if live_reload else None,
         "edit_path": EDIT_PATH if editable and live_reload else None,
+        "export_path": EXPORT_PATH,
     }
     try:
         template = _environment().get_template(_TEMPLATE_NAME)

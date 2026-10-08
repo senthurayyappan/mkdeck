@@ -31,9 +31,10 @@ from watchfiles import Change, DefaultFilter, watch
 from mkdeck._messages import warn_deck
 from mkdeck.edit import EditConflictError, edit_file, slide_source
 from mkdeck.errors import DeckError
-from mkdeck.render import EDIT_PATH, RELOAD_PATH
+from mkdeck.render import EDIT_PATH, EXPORT_PATH, RELOAD_PATH
+from mkdeck.source import load_source
 
-__all__ = ["EDIT_PATH", "RELOAD_PATH", "dev_server", "serve"]
+__all__ = ["EDIT_PATH", "EXPORT_PATH", "RELOAD_PATH", "dev_server", "serve"]
 
 _HEARTBEAT_SECONDS = 15.0
 """How often a quiet stream sends a comment, so proxies keep it open."""
@@ -259,12 +260,28 @@ class _DeckHandler(SimpleHTTPRequestHandler):
         if self.path.split("?", 1)[0] == EDIT_PATH:
             self._answer_edit_get()
             return
+        if self.path.split("?", 1)[0] == EXPORT_PATH:
+            self._send_export()
+            return
         try:
             super().do_GET()
         except ConnectionError:
             # The page gave up on the file part-way through; there is nobody
             # left to send an error to, so just let the connection go.
             self.close_connection = True
+
+    def end_headers(self) -> None:  # the name is fixed by http.server
+        """Tell the browser to check every file again before it reuses it.
+
+        A rebuild changes files under the same names, and a browser that
+        guessed a file was still fresh would show the last deck.
+        """
+        if not any(
+            line.lower().startswith(b"cache-control:")
+            for line in getattr(self, "_headers_buffer", [])
+        ):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def _answer_edit_get(self) -> None:
         """Hand the page its edit token, or the source of one slide.
@@ -294,6 +311,44 @@ class _DeckHandler(SimpleHTTPRequestHandler):
             self._send_json(422, {"error": error.message})
         else:
             self._send_json(200, {"text": text})
+
+    def _send_export(self) -> None:
+        """Build the deck from its file as one HTML document and send it.
+
+        It is what `mkdeck build --single-file` writes, read from the file
+        on disk, so it holds every saved edit. It needs the edit token.
+        """
+        server = cast(_DeckServer, self.server)
+        if server.edit_file is None or not self._same_origin():
+            self._send_json(404, {"error": "This deck cannot be exported."})
+            return
+        if not secrets.compare_digest(
+            self.headers.get(_EDIT_HEADER, ""), server.edit_token
+        ):
+            self._send_json(
+                403, {"error": "This page may not export the deck."}
+            )
+            return
+        name = f"{server.edit_file.parent.resolve().name or 'deck'}.html"
+        try:
+            with tempfile.TemporaryDirectory(prefix="mkdeck-export-") as folder:
+                with server.edit_lock:  # never read the file mid-edit
+                    source = load_source(server.edit_file)
+                data = source.build(
+                    Path(folder) / name, single_file=True
+                ).read_bytes()
+        except DeckError as error:
+            self._send_json(422, {"error": error.message})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header(
+            "Content-Disposition", f'attachment; filename="{name}"'
+        )
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_POST(self) -> None:  # the name is fixed by http.server
         """Write an edit made on the page into the deck file."""

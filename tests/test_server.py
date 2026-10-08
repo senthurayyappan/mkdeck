@@ -24,7 +24,7 @@ from watchfiles import Change
 import mkdeck.server as server_module
 import mkdeck.source as source_module
 from mkdeck import Deck, DeckError, DeckWarning, Slide, load_source
-from mkdeck.render import EDIT_PATH, RELOAD_PATH
+from mkdeck.render import EDIT_PATH, EXPORT_PATH, RELOAD_PATH
 from mkdeck.server import (
     _DeckHandler,
     _DeckServer,
@@ -1023,3 +1023,45 @@ def test_the_page_reads_a_slide_with_the_token_and_saves_it_whole(
         edit["text"] = "# Hello\n\n- one\n- two"
         assert post_edit(url, edit, token=token)[0] == 200
         assert deck_md.read_text().endswith("# Hello\n\n- one\n- two\n")
+
+
+def test_the_deck_downloads_as_one_html_file_with_its_saved_edits(
+    folder,
+) -> None:
+    with editable(folder) as (url, deck_md):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        assert get(url, EXPORT_PATH)[0] == 403  # no token
+        deck_md.write_text("---\ntitle: T\n---\n\n# Saved edit\n\nHi.\n")
+        request = urllib.request.Request(
+            url.rstrip("/") + EXPORT_PATH, headers={"X-Mkdeck-Token": token}
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            disposition = response.headers["Content-Disposition"]
+            page = response.read().decode()
+        assert disposition == 'attachment; filename="deck.html"'
+        assert "Saved edit" in page
+        assert 'src="mkdeck-assets/' not in page  # everything is inlined
+        assert 'href="mkdeck-assets/' not in page
+        assert "data-mkd-edit" not in page and "EventSource" not in page
+
+
+def test_a_deck_that_does_not_parse_is_not_exported(folder) -> None:
+    with editable(folder) as (url, deck_md):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        deck_md.write_text("---\ntitle: [unclosed\n---\n")
+        request = urllib.request.Request(
+            url.rstrip("/") + EXPORT_PATH, headers={"X-Mkdeck-Token": token}
+        )
+        with pytest.raises(urllib.error.HTTPError) as raised:
+            urllib.request.urlopen(request, timeout=30)
+        assert raised.value.code == 422
+
+
+def test_every_file_is_checked_again_before_the_browser_reuses_it(
+    folder,
+) -> None:
+    with dev_server(Builds(), watch_paths=[folder], port=0) as url:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            assert response.headers["Cache-Control"] == "no-cache"
+        with urllib.request.urlopen(url + "only-1.txt", timeout=5) as response:
+            assert response.headers["Cache-Control"] == "no-cache"
