@@ -804,6 +804,25 @@
             
             <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="../share/edit/"
+        class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
+
+        
+        Edit on the page
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+            
+            
+            
+            <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
         data-size="default" href="../share/browser/"
         class="peer/menu-button flex items-center gap-2 rounded-md p-2 text-left ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md data-[active=true]:border-accent data-[active=true]:bg-accent 3xl:fixed:w-full 3xl:fixed:max-w-48">
 
@@ -2713,14 +2732,7 @@ text, or the deck cannot be parsed.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/mkdeck/source.py</code></summary>
-              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
-<span class="normal">150</span>
+              <div class="codehilite"><div class="table-wrapper"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
 <span class="normal">153</span>
@@ -2735,7 +2747,14 @@ text, or the deck cannot be parsed.</p>
 <span class="normal">162</span>
 <span class="normal">163</span>
 <span class="normal">164</span>
-<span class="normal">165</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeckSource</span><span class="p">:</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_source</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DeckSource</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Load a deck and its settings from disk.</span>
 
 <span class="sd">    The `deck.yml` beside the Markdown and the frontmatter are read once and</span>
@@ -2937,7 +2956,14 @@ into its fields, so the deck alone carries the settings.</p>
 <span class="normal">108</span>
 <span class="normal">109</span>
 <span class="normal">110</span>
-<span class="normal">111</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">DeckSource</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""A deck loaded from disk, ready to build or serve.</span>
 
@@ -2984,7 +3010,9 @@ into its fields, so the deck alone carries the settings.</p>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Serve the deck until interrupted.</span>
 
-<span class="sd">        Read it again whenever its folder changes.</span>
+<span class="sd">        Read it again whenever its folder changes. While it is served from</span>
+<span class="sd">        this machine, the text of a slide can be edited on the page, and the</span>
+<span class="sd">        edit is written into the Markdown file.</span>
 
 <span class="sd">        The first build uses `deck` as it is, but every rebuild reads the</span>
 <span class="sd">        Markdown and `deck.yml` from disk again, so a change made to `deck` in</span>
@@ -3017,7 +3045,11 @@ into its fields, so the deck alone carries the settings.</p>
                 <span class="kc">None</span><span class="p">,</span>
             <span class="p">)</span>  <span class="c1"># the first build reuses the deck in hand</span>
             <span class="n">build_deck</span><span class="p">(</span>
-                <span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span>
+                <span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span>
+                <span class="n">root</span><span class="p">,</span>
+                <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span>
+                <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">,</span>
+                <span class="n">editable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="n">serve</span><span class="p">(</span>
@@ -3027,6 +3059,7 @@ into its fields, so the deck alone carries the settings.</p>
             <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
             <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span>
             <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span>
+            <span class="n">edit_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">,</span>
         <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
               </details>
@@ -3215,7 +3248,9 @@ folder.</p>
     <div class="doc doc-contents ">
 
         <p>Serve the deck until interrupted.</p>
-<p>Read it again whenever its folder changes.</p>
+<p>Read it again whenever its folder changes. While it is served from
+this machine, the text of a slide can be edited on the page, and the
+edit is written into the Markdown file.</p>
 <p>The first build uses <code>deck</code> as it is, but every rebuild reads the
 Markdown and <code>deck.yml</code> from disk again, so a change made to <code>deck</code> in
 Python shows only until the first edit. To serve a deck that is changed
@@ -3381,7 +3416,14 @@ in Python, serve that <code>Deck</code> with <code>Deck.serve</code> instead.</p
 <span class="normal">108</span>
 <span class="normal">109</span>
 <span class="normal">110</span>
-<span class="normal">111</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">serve</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"127.0.0.1"</span><span class="p">,</span>
@@ -3391,7 +3433,9 @@ in Python, serve that <code>Deck</code> with <code>Deck.serve</code> instead.</p
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Serve the deck until interrupted.</span>
 
-<span class="sd">    Read it again whenever its folder changes.</span>
+<span class="sd">    Read it again whenever its folder changes. While it is served from</span>
+<span class="sd">    this machine, the text of a slide can be edited on the page, and the</span>
+<span class="sd">    edit is written into the Markdown file.</span>
 
 <span class="sd">    The first build uses `deck` as it is, but every rebuild reads the</span>
 <span class="sd">    Markdown and `deck.yml` from disk again, so a change made to `deck` in</span>
@@ -3424,7 +3468,11 @@ in Python, serve that <code>Deck</code> with <code>Deck.serve</code> instead.</p
             <span class="kc">None</span><span class="p">,</span>
         <span class="p">)</span>  <span class="c1"># the first build reuses the deck in hand</span>
         <span class="n">build_deck</span><span class="p">(</span>
-            <span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span>
+            <span class="n">current</span><span class="o">.</span><span class="n">deck</span><span class="p">,</span>
+            <span class="n">root</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">current</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span>
+            <span class="n">live_reload</span><span class="o">=</span><span class="n">live</span><span class="p">,</span>
+            <span class="n">editable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="n">serve</span><span class="p">(</span>
@@ -3434,6 +3482,7 @@ in Python, serve that <code>Deck</code> with <code>Deck.serve</code> instead.</p
         <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
         <span class="n">open_browser</span><span class="o">=</span><span class="n">open_browser</span><span class="p">,</span>
         <span class="n">reload</span><span class="o">=</span><span class="n">reload</span><span class="p">,</span>
+        <span class="n">edit_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">markdown</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div></div>
             </details>
@@ -4442,6 +4491,12 @@ converting a batch may want to skip these and still fail on the rest.</p>
                         <a class="text-2xl font-medium" href="../share/serve/">
                             
                             Serve a deck
+                            
+                        </a>
+                        
+                        <a class="text-2xl font-medium" href="../share/edit/">
+                            
+                            Edit on the page
                             
                         </a>
                         
