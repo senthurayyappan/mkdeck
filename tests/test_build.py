@@ -14,7 +14,12 @@ import pytest
 from mkdeck import Deck, DeckError, DeckWarning, Embed, Slide, load_source
 from mkdeck import build as build_module
 from mkdeck._messages import install_warning_formatter
-from mkdeck.build import MANIFEST_NAME, ROLLOUT_ASSETS, build_deck
+from mkdeck.build import (
+    EDIT_ASSET,
+    MANIFEST_NAME,
+    ROLLOUT_ASSETS,
+    build_deck,
+)
 from mkdeck.inline import VIEWER_MODULES
 from mkdeck.paths import ASSET_ROOT
 
@@ -752,3 +757,25 @@ def test_building_into_the_assets_folder_is_refused(deck_folder):
     assert sorted(path.name for path in (deck_folder / "assets").iterdir()) == [
         "g3_18.html"
     ]
+
+
+@pytest.mark.parametrize(
+    ("live_reload", "editable", "marked"),
+    [(False, False, False), (False, True, False), (True, True, True)],
+)
+def test_only_a_deck_the_dev_server_edits_carries_the_editor(
+    deck_folder, tmp_path, live_reload, editable, marked
+):
+    out = tmp_path / "site"
+    source = load_source(deck_folder)
+    index = build_deck(
+        source.deck,
+        out,
+        source=deck_folder,
+        live_reload=live_reload,
+        editable=editable,
+    )
+    html = index.read_text()
+    assert ("data-mkd-edit" in html) is marked
+    assert ("mkdeck-edit.js" in html) is marked
+    assert (out / "mkdeck-assets" / EDIT_ASSET).is_file() is marked

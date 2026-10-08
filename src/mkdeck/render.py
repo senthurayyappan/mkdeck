@@ -57,6 +57,7 @@ from mkdeck.paths import (
 )
 
 __all__ = [
+    "EDIT_PATH",
     "RELOAD_PATH",
     "highlight_numbers",
     "render_deck",
@@ -72,6 +73,9 @@ RELOAD_PATH = "/__mkdeck__/events"
 
 The dev server serves it.
 """
+
+EDIT_PATH = "/__mkdeck__/edit"
+"""Endpoint the page posts a text edit to; the dev server serves it."""
 
 _PARAGRAPH_BREAK = re.compile(r"\n[ \t]*\n")
 _TAG_NAME = re.compile(r"</?(?P<name>[A-Za-z][\w-]*)")
@@ -394,7 +398,25 @@ def _render_figure(embed: Embed) -> Markup:
     )
 
 
-def _render_table(table: Table, *, units: Sequence[str]) -> Markup:
+def _editable(key: str, text: str, *, editable: bool) -> Markup:
+    """Write the attributes that let the dev server edit a piece of text.
+
+    Args:
+        key: The key of the piece, such as `bullet:2`.
+        text: Its Markdown source, as the slide holds it.
+        editable: False to write nothing.
+
+    Returns:
+        The attributes, with a leading space, or nothing.
+    """
+    if not editable:
+        return Markup("")
+    return Markup(' data-mkd-edit="{}" data-mkd-text="{}"').format(key, text)
+
+
+def _render_table(
+    table: Table, *, units: Sequence[str], editable: bool = False
+) -> Markup:
     """Render a table slide's body.
 
     Header cells take inline math but no number highlighting, so a column named
@@ -403,24 +425,29 @@ def _render_table(table: Table, *, units: Sequence[str]) -> Markup:
     Args:
         table: The table to render.
         units: Unit spellings a number may carry.
+        editable: True to mark each cell for the dev server's editor.
 
     Returns:
         A `<div class="mkd-table-wrap">` wrapping the table.
     """
     head = Markup("").join(
-        Markup("<th>{}</th>").format(render_text(str(column), numbers=False))
-        for column in table.columns
+        Markup("<th{}>{}</th>").format(
+            _editable(f"cell:-1:{c}", str(column), editable=editable),
+            render_text(str(column), numbers=False),
+        )
+        for c, column in enumerate(table.columns)
     )
     body = Markup("").join(
         Markup("<tr>{}</tr>").format(
             Markup("").join(
-                Markup("<td>{}</td>").format(
-                    render_text(str(cell), units=units)
+                Markup("<td{}>{}</td>").format(
+                    _editable(f"cell:{r}:{c}", str(cell), editable=editable),
+                    render_text(str(cell), units=units),
                 )
-                for cell in row
+                for c, cell in enumerate(row)
             )
         )
-        for row in table.rows
+        for r, row in enumerate(table.rows)
     )
     return Markup(
         '<div class="mkd-table-wrap"><table '
@@ -433,6 +460,7 @@ def render_slide(
     *,
     date: str | None = None,
     units: Sequence[str] = DEFAULT_UNITS,
+    index: int | None = None,
 ) -> Markup:
     """Render one slide as a reveal `<section>`.
 
@@ -442,6 +470,8 @@ def render_slide(
         slide: The slide to render.
         date: The effective date for this slide, shown by the title layout.
         units: Unit spellings a number may carry.
+        index: The position of the slide in the deck, to mark its text for
+            the dev server's editor; `None` marks nothing.
 
     Returns:
         The slide's markup.
@@ -459,6 +489,9 @@ def render_slide(
         attributes.append(("data-date", slide.date))
     elif layout == "title" and effective_date:
         attributes.append(("data-date", effective_date))
+    editable = index is not None
+    if editable:
+        attributes.append(("data-mkd-slide", str(index)))
     opening = Markup("").join(
         Markup(' {}="{}"').format(name, value) for name, value in attributes
     )
@@ -466,22 +499,27 @@ def render_slide(
     body: list[Markup] = []
     if slide.title:
         body.append(
-            Markup('<h1 class="mkd-title">{}</h1>').format(
-                render_text(slide.title, numbers=False)
+            Markup('<h1 class="mkd-title"{}>{}</h1>').format(
+                _editable("title", slide.title, editable=editable),
+                render_text(slide.title, numbers=False),
             )
         )
     body.extend(_math_span(formula, block=True) for formula in slide.math)
     if slide.sentence:
         body.extend(
-            Markup('<p class="mkd-sentence">{}</p>').format(
-                render_text(piece, units=units)
+            Markup('<p class="mkd-sentence"{}>{}</p>').format(
+                _editable(f"sentence:{n}", piece, editable=editable),
+                render_text(piece, units=units),
             )
-            for piece in _paragraphs(slide.sentence)
+            for n, piece in enumerate(_paragraphs(slide.sentence))
         )
     if slide.bullets:
         items = Markup("").join(
-            Markup("<li>{}</li>").format(render_text(bullet, units=units))
-            for bullet in slide.bullets
+            Markup("<li{}>{}</li>").format(
+                _editable(f"bullet:{n}", bullet, editable=editable),
+                render_text(bullet, units=units),
+            )
+            for n, bullet in enumerate(slide.bullets)
         )
         body.append(Markup('<ul class="mkd-bullets">{}</ul>').format(items))
     if slide.embeds:
@@ -494,7 +532,7 @@ def render_slide(
             )
         )
     if slide.table is not None:
-        body.append(_render_table(slide.table, units=units))
+        body.append(_render_table(slide.table, units=units, editable=editable))
     if slide.html:
         body.append(Markup(slide.html))
     if layout == "title" and effective_date:
@@ -531,7 +569,7 @@ def _opens_with_title_slide(deck: Deck) -> bool:
     return bool(deck.slides) and resolve_layout(deck.slides[0]) == "title"
 
 
-def _render_slides(deck: Deck) -> Markup:
+def _render_slides(deck: Deck, *, editable: bool = False) -> Markup:
     """Render every slide of a validated deck.
 
     The generated title slide is included.
@@ -541,6 +579,8 @@ def _render_slides(deck: Deck) -> Markup:
 
     Args:
         deck: The deck to render.
+        editable: True to mark the text of each slide for the dev server's
+            editor. The generated title slide is never marked.
 
     Returns:
         The slide markup, one `<section>` per line.
@@ -550,11 +590,16 @@ def _render_slides(deck: Deck) -> Markup:
         opening = Slide(layout="title", title=deck.title, date=deck.date)
         rendered.append(render_slide(opening, date=deck.date, units=deck.units))
     effective_date = deck.date
-    for slide in deck.slides:
+    for index, slide in enumerate(deck.slides):
         if resolve_layout(slide) == "title" and slide.date:
             effective_date = slide.date
         rendered.append(
-            render_slide(slide, date=effective_date, units=deck.units)
+            render_slide(
+                slide,
+                date=effective_date,
+                units=deck.units,
+                index=index if editable else None,
+            )
         )
     return Markup("\n").join(rendered)
 
@@ -578,7 +623,9 @@ def _environment() -> Environment:
     )
 
 
-def render_deck(deck: Deck, *, live_reload: bool = False) -> str:
+def render_deck(
+    deck: Deck, *, live_reload: bool = False, editable: bool = False
+) -> str:
     """Render a deck to a complete HTML document.
 
     Every path the document holds is relative, so a built deck works from a
@@ -588,6 +635,8 @@ def render_deck(deck: Deck, *, live_reload: bool = False) -> str:
         deck: The deck to render.
         live_reload: True to add the client that reloads the page when the dev
             server rebuilds the deck. Only the dev server sets it.
+        editable: True to mark the slide text and add the client that edits
+            it through the dev server. It takes effect with `live_reload`.
 
     Returns:
         The rendered HTML document.
@@ -601,13 +650,14 @@ def render_deck(deck: Deck, *, live_reload: bool = False) -> str:
         "title": deck.title,
         "date": deck.date,
         "theme": deck.theme,
-        "slides": _render_slides(deck),
+        "slides": _render_slides(deck, editable=editable and live_reload),
         "assets": f"{ASSET_BASE}/",
         "extra_css": list(deck.extra_css),
         "extra_js": list(deck.extra_js),
         "reveal": dict(deck.reveal),
         "rollouts": deck_has_rollouts(deck),
         "reload_path": RELOAD_PATH if live_reload else None,
+        "edit_path": EDIT_PATH if editable and live_reload else None,
     }
     try:
         template = _environment().get_template(_TEMPLATE_NAME)

@@ -11,6 +11,7 @@ Variables:
   reveal       dict         merged over mkdeck's own Reveal.initialize options
   rollouts     bool         true when a slide draws a rollout, which loads the viewer
   reload_path  str | None   the dev server's event stream, which adds the live-reload client
+  edit_path    str | None   the dev server's edit endpoint, which adds the editor client
 
 Every path is relative, so a built deck opens from a file:// URL and from any
 subdirectory of a site.
@@ -103,6 +104,9 @@ The <!--mkdeck-...--> comments are markers for the single-file build (inline.py)
   });
 })();
 </script>
+{%- endif %}
+{%- if edit_path %}
+<script src="{{ assets }}mkdeck-edit.js" data-endpoint="{{ edit_path }}"></script>
 {%- endif %}
 </body>
 </html>

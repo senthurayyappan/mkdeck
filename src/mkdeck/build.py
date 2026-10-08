@@ -43,6 +43,9 @@ ROLLOUT_ASSETS = frozenset(
 three.js is a megabyte, so a deck of plots and images does not pay for it.
 """
 
+EDIT_ASSET = "mkdeck-edit.js"
+"""The editor client, carried only by a deck the dev server lets you edit."""
+
 EMBED_WARN_BYTES = 2_000_000
 """An embed larger than this is called out at build time."""
 
@@ -101,7 +104,12 @@ def _relative(src: str) -> str:
 
 
 def _copy_vendor_assets(
-    out: Path, *, theme: str, rollouts: bool, written: set[str]
+    out: Path,
+    *,
+    theme: str,
+    rollouts: bool,
+    editable: bool = False,
+    written: set[str],
 ) -> None:
     """Copy the front-end files a deck loads next to `index.html`.
 
@@ -114,9 +122,15 @@ def _copy_vendor_assets(
         theme: The theme the deck uses.
         rollouts: True when a slide draws a rollout, which is what the viewer
             and its renderer are carried for.
+        editable: True when the dev server edits the deck, which is what the
+            editor client is carried for.
         written: The paths this build has written.
     """
-    skip = {"templates"} | (set() if rollouts else ROLLOUT_ASSETS)
+    skip = (
+        {"templates"}
+        | (set() if rollouts else ROLLOUT_ASSETS)
+        | (set() if editable else {EDIT_ASSET})
+    )
     for entry in sorted(ASSET_ROOT.iterdir()):
         if entry.name in skip:
             continue
@@ -310,6 +324,7 @@ def build_deck(
     source: Path | str | None = None,
     single_file: bool = False,
     live_reload: bool = False,
+    editable: bool = False,
 ) -> Path:
     """Write a deck to an output folder.
 
@@ -329,6 +344,8 @@ def build_deck(
             so the result opens from a `file://` URL.
         live_reload: True to add the client that reloads the page when the dev
             server rebuilds the deck. Only the dev server sets it.
+        editable: True to add the client that edits slide text through the
+            dev server. It takes effect with `live_reload`.
 
     Returns:
         The path of the written HTML document.
@@ -366,7 +383,8 @@ def build_deck(
             "write the build somewhere else with -o."
         )
 
-    html = render_deck(deck, live_reload=live_reload)
+    editable = editable and live_reload and not single_file
+    html = render_deck(deck, live_reload=live_reload, editable=editable)
     rollouts = deck_has_rollouts(deck)
     if single_file:
         html = inline_assets(html, source=folder)
@@ -376,7 +394,11 @@ def build_deck(
     written = {index.relative_to(directory).as_posix()}
     if not single_file:
         _copy_vendor_assets(
-            directory, theme=deck.theme, rollouts=rollouts, written=written
+            directory,
+            theme=deck.theme,
+            rollouts=rollouts,
+            editable=editable,
+            written=written,
         )
     if root is not None:
         _copy_assets_tree(
