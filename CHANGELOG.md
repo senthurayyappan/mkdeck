@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/senthurayyappan/mkdeck/compare/v0.1.1...v0.1.2) (2026-10-08)
+
+
+### Features
+
+* **serve:** edit slides and download the deck from the served page ([#18](https://github.com/senthurayyappan/mkdeck/issues/18)) ([114dc90](https://github.com/senthurayyappan/mkdeck/commit/114dc9041e886b7cbd250d6e5842d5beca94e9f5))
+
+
+### Bug Fixes
+
+* copy the stylesheets a theme imports into folder builds ([#16](https://github.com/senthurayyappan/mkdeck/issues/16)) ([c7a073a](https://github.com/senthurayyappan/mkdeck/commit/c7a073ae5e88eba19334ec2fec9dca8725c485de))
+
 ## [0.1.1](https://github.com/senthurayyappan/mkdeck/compare/v0.1.0...v0.1.1) (2026-10-03)
 
 
