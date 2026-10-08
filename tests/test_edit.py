@@ -5,7 +5,12 @@ the file, how an edit is written back, and when it is refused.
 import pytest
 
 from mkdeck import DeckError
-from mkdeck.edit import EditConflictError, apply_edit, edit_file
+from mkdeck.edit import (
+    EditConflictError,
+    apply_edit,
+    edit_file,
+    slide_source,
+)
 from mkdeck.markdown import locate_text, parse_markdown
 
 DECK = """---
@@ -71,8 +76,8 @@ def test_text_with_no_single_place_is_not_offered() -> None:
         "---\n\n- one\n\n  two\n\nterm\n: definition\n"
     )
     first, second = locate_text(text, source="deck.md")
-    assert first == {}
-    assert second == {}
+    assert set(first) == {"slide"}
+    assert set(second) == {"slide"}
 
 
 def test_a_blank_line_splits_a_sentence_into_two_paragraphs() -> None:
@@ -165,3 +170,41 @@ def test_the_file_is_rewritten_in_place(tmp_path) -> None:
     )
     assert "# Done\n" in path.read_text()
     assert [entry.name for entry in tmp_path.iterdir()] == ["deck.md"]
+
+
+def test_a_slide_spans_its_options_comment_and_body() -> None:
+    text = (
+        "# One\n\n---\n\n<!--\nid: two\n-->\n\n# Two\n\nWords.\n\n---\n\n"
+        "# Three\n"
+    )
+    slides = locate_text(text, source="deck.md")
+    assert slides[1]["slide"].text == "<!--\nid: two\n-->\n\n# Two\n\nWords."
+    assert slides[1]["slide"].lines == (4, 11)
+
+
+def test_a_whole_slide_is_rewritten_and_a_rule_in_it_adds_a_slide() -> None:
+    text = "# One\n\n---\n\n# Two\n\nWords.\n\n---\n\n# Three\n"
+    edited = edit(
+        text, 1, "slide", "# Two\n\nNew words.  \n\n---\n\n# Two and a half\n"
+    )
+    assert edited == (
+        "# One\n\n---\n\n# Two\n\nNew words.\n\n---\n\n# Two and a half\n"
+        "\n---\n\n# Three\n"
+    )
+    titles = [s.title for s in parse_markdown(edited, source="d").slides]
+    assert titles == ["One", "Two", "Two and a half", "Three"]
+
+
+def test_a_slide_ending_in_a_list_keeps_the_blank_line_before_the_rule():
+    text = "# One\n\n- a\n- b\n\n---\n\n# Two\n"
+    assert locate_text(text, source="d")[0]["slide"].text == "# One\n\n- a\n- b"
+    edited = edit(text, 0, "slide", "# One\n\n- a\n- c")
+    assert edited == "# One\n\n- a\n- c\n\n---\n\n# Two\n"
+
+
+def test_the_source_of_a_slide_is_read_from_the_file(tmp_path) -> None:
+    path = tmp_path / "deck.md"
+    path.write_text("---\ntitle: T\n---\n\n# One\n\n---\n\n# Two\n")
+    assert slide_source(path, 1) == "# Two"
+    with pytest.raises(EditConflictError):
+        slide_source(path, 2)

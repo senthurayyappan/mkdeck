@@ -12,6 +12,8 @@ What the new text means depends on the piece:
 * A sentence is Markdown, so a blank line starts a new paragraph.
 * A bullet becomes one bullet per line, and empty text deletes it.
 * A table cell is one line; a `|` in it is escaped.
+* A whole slide is Markdown, written as it is; a `---` line in it starts a
+  new slide.
 """
 
 import os
@@ -23,7 +25,7 @@ from mkdeck.errors import DeckError
 from mkdeck.markdown import TextSource, locate_text
 from mkdeck.paths import read_text
 
-__all__ = ["EditConflictError", "apply_edit", "edit_file"]
+__all__ = ["EditConflictError", "apply_edit", "edit_file", "slide_source"]
 
 _HEADING = re.compile(r"^[ \t]*#{1,6}(?:[ \t]+|$)")
 _MARKER = re.compile(r"^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+")
@@ -126,6 +128,11 @@ def _rewrite(
         return [prefix + item for item in items if item]
     if kind == "cell":
         return [_rewrite_cell(lines[0], found, flat)]
+    if kind == "slide":
+        text = replacement.replace("\r\n", "\n").strip("\n")
+        return (
+            [line.rstrip() for line in text.split("\n")] if text.strip() else []
+        )
     raise DeckError(f'The piece "{key}" cannot be edited from the page.')
 
 
@@ -183,6 +190,25 @@ def _cell_spans(line: str) -> list[tuple[int, int]]:
     if spans and spans[-1][0] == spans[-1][1]:
         spans.pop()
     return spans
+
+
+def slide_source(path: Path, slide: int) -> str:
+    """Read the Markdown source of one slide.
+
+    Args:
+        path: The Markdown file of the deck.
+        slide: The index of the slide among the parsed slides of the deck.
+
+    Returns:
+        The lines of the slide, options comment included, as written.
+
+    Raises:
+        DeckError: If the file cannot be read or parsed, or has no such slide.
+    """
+    slides = locate_text(read_text(path), source=path)
+    if not 0 <= slide < len(slides):
+        raise EditConflictError(_CHANGED)
+    return slides[slide]["slide"].text
 
 
 def edit_file(

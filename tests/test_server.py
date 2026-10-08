@@ -1004,3 +1004,22 @@ def test_a_served_source_deck_carries_the_editor(folder, monkeypatch, capsys):
     assert f'data-endpoint="{EDIT_PATH}"' in page
     assert 'data-mkd-slide="0"' in page
     assert "X-Mkdeck-Token" in client
+
+
+def test_the_page_reads_a_slide_with_the_token_and_saves_it_whole(
+    folder,
+) -> None:
+    with editable(folder) as (url, deck_md):
+        token = json.loads(get(url, EDIT_PATH)[1])["token"]
+        assert get(url, EDIT_PATH + "?slide=0")[0] == 403  # no token
+        request = urllib.request.Request(
+            url.rstrip("/") + EDIT_PATH + "?slide=0",
+            headers={"X-Mkdeck-Token": token},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            source = json.loads(response.read())["text"]
+        assert source == "# Hello\n\nHi."
+        edit = {"slide": 0, "key": "slide", "expected": source}
+        edit["text"] = "# Hello\n\n- one\n- two"
+        assert post_edit(url, edit, token=token)[0] == 200
+        assert deck_md.read_text().endswith("# Hello\n\n- one\n- two\n")

@@ -197,6 +197,7 @@ class _Draft:
     html: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     sources: dict[str, TextSource] = field(default_factory=dict)
+    span: tuple[int, int] = (0, 0)
 
 
 def split_frontmatter(
@@ -300,7 +301,9 @@ def locate_text(
     """Find where each piece of editable slide text sits in a deck file.
 
     A piece is keyed the way the renderer marks it: `title`, `sentence:N`,
-    `bullet:N`, and `cell:R:C` with `R` = -1 for the header row. Text with no
+    `bullet:N`, and `cell:R:C` with `R` = -1 for the header row. The key
+    `slide` holds the whole source of the slide, from its first line to its
+    last, options comment included. Text with no
     single place of its own is left out: a title or bullets set in the
     options comment, a sentence that shares its paragraph with a figure, a
     bullet of more than one paragraph, and a definition-list bullet.
@@ -318,15 +321,26 @@ def locate_text(
     _, body = split_frontmatter(text, source=source)
     normalized = text.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
     offset = normalized.count("\n") - body.count("\n")
-    return [
-        {
-            key: replace(
-                found, lines=(found.lines[0] + offset, found.lines[1] + offset)
-            )
-            for key, found in draft.sources.items()
+    lines = body.split("\n")
+    slides: list[dict[str, TextSource]] = []
+    for _, draft in _read_slides(body, source=source):
+        start, end = draft.span
+        while end > start and not lines[end - 1].strip():
+            end -= 1  # a list's map runs on over the blank line after it
+        found = {
+            **draft.sources,
+            "slide": TextSource("\n".join(lines[start:end]), (start, end)),
         }
-        for _, draft in _read_slides(body, source=source)
-    ]
+        slides.append(
+            {
+                key: replace(
+                    piece,
+                    lines=(piece.lines[0] + offset, piece.lines[1] + offset),
+                )
+                for key, piece in found.items()
+            }
+        )
+    return slides
 
 
 def _read_slides(
@@ -389,13 +403,15 @@ def _parse_slide(
     Raises:
         DeckError: If the slide breaks a rule of the format.
     """
+    mapped = [token.map for token in tokens if token.map is not None]
+    span = (mapped[0][0], max(end for _, end in mapped)) if mapped else (0, 0)
     options, tokens = _take_options(tokens, index=index, source=source)
     fail = partial(
         DeckError,
         slide=slide_name(Slide(id=_option_id(options)), index),
         source=source,
     )
-    draft = _Draft()
+    draft = _Draft(span=span)
     _consume(tokens, draft, fail=fail)
     slide = Slide(
         title=draft.title,

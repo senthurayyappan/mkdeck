@@ -24,12 +24,12 @@ from contextlib import contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from watchfiles import Change, DefaultFilter, watch
 
 from mkdeck._messages import warn_deck
-from mkdeck.edit import EditConflictError, edit_file
+from mkdeck.edit import EditConflictError, edit_file, slide_source
 from mkdeck.errors import DeckError
 from mkdeck.render import EDIT_PATH, RELOAD_PATH
 
@@ -257,11 +257,7 @@ class _DeckHandler(SimpleHTTPRequestHandler):
             self._stream_reloads()
             return
         if self.path.split("?", 1)[0] == EDIT_PATH:
-            server = cast(_DeckServer, self.server)
-            if server.edit_file is None or not self._same_origin():
-                self._send_json(404, {"error": "This deck cannot be edited."})
-            else:
-                self._send_json(200, {"token": server.edit_token})
+            self._answer_edit_get()
             return
         try:
             super().do_GET()
@@ -269,6 +265,35 @@ class _DeckHandler(SimpleHTTPRequestHandler):
             # The page gave up on the file part-way through; there is nobody
             # left to send an error to, so just let the connection go.
             self.close_connection = True
+
+    def _answer_edit_get(self) -> None:
+        """Hand the page its edit token, or the source of one slide.
+
+        `?slide=N` asks for the source; it needs the token, like an edit.
+        """
+        server = cast(_DeckServer, self.server)
+        if server.edit_file is None or not self._same_origin():
+            self._send_json(404, {"error": "This deck cannot be edited."})
+            return
+        query = parse_qs(urlsplit(self.path).query)
+        if "slide" not in query:
+            self._send_json(200, {"token": server.edit_token})
+            return
+        if not secrets.compare_digest(
+            self.headers.get(_EDIT_HEADER, ""), server.edit_token
+        ):
+            self._send_json(403, {"error": "This page may not edit the deck."})
+            return
+        try:
+            text = slide_source(server.edit_file, int(query["slide"][0]))
+        except ValueError:
+            self._send_json(400, {"error": "The slide is not a number."})
+        except EditConflictError as error:
+            self._send_json(409, {"error": error.message})
+        except DeckError as error:
+            self._send_json(422, {"error": error.message})
+        else:
+            self._send_json(200, {"text": text})
 
     def do_POST(self) -> None:  # the name is fixed by http.server
         """Write an edit made on the page into the deck file."""
